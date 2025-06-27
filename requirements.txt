@@ -1,0 +1,7 @@
+dash
+plotly
+pandas
+firebase-admin
+gunicorn
+python-dotenv
+numpy
