@@ -1,31 +1,32 @@
 from dash import dcc, html
 
 layout = html.Div([
-    # Logout button
     html.Div([
-        html.Button("🚪 Cerrar Sesión", id="logout-button",
-                    className="logout-button")
-    ], className="logout-section"),
-
-    html.Div([
-        # Header con logo
+        # Header con logo izquierda + logout derecha
         html.Div([
+            # Logo en la esquina superior izquierda
             html.Div([
                 html.Img(
                     src='/assets/logo.png',
-                    className="header-logo",
-                    alt="Logo"
-                ),
-                html.Span("Panel de Control Corporativo", style={
-                    'fontSize': '48px',
-                    'fontWeight': '700',
-                    'color': 'white',
-                    'verticalAlign': 'middle'
-                })
-            ], className="logo-container"),
-            html.P("Dashboards empresariales en tiempo real",
-                   className="header-subtitle")
-        ], className="header-section"),
+                    className="top-left-logo",
+                    alt="Logo de la empresa"
+                )
+            ], className="logo-left-container"),
+
+            # Título centrado (sin logo arriba)
+            html.Div([
+                html.H1("Panel de Control",
+                        className="main-title"),
+                html.P("Dashboards de Depósito de Medicamentos Emes S.A.S",
+                       className="main-subtitle")
+            ], className="center-title-section"),
+
+            # Logout button en la esquina superior derecha
+            html.Div([
+                html.Button("🚪 Cerrar Sesión", id="logout-button",
+                            className="logout-button")
+            ], className="logout-right-container")
+        ], className="top-header"),
 
         # Dashboard Cards
         html.Div([

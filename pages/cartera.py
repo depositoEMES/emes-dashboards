@@ -23,19 +23,6 @@ layout = html.Div([
         ], style={'width': '60%', 'display': 'inline-block'}),
 
         html.Div([
-            html.Label("Vendedor:", style={
-                       'fontWeight': 'bold', 'marginBottom': '5px', 'fontFamily': 'Arial'}),
-            dcc.Dropdown(
-                id='cartera-dropdown-vendedor',
-                options=[{'label': v, 'value': v}
-                         for v in analyzer.vendedores_list],
-                value='Todos',
-                style={'fontFamily': 'Arial'},
-                className='custom-dropdown'
-            )
-        ], style={'width': '20%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginLeft': '5%'}),
-
-        html.Div([
             html.Button('🌙', id='cartera-theme-toggle', n_clicks=0)
         ], style={'width': '10%', 'display': 'inline-block', 'verticalAlign': 'top', 'textAlign': 'right'})
     ], style={'marginBottom': '30px', 'padding': '20px'}, id='cartera-header-container'),
@@ -219,6 +206,16 @@ layout = html.Div([
 ], style={'fontFamily': 'Arial', 'backgroundColor': '#f5f5f5', 'padding': '20px'}, id='cartera-main-container')
 
 
+# Callback para obtener sesión y determinar vendedor
+@callback(
+    Output('cartera-user-session', 'data'),
+    [Input('session-store', 'data')],  # Escucha la sesión global
+    prevent_initial_call=True
+)
+def update_user_session(session_data):
+    return session_data
+
+
 @callback(
     [Output('cartera-theme-store', 'data'),
      Output('cartera-theme-toggle', 'children'),
@@ -342,16 +339,22 @@ def update_container_styles(theme):
     return chart_style, chart_style, chart_style, chart_style, chart_style, chart_style, config_style
 
 
+# Callback para título (SIN input de dropdown-vendedor)
 @callback(
     Output('cartera-titulo-dashboard', 'children'),
-    [Input('cartera-dropdown-vendedor', 'value'),
-     Input('cartera-theme-store', 'data')]
+    [Input('session-store', 'data')]
 )
-def update_title(vendedor, theme):
-    """Update dashboard title based on selected salesperson."""
-    if vendedor == 'Todos':
+def update_title(session_data):
+    from utils import get_user_vendor_filter, can_see_all_vendors
+
+    if not session_data:
+        return "Dashboard de Cartera"
+
+    if can_see_all_vendors(session_data):
         return "Dashboard de Cartera - Todos los Vendedores"
-    return f"Dashboard de Cartera - {vendedor}"
+    else:
+        vendor = get_user_vendor_filter(session_data)
+        return f"Dashboard de Cartera - {vendor}"
 
 
 @callback(
@@ -363,37 +366,48 @@ def update_title(vendedor, theme):
      Output('cartera-clientes-vencida', 'children'),
      Output('cartera-num-facturas', 'children'),
      Output('cartera-porcentaje-vencida', 'children')],
-    [Input('cartera-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('cartera-btn-actualizar', 'n_clicks')]
 )
-def update_cards(vendedor, n_clicks):
-    """Update summary cards with portfolio statistics."""
-    resumen = analyzer.get_resumen(vendedor)
+def update_cards(session_data, n_clicks):
+    from utils import get_user_vendor_filter
 
-    total_cartera = format_currency_int(resumen['total_cartera'])
-    total_vencida = format_currency_int(resumen['total_vencida'])
-    total_sin_vencer = format_currency_int(resumen['total_sin_vencer'])
-    calidad_cartera = f"{resumen['porcentaje_al_dia']:.1f}%"
-    total_clientes = f"{resumen['num_clientes']:,}"
-    clientes_vencida = f"{resumen['clientes_vencida']:,}"
-    num_facturas = f"{resumen['num_facturas']:,}"
+    try:
+        vendor_filter = get_user_vendor_filter(session_data)
+        resumen = analyzer.get_resumen(vendor_filter)
 
-    porcentaje = (resumen['total_vencida'] / resumen['total_cartera']
-                  * 100) if resumen['total_cartera'] != 0 else 0
-    porcentaje_vencida = f"{porcentaje:.1f}%"
+        total_cartera = format_currency_int(resumen['total_cartera'])
+        total_vencida = format_currency_int(resumen['total_vencida'])
+        total_sin_vencer = format_currency_int(resumen['total_sin_vencer'])
+        calidad_cartera = f"{resumen['porcentaje_al_dia']:.1f}%"
+        total_clientes = f"{resumen['num_clientes']:,}"
+        clientes_vencida = f"{resumen['clientes_vencida']:,}"
+        num_facturas = f"{resumen['num_facturas']:,}"
 
-    return total_cartera, total_vencida, total_sin_vencer, calidad_cartera, total_clientes, clientes_vencida, num_facturas, porcentaje_vencida
+        porcentaje = (resumen['total_vencida'] / resumen['total_cartera']
+                      * 100) if resumen['total_cartera'] != 0 else 0
+        porcentaje_vencida = f"{porcentaje:.1f}%"
+
+        return total_cartera, total_vencida, total_sin_vencer, calidad_cartera, total_clientes, clientes_vencida, num_facturas, porcentaje_vencida
+    except Exception as e:
+        print(f"Error en update_cards: {e}")
+        return "$0", "$0", "$0", "0%", "0", "0", "0", "0%"
 
 
 @callback(
     Output('cartera-grafico-rangos', 'figure'),
-    [Input('cartera-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('cartera-btn-actualizar', 'n_clicks'),
      Input('cartera-theme-store', 'data')]
 )
-def update_rangos(vendedor, n_clicks, theme):
-    """Update overdue ranges chart."""
-    data = analyzer.get_rangos_vencimiento(vendedor)
+def update_rangos(session_data, n_clicks, theme):
+    """
+    Update overdue ranges chart.
+    """
+    from utils import get_user_vendor_filter
+
+    vendor_filter = get_user_vendor_filter(session_data)
+    data = analyzer.get_rangos_vencimiento(vendor_filter)
     theme_styles = get_theme_styles(theme)
 
     if data.empty:
@@ -449,13 +463,18 @@ def update_rangos(vendedor, n_clicks, theme):
 
 @callback(
     Output('cartera-grafico-forma-pago', 'figure'),
-    [Input('cartera-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('cartera-btn-actualizar', 'n_clicks'),
      Input('cartera-theme-store', 'data')]
 )
-def update_forma_pago(vendedor, n_clicks, theme):
-    """Update payment method distribution chart."""
-    data = analyzer.get_forma_pago(vendedor)
+def update_forma_pago(session_data, n_clicks, theme):
+    """
+    Update payment method distribution chart.
+    """
+    from utils import get_user_vendor_filter
+
+    vendor_filter = get_user_vendor_filter(session_data)
+    data = analyzer.get_forma_pago(vendor_filter)
     theme_styles = get_theme_styles(theme)
 
     if data.empty:
@@ -502,13 +521,18 @@ def update_forma_pago(vendedor, n_clicks, theme):
 
 @callback(
     Output('cartera-treemap-cartera', 'figure'),
-    [Input('cartera-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('cartera-btn-actualizar', 'n_clicks'),
      Input('cartera-theme-store', 'data')]
 )
-def update_treemap(vendedor, n_clicks, theme):
-    """Update portfolio treemap with combined client-company names."""
-    data = analyzer.get_treemap_data(vendedor)
+def update_treemap(session_data, n_clicks, theme):
+    """
+    Update portfolio treemap with combined client-company names.
+    """
+    from utils import get_user_vendor_filter
+
+    vendor_filter = get_user_vendor_filter(session_data)
+    data = analyzer.get_treemap_data(vendor_filter)
     theme_styles = get_theme_styles(theme)
 
     if data.empty:
@@ -568,13 +592,19 @@ def update_treemap(vendedor, n_clicks, theme):
 
 @callback(
     Output('cartera-treemap-cartera-vencida', 'figure'),
-    [Input('cartera-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('cartera-btn-actualizar', 'n_clicks'),
      Input('cartera-theme-store', 'data')]
 )
-def update_treemap_vencida(vendedor, n_clicks, theme):
-    """Update overdue portfolio treemap with combined client-company names."""
-    data = analyzer.get_treemap_data_vencida(vendedor)
+def update_treemap_vencida(session_data, n_clicks, theme):
+    """
+    Update overdue portfolio treemap with combined client-company names.
+    """
+    from utils import get_user_vendor_filter
+
+    vendor_filter = get_user_vendor_filter(session_data)
+
+    data = analyzer.get_treemap_data_vencida(vendor_filter)
     theme_styles = get_theme_styles(theme)
 
     if data.empty:
@@ -646,13 +676,19 @@ def update_treemap_vencida(vendedor, n_clicks, theme):
 
 @callback(
     Output('cartera-top-vencida', 'figure'),
-    [Input('cartera-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('cartera-btn-actualizar', 'n_clicks'),
      Input('cartera-theme-store', 'data')]
 )
-def update_top_vencida(vendedor, n_clicks, theme):
-    """Update top overdue customers chart with combined names."""
-    data = analyzer.get_top_clientes('vencida', vendedor)
+def update_top_vencida(session_data, n_clicks, theme):
+    """
+    Update top overdue customers chart with combined names.
+    """
+    from utils import get_user_vendor_filter
+
+    vendor_filter = get_user_vendor_filter(session_data)
+
+    data = analyzer.get_top_clientes('vencida', vendor_filter)
     theme_styles = get_theme_styles(theme)
 
     if data.empty:
@@ -708,13 +744,19 @@ def update_top_vencida(vendedor, n_clicks, theme):
 
 @callback(
     Output('cartera-top-sin-vencer', 'figure'),
-    [Input('cartera-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('cartera-btn-actualizar', 'n_clicks'),
      Input('cartera-theme-store', 'data')]
 )
-def update_top_sin_vencer(vendedor, n_clicks, theme):
-    """Update top current customers chart with combined names."""
-    data = analyzer.get_top_clientes('sin_vencer', vendedor)
+def update_top_sin_vencer(session_data, n_clicks, theme):
+    """
+    Update top current customers chart with combined names.
+    """
+    from utils import get_user_vendor_filter
+
+    vendor_filter = get_user_vendor_filter(session_data)
+
+    data = analyzer.get_top_clientes('sin_vencer', vendor_filter)
     theme_styles = get_theme_styles(theme)
 
     if data.empty:
@@ -771,16 +813,24 @@ def update_top_sin_vencer(vendedor, n_clicks, theme):
     [Output('cartera-grafico-proximos-vencer', 'figure'),
      Output('cartera-tabla-proximos-vencer', 'children')],
     [Input('cartera-slider-dias', 'value'),
-     Input('cartera-dropdown-vendedor', 'value'),
+     Input('session-store', 'data'),
      Input('cartera-theme-store', 'data')]
 )
-def update_proximos_vencer(dias, vendedor, theme):
+def update_proximos_vencer(dias, session_data, theme):
     """
     Update upcoming expiration chart with urgency-based colors and proper sorting.
     """
-    data_agrupados = analyzer.get_documentos_agrupados_por_dias(dias, vendedor)
-    data_documentos_table = analyzer.get_documentos_proximos_vencer(
-        dias, vendedor)
+    from utils import get_user_vendor_filter
+
+    vendor_filter = get_user_vendor_filter(session_data)
+
+    data_agrupados = \
+        analyzer.get_documentos_agrupados_por_dias(dias, vendor_filter)
+    data_documentos_table = \
+        analyzer.get_documentos_proximos_vencer(
+            dias,
+            vendor_filter
+        )
     theme_styles = get_theme_styles(theme)
 
     # Chart with urgency-based colors and proper stacking

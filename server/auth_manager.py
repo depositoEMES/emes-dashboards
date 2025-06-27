@@ -22,7 +22,7 @@ class AuthManager:
 
             # Buscar usuario
             for user_id, user_data in accounts.items():
-                stored_username = user_data.get('email', '')
+                stored_username = user_data.get('username', '')
                 stored_password = user_data.get('password', '')
 
                 if stored_username == username:
@@ -35,9 +35,9 @@ class AuthManager:
                                     'user_id': user_id,
                                     'username': username,
                                     'role': user_data.get('role', 'user'),
-                                    # user_data.get('permissions', []),
                                     'permissions': ['cartera', 'ventas'],
-                                    'full_name': user_data.get('full_name', username)
+                                    'full_name': user_data.get('full_name', username),
+                                    'seller': user_data.get('seller', 'Todos')
                                 }
                             )
 

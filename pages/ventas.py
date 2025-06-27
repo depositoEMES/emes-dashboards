@@ -133,19 +133,6 @@ layout = html.Div([
         ], style={'width': '50%', 'display': 'inline-block'}),
 
         html.Div([
-            html.Label("Vendedor:", style={
-                       'fontWeight': 'bold', 'marginBottom': '5px', 'fontFamily': 'Arial'}),
-            dcc.Dropdown(
-                id='ventas-dropdown-vendedor',
-                options=[{'label': v, 'value': v}
-                         for v in analyzer.vendedores_list],
-                value='Todos',
-                style={'fontFamily': 'Arial'},
-                className='custom-dropdown'
-            )
-        ], style={'width': '20%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginLeft': '2%'}),
-
-        html.Div([
             html.Label("Mes:", style={
                        'fontWeight': 'bold', 'marginBottom': '5px', 'fontFamily': 'Arial'}),
             dcc.Dropdown(
@@ -409,6 +396,15 @@ layout = html.Div([
 
 
 @callback(
+    Output('ventas-user-session', 'data'),
+    [Input('session-store', 'data')],
+    prevent_initial_call=True
+)
+def update_user_session(session_data):
+    return session_data
+
+
+@callback(
     [Output('ventas-theme-store', 'data'),
      Output('ventas-theme-toggle', 'children'),
      Output('ventas-main-container', 'style'),
@@ -417,7 +413,9 @@ layout = html.Div([
     [State('ventas-theme-store', 'data')]
 )
 def toggle_theme(n_clicks, current_theme):
-    """Toggle between light and dark themes."""
+    """
+    Toggle between light and dark themes.
+    """
     if n_clicks % 2 == 1:
         new_theme = 'dark'
         icon = '☀️'
@@ -447,18 +445,18 @@ def toggle_theme(n_clicks, current_theme):
 
 
 @callback(
-    [Output('ventas-dropdown-vendedor', 'style'),
-     Output('ventas-dropdown-mes', 'style'),
+    [Output('ventas-dropdown-mes', 'style'),
      Output('ventas-dropdown-cliente', 'style'),
      Output('ventas-dropdown-vista-recaudo', 'style'),
-     Output('ventas-dropdown-vendedor', 'className'),
      Output('ventas-dropdown-mes', 'className'),
      Output('ventas-dropdown-cliente', 'className'),
      Output('ventas-dropdown-vista-recaudo', 'className')],
     [Input('ventas-theme-store', 'data')]
 )
 def update_dropdown_styles(theme):
-    """Update dropdown styles based on theme."""
+    """
+    Update dropdown styles based on theme.
+    """
     dropdown_style = get_dropdown_style(theme)
     dropdown_style['fontFamily'] = 'Arial'
 
@@ -468,9 +466,7 @@ def update_dropdown_styles(theme):
     # CSS class for dark theme
     css_class = 'dash-dropdown dark-theme' if theme == 'dark' else 'dash-dropdown'
 
-    return dropdown_style, dropdown_style, dropdown_style, vista_style, css_class, css_class, css_class, css_class
-
-# Card styles callback
+    return dropdown_style, dropdown_style, vista_style, css_class, css_class, css_class
 
 
 @callback(
@@ -528,13 +524,17 @@ def update_container_styles(theme):
     [Output('ventas-container-vendedor', 'style'),
      Output('ventas-vista-recaudo-container', 'style'),
      Output('ventas-titulo-recaudo-temporal', 'children')],
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('ventas-dropdown-vista-recaudo', 'value')]
 )
-def update_recaudo_visibility(vendedor, vista_recaudo):
+def update_recaudo_visibility(session_data, vista_recaudo):
     """
     Show/hide recaudo components based on vendor selection.
     """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
+
     if vendedor == 'Todos':
         # Show vendor chart and vista selector
         vendor_style = {'width': '100%',
@@ -554,21 +554,23 @@ def update_recaudo_visibility(vendedor, vista_recaudo):
 
 @callback(
     Output('ventas-titulo-dashboard', 'children'),
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('ventas-dropdown-mes', 'value')]
 )
-def update_title(vendedor, mes):
-    """Update dashboard title based on filters."""
-    title = "Dashboard de Ventas"
-    if vendedor != 'Todos' and mes != 'Todos':
-        title += f" - {vendedor} - {mes}"
-    elif vendedor != 'Todos':
-        title += f" - {vendedor}"
-    elif mes != 'Todos':
-        title += f" - {mes}"
+def update_title(session_data, mes):
+    """
+    Update dashboard title based on filters.
+    """
+    from utils import get_user_vendor_filter, can_see_all_vendors
+
+    if not session_data:
+        return "Dashboard de Cartera"
+
+    if can_see_all_vendors(session_data):
+        return "Dashboard de Cartera - Todos los Vendedores"
     else:
-        title += " - Todos los Vendedores"
-    return title
+        vendor = get_user_vendor_filter(session_data)
+        return f"Dashboard de Cartera - {vendor}"
 
 
 @callback(
@@ -578,13 +580,18 @@ def update_title(vendedor, mes):
      Output('ventas-num-facturas',
             'children'), Output('ventas-num-clientes', 'children'),
      Output('ventas-total-descuentos', 'children'), Output('ventas-porcentaje-descuento', 'children')],
-    [Input('ventas-dropdown-vendedor', 'value'), Input('ventas-dropdown-mes',
-                                                       'value'), Input('ventas-btn-actualizar', 'n_clicks')]
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-btn-actualizar', 'n_clicks')]
 )
-def update_cards(vendedor, mes, n_clicks):
+def update_cards(session_data, mes, n_clicks):
     """
     Update summary cards with sales statistics - MODIFICADO: Sin Ventas Totales, con # Devoluciones.
     """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
+
     resumen = analyzer.get_resumen_ventas(vendedor, mes)
 
     return (
@@ -601,13 +608,17 @@ def update_cards(vendedor, mes, n_clicks):
 
 @callback(
     Output('ventas-grafico-ventas-mes', 'figure'),
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_ventas_mes(vendedor, theme):
+def update_ventas_mes(session_data, theme):
     """
     Update monthly sales evolution chart.
     """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
+
     data = analyzer.get_ventas_por_mes(vendedor)
     theme_styles = get_theme_styles(theme)
 
@@ -666,11 +677,17 @@ def update_ventas_mes(vendedor, theme):
 
 @callback(
     Output('ventas-grafico-estacionalidad', 'figure'),
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('ventas-dropdown-mes', 'value'), Input('ventas-theme-store', 'data')]
 )
-def update_estacionalidad(vendedor, mes, theme):
-    """Update seasonality chart by day of week."""
+def update_estacionalidad(session_data, mes, theme):
+    """
+    Update seasonality chart by day of week.
+    """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
+
     data = analyzer.get_ventas_por_dia_semana(vendedor, mes)
     theme_styles = get_theme_styles(theme)
 
@@ -728,15 +745,102 @@ def update_estacionalidad(vendedor, mes, theme):
 
 
 # NUEVO CALLBACK: Treemap de días sin venta
+# @callback(
+#     Output('ventas-treemap-dias-sin-venta', 'figure'),
+#     [Input('session-store', 'data'),
+#      Input('ventas-theme-store', 'data')]
+# )
+# def update_treemap_dias_sin_venta(session_data, theme):
+#     """
+#     Update days without sales treemap.
+#     """
+#     from utils import get_user_vendor_filter
+
+#     vendedor = get_user_vendor_filter(session_data)
+
+#     data = analyzer.get_dias_sin_venta_por_cliente(vendedor)
+#     theme_styles = get_theme_styles(theme)
+
+#     if data.empty:
+#         fig = go.Figure()
+#         fig.add_annotation(
+#             text="No hay clientes sin ventas recientes",
+#             xref="paper", yref="paper",
+#             x=0.5, y=0.5, xanchor='center', yanchor='middle',
+#             showarrow=False,
+#             font=dict(size=16, color=theme_styles['text_color'])
+#         )
+#         fig.update_layout(height=500, paper_bgcolor=theme_styles['plot_bg'])
+#         return fig
+
+#     # Create labels with client name and days
+#     labels = [f"{cliente}<br>{dias} días" for cliente, dias in
+#               zip(data['cliente_completo'], data['dias_sin_venta'])]
+
+#     # Format dates safely
+#     fechas_formatted = []
+
+#     for fecha in data['fecha']:
+#         try:
+#             if pd.isna(fecha):
+#                 fechas_formatted.append("Sin fecha")
+#             else:
+#                 fechas_formatted.append(
+#                     pd.to_datetime(fecha).strftime('%Y-%m-%d'))
+#         except:
+#             fechas_formatted.append("Sin fecha")
+
+#     # Create treemap with different colors based on days range
+#     fig = go.Figure(go.Treemap(
+#         labels=labels,
+#         values=data['valor_neto'],  # Size by historical sales volume
+#         parents=[""] * len(data),
+#         texttemplate="<b>%{label}</b><br>Ventas: %{customdata}",
+#         hovertemplate="<b>%{text}</b><br>" +
+#                      "Días sin venta: %{customdata[0]}<br>" +
+#                      "Ventas históricas: %{customdata[1]}<br>" +
+#                      "Última venta: %{customdata[2]}<br>" +
+#                      "<extra></extra>",
+#         text=[cliente[:60] + "..." if len(cliente) > 60 else cliente
+#               for cliente in data['cliente_completo']],
+#         customdata=[[dias, format_currency_int(ventas), fecha_str]
+#                     for dias, ventas, fecha_str in zip(
+#             data['dias_sin_venta'],
+#             data['valor_neto'],
+#             fechas_formatted)],
+#         marker=dict(
+#             colors=data['dias_sin_venta'],  # Color by days without sales
+#             colorscale='RdYlBu_r',  # Red to Blue, reversed (red = more days)
+#             colorbar=dict(title="Días sin venta"),
+#             line=dict(width=2, color='white'),
+#             cmin=data['dias_sin_venta'].min(),
+#             cmax=data['dias_sin_venta'].max()
+#         ),
+#         textfont=dict(size=10, color='white')
+#     ))
+
+#     fig.update_layout(
+#         height=500,
+#         font=dict(family="Arial", size=12, color=theme_styles['text_color']),
+#         plot_bgcolor=theme_styles['plot_bg'],
+#         paper_bgcolor=theme_styles['plot_bg'],
+#         margin=dict(t=0, b=0, l=0, r=0)
+#     )
+
+#     return fig
+
 @callback(
     Output('ventas-treemap-dias-sin-venta', 'figure'),
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_treemap_dias_sin_venta(vendedor, theme):
+def update_treemap_dias_sin_venta(session_data, theme):
     """
     Update days without sales treemap.
     """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
     data = analyzer.get_dias_sin_venta_por_cliente(vendedor)
     theme_styles = get_theme_styles(theme)
 
@@ -758,7 +862,6 @@ def update_treemap_dias_sin_venta(vendedor, theme):
 
     # Format dates safely
     fechas_formatted = []
-
     for fecha in data['fecha']:
         try:
             if pd.isna(fecha):
@@ -769,22 +872,22 @@ def update_treemap_dias_sin_venta(vendedor, theme):
         except:
             fechas_formatted.append("Sin fecha")
 
-    # Create treemap with different colors based on days range
+    # Create treemap with size based on days without sales (CORREGIDO)
     fig = go.Figure(go.Treemap(
         labels=labels,
-        values=data['valor_neto'],  # Size by historical sales volume
+        values=data['dias_sin_venta'],  # CAMBIO: Tamaño por días sin venta
         parents=[""] * len(data),
         texttemplate="<b>%{label}</b><br>Ventas: %{customdata}",
         hovertemplate="<b>%{text}</b><br>" +
-                     "Días sin venta: %{customdata[0]}<br>" +
-                     "Ventas históricas: %{customdata[1]}<br>" +
-                     "Última venta: %{customdata[2]}<br>" +
+                     # CAMBIO: %{value} ahora son los días
+                     "Días sin venta: %{value}<br>" +
+                     "Ventas históricas: %{customdata[0]}<br>" +
+                     "Última venta: %{customdata[1]}<br>" +
                      "<extra></extra>",
-        text=[cliente[:60] + "..." if len(cliente) > 60 else cliente
+        text=[cliente[:40] + "..." if len(cliente) > 40 else cliente
               for cliente in data['cliente_completo']],
-        customdata=[[dias, format_currency_int(ventas), fecha_str]
-                    for dias, ventas, fecha_str in zip(
-            data['dias_sin_venta'],
+        customdata=[[format_currency_int(ventas), fecha_str]
+                    for ventas, fecha_str in zip(
             data['valor_neto'],
             fechas_formatted)],
         marker=dict(
@@ -811,11 +914,16 @@ def update_treemap_dias_sin_venta(vendedor, theme):
 
 @callback(
     Output('ventas-grafico-zona', 'figure'),
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('ventas-dropdown-mes', 'value'), Input('ventas-theme-store', 'data')]
 )
-def update_zona(vendedor, mes, theme):
-    """Update sales by zone chart."""
+def update_zona(session_data, mes, theme):
+    """
+    Update sales by zone chart.
+    """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
     data = analyzer.get_ventas_por_zona(vendedor, mes)
     theme_styles = get_theme_styles(theme)
 
@@ -854,11 +962,16 @@ def update_zona(vendedor, mes, theme):
 
 @callback(
     Output('ventas-grafico-forma-pago', 'figure'),
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('ventas-dropdown-mes', 'value'), Input('ventas-theme-store', 'data')]
 )
-def update_forma_pago(vendedor, mes, theme):
-    """Update payment method chart."""
+def update_forma_pago(session_data, mes, theme):
+    """
+    Update payment method chart.
+    """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
     data = analyzer.get_forma_pago_distribution(vendedor, mes)
     theme_styles = get_theme_styles(theme)
 
@@ -896,11 +1009,17 @@ def update_forma_pago(vendedor, mes, theme):
 
 @callback(
     Output('ventas-treemap-ventas', 'figure'),
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('ventas-dropdown-mes', 'value'), Input('ventas-theme-store', 'data')]
 )
-def update_treemap(vendedor, mes, theme):
-    """Update sales treemap."""
+def update_treemap(session_data, mes, theme):
+    """
+    Update sales treemap.
+    """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
+
     data = analyzer.get_treemap_data(vendedor, mes)
     theme_styles = get_theme_styles(theme)
 
@@ -936,13 +1055,16 @@ def update_treemap(vendedor, mes, theme):
 
 @callback(
     Output('ventas-top-clientes', 'figure'),
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('ventas-dropdown-mes', 'value'), Input('ventas-theme-store', 'data')]
 )
-def update_top_clientes(vendedor, mes, theme):
+def update_top_clientes(session_data, mes, theme):
     """
     Update top customers chart.
     """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
     data = analyzer.get_top_clientes(vendedor, mes)
     theme_styles = get_theme_styles(theme)
 
@@ -1000,35 +1122,20 @@ def update_top_clientes(vendedor, mes, theme):
     return fig
 
 
-# Callback para actualizar lista de clientes
-@callback(
-    Output('ventas-dropdown-cliente', 'options'),
-    [Input('ventas-dropdown-vendedor', 'value')]
-)
-def update_clientes_dropdown(vendedor):
-    """Update client dropdown based on selected salesperson."""
-    clientes = analyzer.get_clientes_list(vendedor)
-    return [{'label': cliente, 'value': cliente} for cliente in clientes]
-
-# Callback para limpiar selección de cliente cuando cambia vendedor
-
-
-@callback(
-    Output('ventas-dropdown-cliente', 'value'),
-    [Input('ventas-dropdown-vendedor', 'value')]
-)
-def reset_cliente_selection(vendedor):
-    """Reset client selection when salesperson changes."""
-    return 'Seleccione un cliente'
-
-
 @callback(
     Output('ventas-grafico-evolucion-cliente', 'figure'),
     [Input('ventas-dropdown-cliente', 'value'),
-     Input('ventas-dropdown-vendedor', 'value'), Input('ventas-theme-store', 'data')]
+     Input('session-store', 'data'),
+     Input('ventas-theme-store', 'data')]
 )
-def update_evolucion_cliente(cliente, vendedor, theme):
-    """Update client evolution chart - now showing daily sales."""
+def update_evolucion_cliente(cliente, session_data, theme):
+    """
+    Update client evolution chart - now showing daily sales.
+    """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
+
     data = analyzer.get_evolucion_cliente(cliente, vendedor)
     theme_styles = get_theme_styles(theme)
 
@@ -1107,11 +1214,17 @@ def update_evolucion_cliente(cliente, vendedor, theme):
 
 @callback(
     Output('ventas-treemap-acumuladas', 'figure'),
-    [Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-dropdown-mes', 'value'), Input('ventas-theme-store', 'data')]
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-theme-store', 'data')]
 )
-def update_treemap_acumuladas(vendedor, mes, theme):
-    """Update accumulated sales treemap."""
+def update_treemap_acumuladas(session_data, mes, theme):
+    """
+    Update accumulated sales treemap.
+    """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
     data = analyzer.get_ventas_acumuladas_mes(mes, vendedor)
     theme_styles = get_theme_styles(theme)
 
@@ -1158,27 +1271,40 @@ def update_treemap_acumuladas(vendedor, mes, theme):
 
 @callback(
     Output('ventas-total-recaudo-titulo', 'children'),
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('ventas-dropdown-mes', 'value')]
 )
-def update_titulo_recaudo(vendedor, mes):
-    """Update collection title with total amount."""
+def update_titulo_recaudo(session_data, mes):
+    """
+    Update collection title with total amount.
+    """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
     total_recaudo = analyzer.get_resumen_recaudo(vendedor, mes)
     periodo_text = f" - {vendedor}" if vendedor != 'Todos' else ""
     mes_text = f" - {mes}" if mes != 'Todos' else ""
-    return f"Recaudo Total{periodo_text}{mes_text}: {format_currency_int(total_recaudo)}"
+
+    return \
+        f"Recaudo Total{periodo_text}{mes_text}: {format_currency_int(total_recaudo)}"
 
 
 # CALLBACK MODIFICADO: Clientes impactados con barras horizontales
 @callback(
     Output('ventas-grafico-clientes-impactados', 'figure'),
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_clientes_impactados(vendedor, theme):
-    """Update clients impacted chart with horizontal bars and total clients bar."""
-    data, porcentaje_promedio, total_clientes = analyzer.get_clientes_impactados_por_periodo(
-        vendedor)
+def update_clientes_impactados(session_data, theme):
+    """
+    Update clients impacted chart with horizontal bars and total clients bar.
+    """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
+
+    data, porcentaje_promedio, total_clientes = \
+        analyzer.get_clientes_impactados_por_periodo(vendedor)
     theme_styles = get_theme_styles(theme)
 
     if data.empty:
@@ -1263,13 +1389,16 @@ def update_clientes_impactados(vendedor, theme):
 
 @callback(
     Output('ventas-tabla-convenios', 'children'),
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
      Input('ventas-dropdown-mes', 'value'), Input('ventas-theme-store', 'data')]
 )
-def update_tabla_convenios(vendedor, mes, theme):
+def update_tabla_convenios(session_data, mes, theme):
     """
     Update convenios analysis table with enhanced design and expected sales.
     """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
     data = analyzer.get_analisis_convenios(vendedor, mes)
     theme_styles = get_theme_styles(theme)
 
@@ -1538,13 +1667,17 @@ def update_grafico_recaudo_vendedor(mes, theme):
 
 @callback(
     Output('ventas-grafico-recaudo-temporal', 'figure'),
-    [Input('ventas-dropdown-vendedor', 'value'), Input('ventas-dropdown-vista-recaudo', 'value'),
+    [Input('session-store', 'data'), Input('ventas-dropdown-vista-recaudo', 'value'),
      Input('ventas-dropdown-mes', 'value'), Input('ventas-theme-store', 'data')]
 )
-def update_grafico_recaudo_temporal(vendedor, vista_recaudo, mes, theme):
+def update_grafico_recaudo_temporal(session_data, vista_recaudo, mes, theme):
     """
     Update temporal recaudo chart.
     """
+    from utils import get_user_vendor_filter
+
+    vendedor = get_user_vendor_filter(session_data)
+
     theme_styles = get_theme_styles(theme)
 
     # Get data based on view type

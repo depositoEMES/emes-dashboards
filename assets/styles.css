@@ -1,4 +1,4 @@
-/* assets/styles.css - TEMA AZUL CORPORATIVO COMPLETO */
+/* assets/styles.css - TEMA AZUL CORPORATIVO COMPLETO - VERSIÓN MEJORADA */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 /* ============= VARIABLES GLOBALES ============= */
@@ -81,7 +81,390 @@ body {
     background: var(--gray-500);
 }
 
-/* ============= LOGIN STYLES ============= */
+/* ============= HEADER TOP CON LOGO MEJORADO ============= */
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 25px 40px;
+    /* background: rgba(255, 255, 255, 0.1); */
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    margin-bottom: 30px;
+    /* border: 1px solid rgba(255, 255, 255, 0.2); */
+    /* box-shadow: var(--shadow-lg); */
+    position: relative;
+    overflow: hidden;
+}
+
+/* Efecto de brillo sutil en el header */
+.top-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    animation: headerShine 6s infinite;
+}
+
+@keyframes headerShine {
+    0% {
+        left: -100%;
+    }
+
+    50% {
+        left: 100%;
+    }
+
+    100% {
+        left: 100%;
+    }
+}
+
+/* ============= CONTENEDOR DEL LOGO IZQUIERDA - MEJORADO ============= */
+.logo-left-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 10;
+}
+
+/* LOGO PRINCIPAL - MÁS GRANDE Y LLAMATIVO */
+.top-left-logo {
+    max-width: 180px;
+    /* Aumentado de 120px a 180px */
+    height: auto;
+    position: relative;
+    transition: all var(--transition-normal);
+    cursor: pointer;
+
+    /* Efectos visuales avanzados */
+    filter:
+        drop-shadow(0 8px 25px rgba(30, 58, 138, 0.4)) drop-shadow(0 0 30px rgba(59, 130, 246, 0.3)) brightness(1.1) contrast(1.1);
+
+    /* Animación continua */
+    animation: logoBreath 4s ease-in-out infinite;
+}
+
+/* Animación de "respiración" del logo */
+@keyframes logoBreath {
+
+    0%,
+    100% {
+        transform: scale(1) rotate(0deg);
+        filter:
+            drop-shadow(0 8px 25px rgba(30, 58, 138, 0.4)) drop-shadow(0 0 30px rgba(59, 130, 246, 0.3)) brightness(1.1);
+    }
+
+    50% {
+        transform: scale(1.05) rotate(1deg);
+        filter:
+            drop-shadow(0 12px 35px rgba(30, 58, 138, 0.5)) drop-shadow(0 0 40px rgba(59, 130, 246, 0.4)) brightness(1.15);
+    }
+}
+
+/* Efecto hover más dramático */
+.top-left-logo:hover {
+    transform: scale(1.1) rotate(3deg) translateY(-5px);
+    filter:
+        drop-shadow(0 15px 45px rgba(30, 58, 138, 0.6)) drop-shadow(0 0 50px rgba(59, 130, 246, 0.5)) brightness(1.2) contrast(1.15);
+    animation-play-state: paused;
+}
+
+/* Efecto de halo brillante alrededor del logo */
+.logo-left-container::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 220px;
+    height: 220px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(30, 58, 138, 0.1) 40%, transparent 70%);
+    border-radius: 50%;
+    z-index: -1;
+    animation: logoHalo 3s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes logoHalo {
+
+    0%,
+    100% {
+        opacity: 0.6;
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    50% {
+        opacity: 0.9;
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+}
+
+/* Partículas flotantes alrededor del logo */
+.logo-left-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="1" fill="rgba(59,130,246,0.6)"><animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite"/></circle><circle cx="80" cy="30" r="0.8" fill="rgba(30,58,138,0.5)"><animate attributeName="opacity" values="0;1;0" dur="2.5s" repeatCount="indefinite" begin="0.5s"/></circle><circle cx="60" cy="70" r="1.2" fill="rgba(96,165,250,0.7)"><animate attributeName="opacity" values="0;1;0" dur="3s" repeatCount="indefinite" begin="1s"/></circle></svg>') no-repeat center;
+    background-size: contain;
+    opacity: 0.8;
+    animation: particleFloat 6s ease-in-out infinite;
+    pointer-events: none;
+    z-index: -1;
+}
+
+@keyframes particleFloat {
+
+    0%,
+    100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+
+    33% {
+        transform: translateY(-10px) rotate(120deg);
+    }
+
+    66% {
+        transform: translateY(5px) rotate(240deg);
+    }
+}
+
+/* ============= TÍTULO CENTRADO MEJORADO ============= */
+.center-title-section {
+    text-align: center;
+    flex: 1;
+    margin: 0 20px;
+    position: relative;
+}
+
+.main-title {
+    font-size: 48px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #ffffff, var(--very-light-blue), #60a5fa);
+    background-size: 200% 200%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    text-shadow: 0 2px 20px rgba(255, 255, 255, 0.1);
+    letter-spacing: -0.025em;
+    animation: titleGradient 4s ease-in-out infinite;
+}
+
+@keyframes titleGradient {
+
+    0%,
+    100% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+.main-subtitle {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 400;
+    margin-bottom: 0;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* ============= LOGOUT BUTTON MEJORADO ============= */
+.logout-right-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 10;
+}
+
+.logout-button {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(220, 38, 38, 0.9));
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    backdrop-filter: blur(10px);
+    font-family: 'Inter', sans-serif;
+    box-shadow:
+        0 4px 15px rgba(239, 68, 68, 0.3),
+        0 0 20px rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.logout-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: var(--transition-slow);
+}
+
+.logout-button:hover::before {
+    left: 100%;
+}
+
+.logout-button:hover {
+    background: linear-gradient(135deg, var(--error), #dc2626);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow:
+        0 8px 25px rgba(239, 68, 68, 0.4),
+        0 0 30px rgba(239, 68, 68, 0.3);
+}
+
+/* ============= RESPONSIVIDAD MEJORADA ============= */
+@media (max-width: 1200px) {
+    .top-left-logo {
+        max-width: 160px;
+    }
+
+    .main-title {
+        font-size: 42px;
+    }
+
+    .top-header {
+        padding: 20px 30px;
+    }
+}
+
+@media (max-width: 992px) {
+    .top-left-logo {
+        max-width: 140px;
+    }
+
+    .main-title {
+        font-size: 36px;
+    }
+
+    .main-subtitle {
+        font-size: 15px;
+    }
+
+    .top-header {
+        padding: 18px 25px;
+    }
+
+    .logo-left-container::before {
+        width: 180px;
+        height: 180px;
+    }
+}
+
+@media (max-width: 768px) {
+    .top-header {
+        flex-direction: column;
+        gap: 20px;
+        padding: 25px 20px;
+        text-align: center;
+    }
+
+    .logo-left-container {
+        order: 1;
+        justify-content: center;
+    }
+
+    .center-title-section {
+        order: 2;
+        margin: 0;
+    }
+
+    .logout-right-container {
+        order: 3;
+        justify-content: center;
+    }
+
+    .top-left-logo {
+        max-width: 160px;
+    }
+
+    .main-title {
+        font-size: 32px;
+        margin-bottom: 10px;
+    }
+
+    .main-subtitle {
+        font-size: 14px;
+    }
+
+    .logout-button {
+        padding: 12px 24px;
+        font-size: 13px;
+    }
+
+    .logo-left-container::before {
+        width: 200px;
+        height: 200px;
+    }
+}
+
+@media (max-width: 576px) {
+    .top-header {
+        padding: 20px 15px;
+        margin-bottom: 20px;
+        border-radius: 16px;
+    }
+
+    .top-left-logo {
+        max-width: 140px;
+    }
+
+    .main-title {
+        font-size: 28px;
+        line-height: 1.2;
+    }
+
+    .main-subtitle {
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .logout-button {
+        padding: 10px 20px;
+        font-size: 12px;
+    }
+
+    .logo-left-container::before {
+        width: 170px;
+        height: 170px;
+    }
+}
+
+@media (max-width: 480px) {
+    .top-left-logo {
+        max-width: 120px;
+    }
+
+    .main-title {
+        font-size: 24px;
+    }
+
+    .main-subtitle {
+        font-size: 12px;
+    }
+
+    .top-header {
+        padding: 18px 12px;
+    }
+}
+
+/* ============= RESTO DEL CSS ORIGINAL (SIN CAMBIOS) ============= */
+/* LOGIN STYLES */
 .login-container {
     min-height: 100vh;
     background: var(--gradient-background);
@@ -107,6 +490,52 @@ body {
     100% {
         background-position: 0% 50%;
     }
+}
+
+.main-logo-container {
+    text-align: center;
+    margin-bottom: 2px;
+    animation: logoFloat 3s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+.main-company-logo {
+    max-width: 200px;
+    height: auto;
+    filter: drop-shadow(0 8px 16px rgba(30, 58, 138, 0.3));
+    transition: var(--transition-normal);
+    animation: logoGlow 4s ease-in-out infinite alternate;
+}
+
+@keyframes logoGlow {
+    from {
+        filter: drop-shadow(0 8px 16px rgba(30, 58, 138, 0.3));
+    }
+
+    to {
+        filter: drop-shadow(0 12px 24px rgba(59, 130, 246, 0.5));
+    }
+}
+
+.main-company-logo:hover {
+    transform: scale(1.05);
+    filter: drop-shadow(0 15px 30px rgba(30, 58, 138, 0.4));
+}
+
+.title-section {
+    text-align: center;
+    margin-top: 0;
 }
 
 .login-container::before {
@@ -285,7 +714,7 @@ body {
     padding: 18px 18px 18px 55px;
     border: 2px solid var(--gray-200);
     border-radius: 16px;
-    background: rgba(248, 250, 252, 0.8);
+    background: white;
     color: var(--gray-800);
     font-size: 16px;
     font-weight: 400;
@@ -300,13 +729,13 @@ body {
 
 .login-input:focus {
     border-color: var(--secondary-blue);
-    background: white;
+    background: var(--gray-500);
     transform: translateY(-2px);
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1), var(--shadow-lg);
 }
 
 .login-input:focus+.input-icon {
-    color: var(--primary-blue);
+    color: var(--secondary-blue);
     transform: translateY(-50%) scale(1.1);
 }
 
@@ -386,78 +815,12 @@ body {
     color: var(--error);
 }
 
-/* ============= DASHBOARD HOME STYLES ============= */
+/* DASHBOARD HOME STYLES */
 .dashboard-container {
     min-height: 100vh;
     background: var(--gradient-background);
     padding: 40px 20px;
     font-family: 'Inter', sans-serif;
-}
-
-.logout-section {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-}
-
-.logout-button {
-    background: rgba(239, 68, 68, 0.9);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: var(--transition-normal);
-    backdrop-filter: blur(10px);
-    font-family: 'Inter', sans-serif;
-    box-shadow: var(--shadow-md);
-}
-
-.logout-button:hover {
-    background: var(--error);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-.header-section {
-    text-align: center;
-    margin-bottom: 50px;
-    color: white;
-}
-
-.logo-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 30px;
-    gap: 15px;
-}
-
-.header-logo {
-    max-width: 80px;
-    height: auto;
-    filter: drop-shadow(0 4px 8px rgba(255, 255, 255, 0.2));
-}
-
-.header-title {
-    font-size: 48px;
-    font-weight: 800;
-    margin-bottom: 10px;
-    background: linear-gradient(135deg, #ffffff, var(--very-light-blue));
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    text-shadow: 0 2px 20px rgba(255, 255, 255, 0.1);
-    letter-spacing: -0.025em;
-}
-
-.header-subtitle {
-    font-size: 18px;
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: 400;
 }
 
 .dashboards-grid {
@@ -624,7 +987,7 @@ body {
     font-weight: 500;
 }
 
-/* ============= DASHBOARD PAGES COMMON ============= */
+/* DASHBOARD PAGES COMMON */
 .page-header {
     background: white;
     border-radius: 16px;
@@ -646,7 +1009,6 @@ body {
     font-size: 16px;
 }
 
-/* Cards en dashboards */
 .metric-card {
     background: white;
     border-radius: 12px;
@@ -675,7 +1037,6 @@ body {
     font-weight: 500;
 }
 
-/* Dropdowns y controles */
 .custom-dropdown .Select-control {
     border: 2px solid var(--gray-200) !important;
     border-radius: 8px !important;
@@ -692,37 +1053,15 @@ body {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
 }
 
-/* ============= RESPONSIVE DESIGN ============= */
+/* RESPONSIVIDAD PARA DASHBOARDS */
 @media (max-width: 1024px) {
     .dashboards-grid {
         grid-template-columns: 1fr;
         max-width: 600px;
     }
-
-    .header-title {
-        font-size: 40px;
-    }
 }
 
 @media (max-width: 768px) {
-    .login-card {
-        width: 90%;
-        padding: 40px 30px;
-        margin: 20px;
-    }
-
-    .header-title {
-        font-size: 32px;
-    }
-
-    .company-logo {
-        max-width: 100px;
-    }
-
-    .header-logo {
-        max-width: 60px;
-    }
-
     .dashboard-card {
         padding: 30px 25px;
     }
@@ -731,33 +1070,14 @@ body {
         font-size: 48px;
     }
 
-    .logout-section {
-        position: relative;
-        top: auto;
-        right: auto;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 
 @media (max-width: 480px) {
-
-    .login-input,
-    .login-button {
-        padding: 16px;
-        font-size: 14px;
-    }
-
     .stats-grid {
         grid-template-columns: 1fr;
-    }
-
-    .header-title {
-        font-size: 28px;
     }
 
     .dashboard-container {
@@ -765,7 +1085,7 @@ body {
     }
 }
 
-/* ============= UTILIDADES ============= */
+/* UTILIDADES */
 .text-primary {
     color: var(--primary-blue);
 }
@@ -814,7 +1134,7 @@ body {
     }
 }
 
-/* ============= DARK MODE SUPPORT ============= */
+/* DARK MODE SUPPORT */
 @media (prefers-color-scheme: dark) {
     .login-card {
         background: rgba(30, 41, 59, 0.95);
