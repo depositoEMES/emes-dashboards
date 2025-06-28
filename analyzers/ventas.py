@@ -82,7 +82,7 @@ class VentasAnalyzer:
 
         # Calculate net value (valor_bruto - descuento)
         self.df_ventas['valor_neto'] = self.df_ventas['valor_bruto'] - \
-            abs(self.df_ventas['descuento'])
+            self.df_ventas['descuento']
 
         # Create combined client name
         self.df_ventas['cliente_completo'] = self.df_ventas.apply(
@@ -131,7 +131,7 @@ class VentasAnalyzer:
         total_devoluciones = abs(devoluciones['valor_neto'].sum())
         total_notas_credito = abs(notas_credito['valor_neto'].sum())
 
-        ventas_netas = total_ventas - total_devoluciones - total_notas_credito
+        ventas_netas = total_ventas
 
         return {
             'total_ventas': total_ventas,
