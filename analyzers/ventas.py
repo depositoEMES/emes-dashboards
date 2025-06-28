@@ -131,7 +131,7 @@ class VentasAnalyzer:
         total_devoluciones = abs(devoluciones['valor_neto'].sum())
         total_notas_credito = abs(notas_credito['valor_neto'].sum())
 
-        ventas_netas = total_ventas
+        ventas_netas = total_ventas - total_devoluciones
 
         return {
             'total_ventas': total_ventas,
