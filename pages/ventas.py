@@ -1,7 +1,11 @@
+import math
+import numpy as np
+
 import dash
 from dash import dcc, html, Input, Output, State, callback
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import pandas as pd
 
 from analyzers import VentasAnalyzer
@@ -190,13 +194,22 @@ layout = html.Div([
         # Primera fila de cards
         html.Div([
             html.Div([
+                html.H3("Ventas Totales", style={
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                html.H2(id='ventas-ventas-totales', children="$0", style={'color': '#2ecc71',
+                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
+                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
+                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-1'),
+
+            html.Div([
                 html.H3("Ventas Netas", style={
                         'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
                 html.H2(id='ventas-ventas-netas', children="$0", style={'color': '#2ecc71',
                         'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-1'),
+                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-2'),
 
             html.Div([
                 html.H3("Devoluciones", style={
@@ -205,46 +218,7 @@ layout = html.Div([
                         'color': '#e74c3c', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-2'),
-
-            html.Div([
-                html.H3("# Devoluciones", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
-                html.H2(id='ventas-num-devoluciones', children="0", style={
-                        'color': '#c0392b', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
-            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
-                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-3'),
-
-            html.Div([
-                html.H3("Valor Promedio", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
-                html.H2(id='ventas-valor-promedio', children="$0", style={
-                        'color': '#9b59b6', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
-            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
-                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-4')
-        ], style={'marginBottom': '15px'}),
-
-        # Segunda fila de cards
-        html.Div([
-            html.Div([
-                html.H3("Facturas", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
-                html.H2(id='ventas-num-facturas', children="0", style={'color': '#3498db',
-                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
-            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
-                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-5'),
-
-            html.Div([
-                html.H3("Clientes", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
-                html.H2(id='ventas-num-clientes', children="0", style={'color': '#e67e22',
-                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
-            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
-                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-6'),
 
             html.Div([
                 html.H3("Descuentos", style={
@@ -253,16 +227,47 @@ layout = html.Div([
                         'color': '#f39c12', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
+                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-4'),
+
+        ], style={'marginBottom': '15px'}),
+
+        # Segunda fila de cards
+        html.Div([
+            html.Div([
+                html.H3("Valor Promedio", style={
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                html.H2(id='ventas-valor-promedio', children="$0", style={
+                        'color': '#9b59b6', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
+                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
+                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-5'),
+
+            html.Div([
+                html.H3("# Facturas", style={
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                html.H2(id='ventas-num-facturas', children="0", style={'color': '#3498db',
+                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
+                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
+                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-6'),
+
+            html.Div([
+                html.H3("# Devoluciones", style={
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                html.H2(id='ventas-num-devoluciones', children="0", style={
+                        'color': '#c0392b', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
+                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-7'),
 
             html.Div([
-                html.H3("% Descuento", style={
+                html.H3("Clientes", style={
                         'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
-                html.H2(id='ventas-porcentaje-descuento', children="0%", style={
-                        'color': '#16a085', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                html.H2(id='ventas-num-clientes', children="0", style={'color': '#e67e22',
+                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-8')
+                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-8'),
         ])
     ], style={'marginBottom': '30px'}),
 
@@ -281,6 +286,43 @@ layout = html.Div([
         ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'})
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row1-container'),
+
+    # Fila 1.2: Comparativa de Vendedores (Solo para Administradores)
+    html.Div([
+        html.H3("Comparativa de Ventas por Vendedor", style={
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+        html.P("(Evolución mensual comparativa - Solo visible para administradores)", style={
+               'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
+        html.Div([
+            html.Label("Tipo de Gráfico:", style={
+                       'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'Arial'}),
+            dcc.Dropdown(
+                id='ventas-dropdown-tipo-grafico',
+                options=[
+                    {'label': 'Líneas (Tendencias)', 'value': 'lineas'},
+                    {'label': 'Barras Agrupadas (Comparación)',
+                     'value': 'barras'}
+                ],
+                value='lineas',
+                style={'width': '250px', 'fontFamily': 'Arial',
+                       'display': 'inline-block'},
+                clearable=False
+            )
+        ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'marginBottom': '20px'}),
+        dcc.Graph(id='ventas-grafico-comparativa-vendedores')
+    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
+              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row1-2-container'),
+
+    # Fila 1.3: Ventas por vendedor (subplots)
+    html.Div([
+        html.H3("Evolución Individual por Vendedor", style={
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+        html.P("(Gráficos de área individuales - Solo visible para administradores)", style={
+            'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
+        dcc.Graph(id='ventas-graficos-area-individuales')
+    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
+              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'},
+        id='ventas-row1-3-container'),
 
     # Fila 1.5: Evolución de Ventas por Cliente Específico
     html.Div([
@@ -430,14 +472,583 @@ layout = html.Div([
 ], style={'fontFamily': 'Arial', 'backgroundColor': '#f5f5f5', 'padding': '20px'}, id='ventas-main-container')
 
 
-# Callback para controlar visibilidad del dropdown de vendedores
+@callback(
+    Output('ventas-grafico-comparativa-vendedores', 'figure'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-tipo-grafico', 'value'),
+     Input('ventas-theme-store', 'data')]
+)
+def update_comparativa_vendedores(session_data, tipo_grafico, theme):
+    """
+    Update comparative sales chart with enhanced visual appeal.
+    """
+    from utils import can_see_all_vendors
+
+    try:
+        # Solo mostrar si es administrador
+        if not session_data or not can_see_all_vendors(session_data):
+            fig = go.Figure()
+            fig.add_annotation(
+                text="Gráfico disponible solo para administradores",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16, color='#7f8c8d')
+            )
+            fig.update_layout(height=400)
+            return fig
+
+        theme_styles = get_theme_styles(theme)
+
+        # Obtener datos para todos los vendedores
+        # Excluir 'Todos'
+        vendedores_disponibles = analyzer.vendedores_list[1:]
+        datos_vendedores = {}
+
+        # Obtener TODOS los vendedores que tengan ventas > 0
+        for vendedor in vendedores_disponibles:
+            try:
+                data_vendedor = analyzer.get_ventas_por_mes(vendedor)
+                if not data_vendedor.empty and data_vendedor['valor_neto'].sum() > 0:
+                    datos_vendedores[vendedor] = data_vendedor
+            except:
+                continue
+
+        if not datos_vendedores:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No hay datos disponibles para comparativa",
+                xref="paper", yref="paper",
+                x=0.5,
+                y=0.5,
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=400, paper_bgcolor=theme_styles['plot_bg'])
+            return fig
+
+        # Obtener todos los meses únicos
+        all_months = set()
+
+        for data in datos_vendedores.values():
+            all_months.update(data['mes_nombre'].tolist())
+
+        all_months = sorted(list(all_months))
+
+        # Calcular promedios mensuales
+        promedios_mensuales = {}
+
+        for mes in all_months:
+            valores_mes = []
+            for data in datos_vendedores.values():
+                valores_por_mes = dict(
+                    zip(data['mes_nombre'], data['valor_neto']))
+                if mes in valores_por_mes:
+                    valores_mes.append(valores_por_mes[mes])
+            if valores_mes:
+                promedios_mensuales[mes] = np.mean(valores_mes)
+
+        promedio_valores = \
+            [
+                promedios_mensuales.get(mes, 0)
+                for mes in all_months
+            ]
+
+        # Calcular volumen total de ventas por vendedor para color
+        volumenes_vendedores = {}
+
+        for vendedor, data in datos_vendedores.items():
+            volumenes_vendedores[vendedor] = data['valor_neto'].sum()
+
+        # Obtener min y max para normalización de colores
+        min_volumen = min(volumenes_vendedores.values())
+        max_volumen = max(volumenes_vendedores.values())
+
+        # Normalizar volúmenes para grosor de línea (todas iguales ahora)
+        line_width_standard = 3  # Grosor estándar para todas las líneas
+
+        def get_color_by_volume(volumen):
+            """
+            Retorna color basado en volumen: rojo (bajo) a verde (alto).
+            """
+            if max_volumen == min_volumen:
+                return '#FFA726'  # Naranja neutro si todos son iguales
+            normalized = (volumen - min_volumen) / (max_volumen - min_volumen)
+            # Gradiente más suave de rojo a verde
+            if normalized >= 0.9:
+                return '#1B5E20'  # Verde muy oscuro - Top performers
+            elif normalized >= 0.8:
+                return '#2E7D32'  # Verde oscuro
+            elif normalized >= 0.7:
+                return '#388E3C'  # Verde medio-oscuro
+            elif normalized >= 0.6:
+                return '#4CAF50'  # Verde medio
+            elif normalized >= 0.5:
+                return '#66BB6A'  # Verde claro
+            elif normalized >= 0.4:
+                return '#9CCC65'  # Verde amarillento
+            elif normalized >= 0.3:
+                return '#FFEB3B'  # Amarillo
+            elif normalized >= 0.2:
+                return '#FF9800'  # Naranja
+            elif normalized >= 0.1:
+                return '#FF5722'  # Naranja rojizo
+            else:
+                return '#D32F2F'  # Rojo - Bajo volumen
+
+        # Crear gráfico
+        fig = go.Figure()
+
+        if tipo_grafico == 'lineas':
+            for _, (vendedor, data) in enumerate(datos_vendedores.items()):
+                volumen_total = volumenes_vendedores[vendedor]
+                color = get_color_by_volume(volumen_total)
+
+                # Determinar categoría de performance por volumen
+                normalized_vol = \
+                    (volumen_total - min_volumen) / (max_volumen -
+                                                     min_volumen) if max_volumen != min_volumen else 0.5
+                if normalized_vol >= 0.8:
+                    performance = "🟢 TOP"
+                elif normalized_vol >= 0.4:
+                    performance = "🟢 Alto"
+                elif normalized_vol >= 0.2:
+                    performance = "🟡 Medio-Alto"
+                elif normalized_vol >= 0.15:
+                    performance = "🟠 Medio"
+                else:
+                    performance = "🔴 Bajo"
+
+                # Línea principal con grosor estándar
+                fig.add_trace(go.Scatter(
+                    x=data['mes_nombre'],
+                    y=data['valor_neto'],
+                    mode='lines+markers',
+                    name=f"{vendedor[:25]}{'...' if len(vendedor) > 25 else ''} ({performance})",
+                    line=dict(
+                        color=color,
+                        width=line_width_standard,  # Grosor estándar
+                        shape='spline'
+                    ),
+                    marker=dict(
+                        size=8,  # Tamaño estándar
+                        color=color,
+                        line=dict(color='white', width=2),
+                        symbol='circle'
+                    ),
+                    hovertemplate="<b>%{fullData.name}</b> | 💰 %{customdata[0]} | 📋 %{customdata[1]} | 🎯 %{customdata[2]}<extra></extra>",
+                    customdata=[[format_currency_int(val), f"{facturas} facturas", format_currency_int(volumen_total)]
+                                for val, facturas in zip(data['valor_neto'], data['documento_id'])]
+                ))
+
+            # Línea de promedio con estilo destacado
+            fig.add_trace(go.Scatter(
+                x=all_months,
+                y=promedio_valores,
+                mode='lines+markers',
+                name='📊 PROMEDIO',
+                line=dict(
+                    color='#E74C3C',
+                    width=5,
+                    dash='dot'
+                ),
+                marker=dict(
+                    size=12,
+                    color='#E74C3C',
+                    symbol='diamond',
+                    line=dict(color='white', width=2)
+                ),
+                hovertemplate="<b>📊 Promedio</b> | %{x} | 💰 %{customdata}<extra></extra>",
+                customdata=[format_currency_int(val)
+                            for val in promedio_valores]
+            ))
+
+            # Área de fondo para zona de alto rendimiento
+            if promedio_valores:
+                max_promedio = max(promedio_valores)
+                fig.add_trace(go.Scatter(
+                    x=all_months + all_months[::-1],
+                    y=[max_promedio * 1.2] *
+                    len(all_months) + promedio_valores[::-1],
+                    fill='toself',
+                    fillcolor='rgba(39, 174, 96, 0.1)',
+                    line=dict(color='rgba(255,255,255,0)'),
+                    showlegend=False,
+                    hoverinfo='skip',
+                    name='Zona de Alto Rendimiento'
+                ))
+
+            fig.update_layout(
+                height=850,
+                plot_bgcolor=theme_styles['plot_bg'],
+                paper_bgcolor=theme_styles['plot_bg'],
+                font=dict(family="Arial", size=12,
+                          color=theme_styles['text_color']),
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    tickangle=-45,
+                    linecolor=theme_styles['line_color'],
+                    linewidth=2
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    tickformat='$,.0f',
+                    linecolor=theme_styles['line_color'],
+                    linewidth=2
+                ),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.4,
+                    xanchor="center",
+                    x=0.5,
+                    font=dict(size=11),
+                    bgcolor="rgba(255,255,255,0.8)" if theme == 'light' else "rgba(0,0,0,0.8)",
+                    bordercolor=theme_styles['line_color'],
+                    borderwidth=1
+                ),
+                margin=dict(t=100, b=170, l=80, r=40),
+                hovermode='x unified'
+            )
+
+            # Aplicar estilo de hover más compacto
+            fig.update_traces(
+                hoverlabel=dict(
+                    bgcolor="white" if theme == 'light' else "#2d2d2d",
+                    bordercolor=theme_styles['line_color'],
+                    font=dict(size=11, family="Arial")  # Texto más pequeño
+                )
+            )
+
+        else:  # barras agrupadas con colores por volumen
+            # Preparar datos para barras con colores basados en volumen
+            for i, (vendedor, data) in enumerate(datos_vendedores.items()):
+                valores_por_mes = dict(
+                    zip(data['mes_nombre'], data['valor_neto']))
+                valores_ordenados = [valores_por_mes.get(
+                    mes, 0) for mes in all_months]
+
+                volumen_total = volumenes_vendedores[vendedor]
+                color = get_color_by_volume(volumen_total)
+
+                # Crear gradiente de colores basado en altura pero manteniendo el color base
+                max_valor = max(valores_ordenados) if valores_ordenados else 1
+                bar_colors = []
+                for valor in valores_ordenados:
+                    intensity = valor / max_valor if max_valor > 0 else 0
+                    # Más intenso = más opaco, pero manteniendo el color del volumen
+                    alpha = 0.4 + (intensity * 0.6)
+                    rgb = px.colors.hex_to_rgb(color)
+                    bar_colors.append(
+                        f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {alpha})")
+
+                # Categoría de performance
+                normalized_vol = (volumen_total - min_volumen) / (max_volumen -
+                                                                  min_volumen) if max_volumen != min_volumen else 0.5
+                if normalized_vol >= 0.8:
+                    performance = "🟢 TOP"
+                elif normalized_vol >= 0.6:
+                    performance = "🟢 Alto"
+                elif normalized_vol >= 0.4:
+                    performance = "🟡 M-Alto"
+                elif normalized_vol >= 0.2:
+                    performance = "🟠 Medio"
+                else:
+                    performance = "🔴 Bajo"
+
+                display_name = f"{vendedor[:30]}{'...' if len(vendedor) > 30 else ''} ({performance})"
+
+                fig.add_trace(go.Bar(
+                    x=all_months,
+                    y=valores_ordenados,
+                    name=display_name,
+                    marker=dict(
+                        color=bar_colors,
+                        line=dict(color=color, width=2),
+                        pattern=dict(shape="/", bgcolor="white",
+                                     size=8, solidity=0.1)  # Patrón sutil
+                    ),
+                    hovertemplate="<b>%{fullData.name}</b> | 💰 %{customdata[0]} | 📊 %{customdata[1]} | 🎯 %{customdata[2]}<extra></extra>",
+                    customdata=[[
+                        format_currency_int(val),
+                        f"🔥 +{format_currency_int(val - promedios_mensuales.get(mes, 0))}" if val > promedios_mensuales.get(mes, 0)
+                        else f"📉 {format_currency_int(val - promedios_mensuales.get(mes, 0))}",
+                        format_currency_int(volumen_total)
+                    ] for mes, val in zip(all_months, valores_ordenados)]
+                ))
+
+            # Línea de promedio con marcadores especiales
+            fig.add_trace(go.Scatter(
+                x=all_months,
+                y=promedio_valores,
+                mode='lines+markers',
+                name='📊 PROMEDIO',
+                line=dict(color='#E74C3C', width=5),
+                marker=dict(
+                    size=15,
+                    color='#E74C3C',
+                    symbol='star',
+                    line=dict(color='white', width=3)
+                ),
+                hovertemplate="<b>📊 Promedio</b> | %{x} | 💰 %{customdata}<extra></extra>",
+                customdata=[format_currency_int(val)
+                            for val in promedio_valores]
+            ))
+
+            fig.update_layout(
+                height=700,
+                plot_bgcolor=theme_styles['plot_bg'],
+                paper_bgcolor=theme_styles['plot_bg'],
+                font=dict(family="Arial", size=12,
+                          color=theme_styles['text_color']),
+                xaxis=dict(
+                    showgrid=False,
+                    tickangle=-45,
+                    linecolor=theme_styles['line_color'],
+                    linewidth=2
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    tickformat='$,.0f',
+                    linecolor=theme_styles['line_color'],
+                    linewidth=2
+                ),
+                barmode='group',
+                bargap=0.15,
+                bargroupgap=0.1,
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.45,
+                    xanchor="center",
+                    x=0.5,
+                    font=dict(size=11),
+                    bgcolor="rgba(255,255,255,0.8)" if theme == 'light' else "rgba(0,0,0,0.8)",
+                    bordercolor=theme_styles['line_color'],
+                    borderwidth=1
+                ),
+                margin=dict(t=100, b=160, l=80, r=40)
+            )
+
+        return fig
+
+    except Exception as e:
+        print(f"Error en update_comparativa_vendedores: {e}")
+        fig = go.Figure()
+        fig.add_annotation(
+            text="Error al cargar datos de comparativa",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=16, color='#e74c3c')
+        )
+        fig.update_layout(height=400)
+        return fig
+
+
+@callback(
+    Output('ventas-graficos-area-individuales', 'figure'),
+    [Input('session-store', 'data'),
+     Input('ventas-theme-store', 'data')]
+)
+def update_area_charts_individuales(session_data, theme):
+    """
+    Create individual area charts for each vendor (4 per row, all vendors).
+    """
+    from utils import can_see_all_vendors
+
+    try:
+        # Solo mostrar si es administrador
+        if not session_data or not can_see_all_vendors(session_data):
+            fig = go.Figure()
+            fig.add_annotation(
+                text="Gráficos disponibles solo para administradores",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16, color='#7f8c8d')
+            )
+            fig.update_layout(height=300)
+            return fig
+
+        theme_styles = get_theme_styles(theme)
+
+        # Obtener datos para TODOS los vendedores (sin límite)
+        # Excluir 'Todos'
+        vendedores_disponibles = analyzer.vendedores_list[1:]
+        datos_vendedores = {}
+
+        # Incluir TODOS los vendedores que tengan al menos una venta > 0
+        for vendedor in vendedores_disponibles:
+            try:
+                data_vendedor = analyzer.get_ventas_por_mes(vendedor)
+                if not data_vendedor.empty and data_vendedor['valor_neto'].sum() > 0:
+                    datos_vendedores[vendedor] = data_vendedor
+            except:
+                continue
+
+        if not datos_vendedores:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No hay datos disponibles",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=300, paper_bgcolor=theme_styles['plot_bg'])
+            return fig
+
+        # Calcular layout de subplots (4 columnas)
+        num_vendedores = len(datos_vendedores)
+        cols = 4
+        rows = math.ceil(num_vendedores / cols)
+
+        # Crear títulos completos para los vendedores
+        subplot_titles = []
+        for vendedor in datos_vendedores.keys():
+            # Mostrar nombre completo, pero en font más pequeño
+            subplot_titles.append(vendedor)
+
+        # Crear subplots con títulos más pequeños y menos espacio vertical
+        fig = make_subplots(
+            rows=rows,
+            cols=cols,
+            subplot_titles=subplot_titles,
+            vertical_spacing=0.08,  # Reducido de 0.15 a 0.08
+            horizontal_spacing=0.08
+        )
+
+        # Colores modernos para cada vendedor
+        modern_colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+            '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D7BDE2',
+            '#AED6F1', '#A9DFBF', '#F9E79F', '#D2B4DE', '#85C1E9'
+        ]
+
+        # Añadir cada vendedor como área chart
+        for i, (vendedor, data) in enumerate(datos_vendedores.items()):
+            row = (i // cols) + 1
+            col = (i % cols) + 1
+
+            color = modern_colors[i % len(modern_colors)]
+
+            fig.add_trace(
+                go.Scatter(
+                    x=data['mes_nombre'],
+                    y=data['valor_neto'],
+                    fill='tozeroy',
+                    mode='lines+markers',
+                    line=dict(color=color, width=3, shape='spline'),
+                    marker=dict(size=6, color=color, line=dict(
+                        color='white', width=1)),
+                    fillcolor=f"rgba{tuple(list(px.colors.hex_to_rgb(color)) + [0.4])}",
+                    name=vendedor,
+                    showlegend=False,
+                    hovertemplate="<b>" + vendedor + "</b><br>" +
+                    "%{x}<br>" +
+                    "💰 Ventas: %{customdata[0]}<br>" +
+                    "📋 Facturas: %{customdata[1]}<br>" +
+                    "<extra></extra>",
+                    customdata=[[format_currency_int(val), facturas]
+                                for val, facturas in zip(data['valor_neto'], data['documento_id'])]
+                ),
+                row=row, col=col
+            )
+
+        # Actualizar layout con títulos más pequeños y altura reducida
+        fig.update_layout(
+            title="📈 Evolución Individual por Vendedor (Gráficos de Área)",
+            title_x=0.5,
+            height=200 * rows,  # Reducido de 250 a 200 por fila
+            plot_bgcolor=theme_styles['plot_bg'],
+            paper_bgcolor=theme_styles['plot_bg'],
+            font=dict(family="Arial", size=10,
+                      color=theme_styles['text_color']),
+            showlegend=False,
+            margin=dict(t=80, b=40, l=60, r=60)
+        )
+
+        # Actualizar ejes individuales
+        for i in range(1, rows + 1):
+            for j in range(1, cols + 1):
+                fig.update_xaxes(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    tickangle=-45,
+                    tickfont=dict(size=8),
+                    row=i, col=j
+                )
+                fig.update_yaxes(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    tickformat='$,.0f',
+                    tickfont=dict(size=8),
+                    row=i, col=j
+                )
+
+        # Actualizar títulos de subplots para que sean más pequeños
+        for i in range(len(subplot_titles)):
+            fig.layout.annotations[i].update(font=dict(size=10))
+
+        return fig
+
+    except Exception as e:
+        print(f"Error en update_area_charts_individuales: {e}")
+        fig = go.Figure()
+        fig.add_annotation(
+            text="Error al cargar gráficos de área",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=16, color='#e74c3c')
+        )
+        fig.update_layout(height=300)
+        return fig
+
+
+@callback(
+    Output('ventas-row1-2-container', 'style'),
+    [Input('session-store', 'data'),
+     Input('ventas-theme-store', 'data')]
+)
+def update_comparativa_visibility(session_data, theme):
+    """
+    Mostrar/ocultar sección de comparativa según permisos del usuario.
+    """
+    from utils import can_see_all_vendors
+
+    theme_styles = get_theme_styles(theme)
+
+    try:
+        if not session_data or not can_see_all_vendors(session_data):
+            # Ocultar para usuarios normales
+            return {'display': 'none'}
+        else:
+            # Mostrar para administradores
+            return {
+                'backgroundColor': theme_styles['paper_color'],
+                'padding': '20px',
+                'borderRadius': '8px',
+                'boxShadow': theme_styles['card_shadow'],
+                'margin': '10px 0',
+                'color': theme_styles['text_color']
+            }
+    except Exception as e:
+        print(f"Error en update_comparativa_visibility: {e}")
+        return {'display': 'none'}
+
+
 @callback(
     [Output('ventas-dropdown-vendedor-container', 'style'),
      Output('ventas-dropdown-vendedor-label', 'style')],
     [Input('session-store', 'data')]
 )
 def update_dropdown_visibility(session_data):
-    """Mostrar/ocultar dropdown de vendedores según permisos del usuario."""
+    """
+    Mostrar/ocultar dropdown de vendedores según permisos del usuario.
+    """
     from utils import can_see_all_vendors
 
     try:
@@ -505,10 +1116,12 @@ def toggle_theme(n_clicks, current_theme):
      Output('ventas-dropdown-mes', 'style'),
      Output('ventas-dropdown-cliente', 'style'),
      Output('ventas-dropdown-vista-recaudo', 'style'),
+     Output('ventas-dropdown-tipo-grafico', 'style'),
      Output('ventas-dropdown-vendedor', 'className'),
      Output('ventas-dropdown-mes', 'className'),
      Output('ventas-dropdown-cliente', 'className'),
-     Output('ventas-dropdown-vista-recaudo', 'className')],
+     Output('ventas-dropdown-vista-recaudo', 'className'),
+     Output('ventas-dropdown-tipo-grafico', 'className')],
     [Input('ventas-theme-store', 'data'),
      Input('session-store', 'data')]
 )
@@ -522,8 +1135,12 @@ def update_dropdown_styles(theme, session_data):
     # Special handling for vendor dropdown - hide if not admin
     if not session_data or not can_see_all_vendors(session_data):
         vendedor_style = {'display': 'none'}
+        tipo_grafico_style = {'display': 'none'}
     else:
         vendedor_style = dropdown_style.copy()
+        tipo_grafico_style = dropdown_style.copy()
+        tipo_grafico_style.update(
+            {'width': '250px', 'display': 'inline-block'})
 
     vista_style = dropdown_style.copy()
     vista_style.update({'width': '200px', 'display': 'inline-block'})
@@ -531,16 +1148,24 @@ def update_dropdown_styles(theme, session_data):
     # CSS class for dark theme
     css_class = 'dash-dropdown dark-theme' if theme == 'dark' else 'dash-dropdown'
 
-    return vendedor_style, dropdown_style, dropdown_style, vista_style, css_class, css_class, css_class, css_class
+    return vendedor_style, dropdown_style, dropdown_style, vista_style, tipo_grafico_style, css_class, css_class, css_class, css_class, css_class
 
 
 @callback(
-    [Output('ventas-card-1', 'style'), Output('ventas-card-2', 'style'), Output('ventas-card-3', 'style'), Output('ventas-card-4', 'style'),
-     Output('ventas-card-5', 'style'), Output('ventas-card-6', 'style'), Output('ventas-card-7', 'style'), Output('ventas-card-8', 'style')],
+    [Output('ventas-card-1', 'style'),
+     Output('ventas-card-2', 'style'),
+     Output('ventas-card-3', 'style'),
+     Output('ventas-card-4', 'style'),
+     Output('ventas-card-5', 'style'),
+     Output('ventas-card-6', 'style'),
+     Output('ventas-card-7', 'style'),
+     Output('ventas-card-8', 'style')],
     [Input('ventas-theme-store', 'data')]
 )
 def update_card_styles(theme):
-    """Update styles for summary cards based on theme."""
+    """
+    Update styles for summary cards based on theme.
+    """
     theme_styles = get_theme_styles(theme)
 
     card_style = {
@@ -559,27 +1184,27 @@ def update_card_styles(theme):
 
 
 # Container styles callback
-@callback(
-    [Output('ventas-row1-container', 'style'), Output('ventas-row1-5-container', 'style'), Output('ventas-row-nueva-treemap', 'style'), Output('ventas-row2-container', 'style'),
-     Output('ventas-row2-5-container', 'style'), Output('ventas-row3-container',
-                                                        'style'), Output('ventas-row4-container', 'style'),
-     Output('ventas-row5-container', 'style'), Output('ventas-row6-container', 'style')],
-    [Input('ventas-theme-store', 'data')]
-)
-def update_container_styles(theme):
-    """Update styles for chart containers based on theme."""
-    theme_styles = get_theme_styles(theme)
+# @callback(
+#     [Output('ventas-row1-container', 'style'), Output('ventas-row1-2-container', 'style'), Output('ventas-row1-5-container', 'style'), Output('ventas-row-nueva-treemap', 'style'), Output('ventas-row2-container', 'style'),
+#      Output('ventas-row2-5-container', 'style'), Output('ventas-row3-container',
+#                                                         'style'), Output('ventas-row4-container', 'style'),
+#      Output('ventas-row5-container', 'style'), Output('ventas-row6-container', 'style')],
+#     [Input('ventas-theme-store', 'data')]
+# )
+# def update_container_styles(theme):
+#     """Update styles for chart containers based on theme."""
+#     theme_styles = get_theme_styles(theme)
 
-    chart_style = {
-        'backgroundColor': theme_styles['paper_color'],
-        'padding': '20px',
-        'borderRadius': '8px',
-        'boxShadow': theme_styles['card_shadow'],
-        'margin': '10px 0',
-        'color': theme_styles['text_color']
-    }
+#     chart_style = {
+#         'backgroundColor': theme_styles['paper_color'],
+#         'padding': '20px',
+#         'borderRadius': '8px',
+#         'boxShadow': theme_styles['card_shadow'],
+#         'margin': '10px 0',
+#         'color': theme_styles['text_color']
+#     }
 
-    return [chart_style] * 9  # 9 containers now
+    return [chart_style] * 10  # 10 containers now
 
 
 @callback(
@@ -649,33 +1274,41 @@ def update_title(session_data, dropdown_value, mes):
 
 
 @callback(
-    [Output('ventas-ventas-netas', 'children'), Output('ventas-total-devoluciones', 'children'),
-     Output('ventas-num-devoluciones',
-            'children'), Output('ventas-valor-promedio', 'children'),
-     Output('ventas-num-facturas',
-            'children'), Output('ventas-num-clientes', 'children'),
-     Output('ventas-total-descuentos', 'children'), Output('ventas-porcentaje-descuento', 'children')],
+    [
+        Output('ventas-ventas-totales', 'children'),
+        Output('ventas-ventas-netas', 'children'),
+        Output('ventas-total-devoluciones', 'children'),
+        Output('ventas-total-descuentos', 'children'),
+        Output('ventas-valor-promedio', 'children'),
+        Output('ventas-num-facturas', 'children'),
+        Output('ventas-num-devoluciones', 'children'),
+        Output('ventas-num-clientes', 'children')],
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
      Input('ventas-btn-actualizar', 'n_clicks')]
 )
 def update_cards(session_data, dropdown_value, mes, n_clicks):
-    """Update summary cards with sales statistics."""
+    """
+    Update summary cards with sales statistics.
+    """
     try:
-        vendedor = get_selected_vendor(session_data, dropdown_value)
-        resumen = analyzer.get_resumen_ventas(vendedor, mes)
+        vendedor = \
+            get_selected_vendor(session_data, dropdown_value)
+        resumen = \
+            analyzer.get_resumen_ventas(vendedor, mes)
 
-        return (
-            format_currency_int(resumen['ventas_netas']),
-            format_currency_int(resumen['total_devoluciones']),
-            f"{resumen['num_devoluciones']:,}",
-            format_currency_int(resumen['ticket_promedio']),
-            f"{resumen['num_facturas']:,}",
-            f"{resumen['num_clientes']:,}",
-            format_currency_int(resumen['total_descuentos']),
-            f"{resumen['porcentaje_descuento']:.1f}%"
-        )
+        return \
+            (
+                format_currency_int(resumen['total_ventas']),
+                format_currency_int(resumen['ventas_netas']),
+                format_currency_int(resumen['total_devoluciones']),
+                format_currency_int(resumen['total_descuentos']),
+                format_currency_int(resumen['ticket_promedio']),
+                f"{resumen['num_facturas']:,}",
+                f"{resumen['num_devoluciones']:,}",
+                f"{resumen['num_clientes']:,}",
+            )
     except Exception as e:
         print(f"Error en update_cards: {e}")
         return "$0", "$0", "0", "$0", "0", "0", "$0", "0%"
