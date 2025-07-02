@@ -56,9 +56,10 @@ def get_dropdown_style(theme):
         }
 
 
-# Función auxiliar para obtener el vendedor seleccionado
 def get_selected_vendor(session_data, dropdown_value):
-    """Obtener vendedor basado en permisos y selección."""
+    """
+    Obtener vendedor basado en permisos y selección.
+    """
     from utils import can_see_all_vendors, get_user_vendor_filter
 
     try:
@@ -76,76 +77,6 @@ def get_selected_vendor(session_data, dropdown_value):
         return 'Todos'
 
 
-# Add CSS for dropdown menu styling
-index_string = '''
-<!DOCTYPE html>
-<html>
-    <head>
-        {%metas%}
-        <title>{%title%}</title>
-        {%favicon%}
-        {%css%}
-        <style>
-            /* Dark theme dropdown styling */
-            .dash-dropdown.dark-theme .Select-control {
-                background-color: #2d2d2d !important;
-                color: #ffffff !important;
-                border: 1px solid #505050 !important;
-            }
-            
-            .dash-dropdown.dark-theme .Select-input > input {
-                color: #ffffff !important;
-            }
-            
-            .dash-dropdown.dark-theme .Select-placeholder {
-                color: #bbbbbb !important;
-            }
-            
-            .dash-dropdown.dark-theme .Select-menu-outer {
-                background-color: #2d2d2d !important;
-                border: 1px solid #505050 !important;
-            }
-            
-            .dash-dropdown.dark-theme .Select-option {
-                background-color: #2d2d2d !important;
-                color: #ffffff !important;
-            }
-            
-            .dash-dropdown.dark-theme .Select-option:hover {
-                background-color: #404040 !important;
-                color: #ffffff !important;
-            }
-            
-            .dash-dropdown.dark-theme .Select-option.is-selected {
-                background-color: #505050 !important;
-                color: #ffffff !important;
-            }
-            
-            .dash-dropdown.dark-theme .Select-option.is-focused {
-                background-color: #404040 !important;
-                color: #ffffff !important;
-            }
-            
-            .dash-dropdown.dark-theme .Select-arrow {
-                border-color: #ffffff transparent transparent !important;
-            }
-            
-            .dash-dropdown.dark-theme .Select-value-label {
-                color: #ffffff !important;
-            }
-        </style>
-    </head>
-    <body>
-        {%app_entry%}
-        <footer>
-            {%config%}
-            {%scripts%}
-            {%renderer%}
-        </footer>
-    </body>
-</html>
-'''
-
 layout = html.Div([
     # Store for theme
     dcc.Store(id='ventas-theme-store', data='light'),
@@ -160,26 +91,26 @@ layout = html.Div([
         # Dropdown para vendedores (siempre presente, visibility controlada)
         html.Div([
             html.Label("Vendedor:", style={
-                       'fontWeight': 'bold', 'marginBottom': '5px', 'fontFamily': 'Arial'}, id='ventas-dropdown-vendedor-label'),
+                       'fontWeight': 'bold', 'marginBottom': '5px', 'fontFamily': 'Inter'}, id='ventas-dropdown-vendedor-label'),
             dcc.Dropdown(
                 id='ventas-dropdown-vendedor',
                 options=[{'label': v, 'value': v}
                          for v in analyzer.vendedores_list],
                 value='Todos',
-                style={'fontFamily': 'Arial'},
+                style={'fontFamily': 'Inter'},
                 className='custom-dropdown'
             )
         ], style={'width': '20%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginLeft': '2%'}, id='ventas-dropdown-vendedor-container'),
 
         html.Div([
             html.Label("Mes:", style={
-                       'fontWeight': 'bold', 'marginBottom': '5px', 'fontFamily': 'Arial'}),
+                       'fontWeight': 'bold', 'marginBottom': '5px', 'fontFamily': 'Inter'}),
             dcc.Dropdown(
                 id='ventas-dropdown-mes',
                 options=[{'label': m, 'value': m}
                          for m in analyzer.meses_list],
                 value='Todos',
-                style={'fontFamily': 'Arial'},
+                style={'fontFamily': 'Inter'},
                 className='custom-dropdown'
             )
         ], style={'width': '20%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginLeft': '2%'}),
@@ -195,36 +126,36 @@ layout = html.Div([
         html.Div([
             html.Div([
                 html.H3("Ventas Totales", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='ventas-ventas-totales', children="$0", style={'color': '#2ecc71',
-                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-1'),
 
             html.Div([
                 html.H3("Ventas Netas", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='ventas-ventas-netas', children="$0", style={'color': '#2ecc71',
-                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-2'),
 
             html.Div([
                 html.H3("Devoluciones", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='ventas-total-devoluciones', children="$0", style={
-                        'color': '#e74c3c', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        'color': '#e74c3c', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-3'),
 
             html.Div([
                 html.H3("Descuentos", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='ventas-total-descuentos', children="$0", style={
-                        'color': '#f39c12', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        'color': '#f39c12', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-4'),
@@ -235,36 +166,36 @@ layout = html.Div([
         html.Div([
             html.Div([
                 html.H3("Valor Promedio", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='ventas-valor-promedio', children="$0", style={
-                        'color': '#9b59b6', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        'color': '#9b59b6', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-5'),
 
             html.Div([
                 html.H3("# Facturas", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='ventas-num-facturas', children="0", style={'color': '#3498db',
-                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-6'),
 
             html.Div([
                 html.H3("# Devoluciones", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='ventas-num-devoluciones', children="0", style={
-                        'color': '#c0392b', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        'color': '#c0392b', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-7'),
 
             html.Div([
                 html.H3("Clientes", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='ventas-num-clientes', children="0", style={'color': '#e67e22',
-                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-8'),
@@ -275,13 +206,13 @@ layout = html.Div([
     html.Div([
         html.Div([
             html.H3("Evolución de Ventas por Mes", style={
-                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
             dcc.Graph(id='ventas-grafico-ventas-mes')
         ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'}),
 
         html.Div([
             html.H3("Estacionalidad por Día de la Semana", style={
-                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
             dcc.Graph(id='ventas-grafico-estacionalidad')
         ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'})
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
@@ -290,12 +221,12 @@ layout = html.Div([
     # Fila 1.2: Comparativa de Vendedores (Solo para Administradores)
     html.Div([
         html.H3("Comparativa de Ventas por Vendedor", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
         html.P("(Evolución mensual comparativa - Solo visible para administradores)", style={
                'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
         html.Div([
             html.Label("Tipo de Gráfico:", style={
-                       'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'Arial'}),
+                       'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'Inter'}),
             dcc.Dropdown(
                 id='ventas-dropdown-tipo-grafico',
                 options=[
@@ -304,7 +235,7 @@ layout = html.Div([
                      'value': 'barras'}
                 ],
                 value='lineas',
-                style={'width': '250px', 'fontFamily': 'Arial',
+                style={'width': '250px', 'fontFamily': 'Inter',
                        'display': 'inline-block'},
                 clearable=False
             )
@@ -316,7 +247,7 @@ layout = html.Div([
     # Fila 1.3: Ventas por vendedor (subplots)
     html.Div([
         html.H3("Evolución Individual por Vendedor", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
         html.P("(Gráficos de área individuales - Solo visible para administradores)", style={
             'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
         dcc.Graph(id='ventas-graficos-area-individuales')
@@ -327,16 +258,16 @@ layout = html.Div([
     # Fila 1.5: Evolución de Ventas por Cliente Específico
     html.Div([
         html.H3("Evolución Diaria de Ventas por Cliente", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
         html.Div([
             html.Label("Seleccionar Cliente:", style={
-                       'fontWeight': 'bold', 'marginBottom': '10px', 'fontFamily': 'Arial'}),
+                       'fontWeight': 'bold', 'marginBottom': '10px', 'fontFamily': 'Inter'}),
             dcc.Dropdown(
                 id='ventas-dropdown-cliente',
                 options=[{'label': 'Seleccione un cliente',
                           'value': 'Seleccione un cliente'}],
                 value='Seleccione un cliente',
-                style={'fontFamily': 'Arial', 'marginBottom': '20px'},
+                style={'fontFamily': 'Inter', 'marginBottom': '20px'},
                 className='custom-dropdown'
             )
         ]),
@@ -348,13 +279,13 @@ layout = html.Div([
     html.Div([
         html.Div([
             html.H3("Ventas por Zona", style={
-                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
             dcc.Graph(id='ventas-grafico-zona')
         ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'}),
 
         html.Div([
             html.H3("Distribución por Forma de Pago", style={
-                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
             dcc.Graph(id='ventas-grafico-forma-pago')
         ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'})
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
@@ -363,7 +294,7 @@ layout = html.Div([
     # Fila 2.5: Ventas Acumuladas por Cliente (Treemap solo)
     html.Div([
         html.H3("Ventas Acumuladas por Cliente", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
         html.P("(Acumulado hasta el mes seleccionado)", style={
                'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
         dcc.Graph(id='ventas-treemap-acumuladas')
@@ -373,7 +304,7 @@ layout = html.Div([
     # Fila 3: Treemap de Ventas por Cliente del Período (Treemap solo)
     html.Div([
         html.H3("Mapa de Ventas por Cliente (Período Seleccionado)", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
         dcc.Graph(id='ventas-treemap-ventas')
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row3-container'),
@@ -381,7 +312,7 @@ layout = html.Div([
     # Fila 3.5: Top Clientes y Clientes Impactados
     html.Div([
         html.H3("Clientes por Días Sin Venta", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
         html.P("(Clientes que no han comprado en 7+ días - Tamaño por total de ventas históricas)", style={
                'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
         dcc.Graph(id='ventas-treemap-dias-sin-venta')
@@ -392,13 +323,13 @@ layout = html.Div([
     html.Div([
         html.Div([
             html.H3("Top 10 - Clientes", style={'textAlign': 'center',
-                    'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                    'marginBottom': '20px', 'fontFamily': 'Inter'}),
             dcc.Graph(id='ventas-top-clientes')
         ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'}),
 
         html.Div([
             html.H3("Clientes Impactados por Mes", style={
-                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
             html.P("(Número de clientes únicos que compraron vs total disponible)", style={
                    'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
             dcc.Graph(id='ventas-grafico-clientes-impactados')
@@ -409,7 +340,7 @@ layout = html.Div([
     # Fila 5: Análisis de Convenios
     html.Div([
         html.H3("Análisis de Cumplimiento de Convenios", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
         html.P("(Comparación entre metas vs. ventas reales y descuentos acordados vs. descuentos aplicados)", style={
                'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
         html.Div(id='ventas-tabla-convenios')
@@ -420,14 +351,14 @@ layout = html.Div([
     html.Div([
         html.Div([
             html.H3("Análisis de Recaudo", style={
-                    'textAlign': 'center', 'marginBottom': '10px', 'fontFamily': 'Arial'}),
+                    'textAlign': 'center', 'marginBottom': '10px', 'fontFamily': 'Inter'}),
             html.H2(id='ventas-total-recaudo-titulo', style={'textAlign': 'center',
-                    'color': '#27ae60', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                    'color': '#27ae60', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
 
             # DROPDOWN VISTA RECAUDO - Now always present in layout
             html.Div([
                 html.Label("Vista Temporal:", style={
-                           'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'Arial'}),
+                           'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'Inter'}),
                 dcc.Dropdown(
                     id='ventas-dropdown-vista-recaudo',
                     options=[
@@ -435,7 +366,7 @@ layout = html.Div([
                         {'label': 'Recaudo Mensual', 'value': 'mensual'}
                     ],
                     value='diario',
-                    style={'width': '200px', 'fontFamily': 'Arial',
+                    style={'width': '200px', 'fontFamily': 'Inter',
                            'display': 'inline-block'},
                     clearable=False
                 )
@@ -446,14 +377,14 @@ layout = html.Div([
                 # Gráfico por vendedor (solo se muestra cuando vendedor = 'Todos')
                 html.Div([
                     html.H4("Resumen por Vendedor", style={
-                            'textAlign': 'center', 'marginBottom': '15px', 'fontFamily': 'Arial'}),
+                            'textAlign': 'center', 'marginBottom': '15px', 'fontFamily': 'Inter'}),
                     dcc.Graph(id='ventas-grafico-recaudo-vendedor')
                 ], style={'width': '100%', 'marginBottom': '20px'}, id='ventas-container-vendedor'),
 
                 # Gráfico temporal (siempre se muestra)
                 html.Div([
                     html.H4(id='ventas-titulo-recaudo-temporal', style={
-                            'textAlign': 'center', 'marginBottom': '15px', 'fontFamily': 'Arial'}),
+                            'textAlign': 'center', 'marginBottom': '15px', 'fontFamily': 'Inter'}),
                     dcc.Graph(id='ventas-grafico-recaudo-temporal')
                 ], style={'width': '100%'}, id='ventas-container-temporal')
             ], id='ventas-container-graficos-recaudo')
@@ -466,10 +397,10 @@ layout = html.Div([
         html.Button('Actualizar Datos', id='ventas-btn-actualizar', n_clicks=0,
                     style={'backgroundColor': '#3498db', 'color': 'white', 'border': 'none',
                            'padding': '10px 20px', 'borderRadius': '5px', 'cursor': 'pointer',
-                           'fontFamily': 'Arial'})
+                           'fontFamily': 'Inter'})
     ], style={'textAlign': 'center', 'margin': '20px 0'})
 
-], style={'fontFamily': 'Arial', 'backgroundColor': '#f5f5f5', 'padding': '20px'}, id='ventas-main-container')
+], style={'fontFamily': 'Inter', 'backgroundColor': '#f5f5f5', 'padding': '20px'}, id='ventas-main-container')
 
 
 @callback(
@@ -540,11 +471,13 @@ def update_comparativa_vendedores(session_data, tipo_grafico, theme):
 
         for mes in all_months:
             valores_mes = []
+
             for data in datos_vendedores.values():
                 valores_por_mes = dict(
                     zip(data['mes_nombre'], data['valor_neto']))
                 if mes in valores_por_mes:
                     valores_mes.append(valores_por_mes[mes])
+
             if valores_mes:
                 promedios_mensuales[mes] = np.mean(valores_mes)
 
@@ -624,7 +557,7 @@ def update_comparativa_vendedores(session_data, tipo_grafico, theme):
                     x=data['mes_nombre'],
                     y=data['valor_neto'],
                     mode='lines+markers',
-                    name=f"{vendedor[:25]}{'...' if len(vendedor) > 25 else ''} ({performance})",
+                    name=f"{vendedor[:50]}{'...' if len(vendedor) > 50 else ''} ({performance})",
                     line=dict(
                         color=color,
                         width=line_width_standard,  # Grosor estándar
@@ -679,10 +612,10 @@ def update_comparativa_vendedores(session_data, tipo_grafico, theme):
                 ))
 
             fig.update_layout(
-                height=850,
+                height=950,
                 plot_bgcolor=theme_styles['plot_bg'],
                 paper_bgcolor=theme_styles['plot_bg'],
-                font=dict(family="Arial", size=12,
+                font=dict(family="Inter", size=12,
                           color=theme_styles['text_color']),
                 xaxis=dict(
                     showgrid=True,
@@ -709,7 +642,7 @@ def update_comparativa_vendedores(session_data, tipo_grafico, theme):
                     bordercolor=theme_styles['line_color'],
                     borderwidth=1
                 ),
-                margin=dict(t=100, b=170, l=80, r=40),
+                margin=dict(t=20, b=170, l=80, r=40),
                 hovermode='x unified'
             )
 
@@ -718,7 +651,7 @@ def update_comparativa_vendedores(session_data, tipo_grafico, theme):
                 hoverlabel=dict(
                     bgcolor="white" if theme == 'light' else "#2d2d2d",
                     bordercolor=theme_styles['line_color'],
-                    font=dict(size=11, family="Arial")  # Texto más pequeño
+                    font=dict(size=11, family="Inter")  # Texto más pequeño
                 )
             )
 
@@ -801,7 +734,7 @@ def update_comparativa_vendedores(session_data, tipo_grafico, theme):
                 height=700,
                 plot_bgcolor=theme_styles['plot_bg'],
                 paper_bgcolor=theme_styles['plot_bg'],
-                font=dict(family="Arial", size=12,
+                font=dict(family="Inter", size=12,
                           color=theme_styles['text_color']),
                 xaxis=dict(
                     showgrid=False,
@@ -860,19 +793,25 @@ def update_area_charts_individuales(session_data, theme):
     from utils import can_see_all_vendors
 
     try:
+        theme_styles = get_theme_styles(theme)
+
         # Solo mostrar si es administrador
-        if not session_data or not can_see_all_vendors(session_data):
+        if not session_data or not \
+                can_see_all_vendors(session_data):
             fig = go.Figure()
             fig.add_annotation(
                 text="Gráficos disponibles solo para administradores",
                 xref="paper", yref="paper",
                 x=0.5, y=0.5, showarrow=False,
-                font=dict(size=16, color='#7f8c8d')
+                # ← USAR THEME
+                font=dict(size=16, color=theme_styles['text_color'])
             )
-            fig.update_layout(height=300)
+            fig.update_layout(
+                height=300,
+                paper_bgcolor=theme_styles['plot_bg'],
+                plot_bgcolor=theme_styles['plot_bg']
+            )
             return fig
-
-        theme_styles = get_theme_styles(theme)
 
         # Obtener datos para TODOS los vendedores (sin límite)
         # Excluir 'Todos'
@@ -907,8 +846,8 @@ def update_area_charts_individuales(session_data, theme):
 
         # Crear títulos completos para los vendedores
         subplot_titles = []
+
         for vendedor in datos_vendedores.keys():
-            # Mostrar nombre completo, pero en font más pequeño
             subplot_titles.append(vendedor)
 
         # Crear subplots con títulos más pequeños y menos espacio vertical
@@ -965,7 +904,7 @@ def update_area_charts_individuales(session_data, theme):
             height=200 * rows,  # Reducido de 250 a 200 por fila
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Arial", size=10,
+            font=dict(family="Inter", size=10,
                       color=theme_styles['text_color']),
             showlegend=False,
             margin=dict(t=80, b=40, l=60, r=60)
@@ -978,33 +917,44 @@ def update_area_charts_individuales(session_data, theme):
                     showgrid=True,
                     gridcolor=theme_styles['grid_color'],
                     tickangle=-45,
-                    tickfont=dict(size=8),
+                    tickfont=dict(size=8, color=theme_styles['text_color']),
+                    linecolor=theme_styles['line_color'],
                     row=i, col=j
                 )
                 fig.update_yaxes(
                     showgrid=True,
                     gridcolor=theme_styles['grid_color'],
                     tickformat='$,.0f',
-                    tickfont=dict(size=8),
+                    tickfont=dict(size=8, color=theme_styles['text_color']),
+                    linecolor=theme_styles['line_color'],
                     row=i, col=j
                 )
 
         # Actualizar títulos de subplots para que sean más pequeños
         for i in range(len(subplot_titles)):
-            fig.layout.annotations[i].update(font=dict(size=10))
+            fig.layout.annotations[i].update(
+                font=dict(size=10, color=theme_styles['text_color']))
 
         return fig
 
     except Exception as e:
         print(f"Error en update_area_charts_individuales: {e}")
+        theme_styles = get_theme_styles(theme)
+
         fig = go.Figure()
         fig.add_annotation(
             text="Error al cargar gráficos de área",
             xref="paper", yref="paper",
-            x=0.5, y=0.5, showarrow=False,
-            font=dict(size=16, color='#e74c3c')
+            x=0.5,
+            y=0.5,
+            showarrow=False,
+            font=dict(size=16, color=theme_styles['text_color'])
         )
-        fig.update_layout(height=300)
+        fig.update_layout(
+            height=300,
+            paper_bgcolor=theme_styles['plot_bg'],
+            plot_bgcolor=theme_styles['plot_bg']
+        )
         return fig
 
 
@@ -1066,7 +1016,7 @@ def update_dropdown_visibility(session_data):
             label_style = {
                 'fontWeight': 'bold',
                 'marginBottom': '5px',
-                'fontFamily': 'Arial'
+                'fontFamily': 'Inter'
             }
             return base_style, label_style
     except Exception as e:
@@ -1094,7 +1044,7 @@ def toggle_theme(n_clicks, current_theme):
     theme_styles = get_theme_styles(new_theme)
 
     main_style = {
-        'fontFamily': 'Arial',
+        'fontFamily': 'Inter',
         'backgroundColor': theme_styles['bg_color'],
         'padding': '20px',
         'color': theme_styles['text_color']
@@ -1126,11 +1076,13 @@ def toggle_theme(n_clicks, current_theme):
      Input('session-store', 'data')]
 )
 def update_dropdown_styles(theme, session_data):
-    """Update dropdown styles based on theme and visibility."""
+    """
+    Update dropdown styles based on theme and visibility.
+    """
     from utils import can_see_all_vendors
 
     dropdown_style = get_dropdown_style(theme)
-    dropdown_style['fontFamily'] = 'Arial'
+    dropdown_style['fontFamily'] = 'Inter'
 
     # Special handling for vendor dropdown - hide if not admin
     if not session_data or not can_see_all_vendors(session_data):
@@ -1184,27 +1136,37 @@ def update_card_styles(theme):
 
 
 # Container styles callback
-# @callback(
-#     [Output('ventas-row1-container', 'style'), Output('ventas-row1-2-container', 'style'), Output('ventas-row1-5-container', 'style'), Output('ventas-row-nueva-treemap', 'style'), Output('ventas-row2-container', 'style'),
-#      Output('ventas-row2-5-container', 'style'), Output('ventas-row3-container',
-#                                                         'style'), Output('ventas-row4-container', 'style'),
-#      Output('ventas-row5-container', 'style'), Output('ventas-row6-container', 'style')],
-#     [Input('ventas-theme-store', 'data')]
-# )
-# def update_container_styles(theme):
-#     """Update styles for chart containers based on theme."""
-#     theme_styles = get_theme_styles(theme)
+@callback(
+    [Output('ventas-row1-container', 'style'),
+     #  Output('ventas-row1-2-container', 'style'),
+     #  Output('ventas-row1-3-container', 'style'),
+     Output('ventas-row1-5-container', 'style'),
+     Output('ventas-row-nueva-treemap', 'style'),
+     Output('ventas-row2-container', 'style'),
+     Output('ventas-row2-5-container', 'style'),
+     Output('ventas-row3-container', 'style'),
+     Output('ventas-row4-container', 'style'),
+     Output('ventas-row5-container', 'style'),
+     Output('ventas-row6-container', 'style')],
+    [Input('ventas-theme-store', 'data')]
+)
+def update_container_styles(theme):
+    """
+    Update styles for chart containers based on theme.
+    """
+    theme_styles = get_theme_styles(theme)
 
-#     chart_style = {
-#         'backgroundColor': theme_styles['paper_color'],
-#         'padding': '20px',
-#         'borderRadius': '8px',
-#         'boxShadow': theme_styles['card_shadow'],
-#         'margin': '10px 0',
-#         'color': theme_styles['text_color']
-#     }
+    chart_style = \
+        {
+            'backgroundColor': theme_styles['paper_color'],
+            'padding': '20px',
+            'borderRadius': '8px',
+            'boxShadow': theme_styles['card_shadow'],
+            'margin': '10px 0',
+            'color': theme_styles['text_color']
+        }
 
-    return [chart_style] * 10  # 10 containers now
+    return [chart_style] * 9  # 10 containers now
 
 
 @callback(
@@ -1216,7 +1178,9 @@ def update_card_styles(theme):
      Input('ventas-dropdown-vista-recaudo', 'value')]
 )
 def update_recaudo_visibility(session_data, dropdown_value, vista_recaudo):
-    """Show/hide recaudo components based on vendor selection."""
+    """
+    Show/hide recaudo components based on vendor selection.
+    """
     vendedor = get_selected_vendor(session_data, dropdown_value)
 
     if vendedor == 'Todos':
@@ -1243,7 +1207,9 @@ def update_recaudo_visibility(session_data, dropdown_value, vista_recaudo):
      Input('ventas-dropdown-mes', 'value')]
 )
 def update_title(session_data, dropdown_value, mes):
-    """Update dashboard title based on filters."""
+    """
+    Update dashboard title based on filters.
+    """
     from utils import can_see_all_vendors, get_user_vendor_filter
 
     try:
@@ -1321,7 +1287,9 @@ def update_cards(session_data, dropdown_value, mes, n_clicks):
      Input('ventas-theme-store', 'data')]
 )
 def update_ventas_mes(session_data, dropdown_value, theme):
-    """Update monthly sales evolution chart."""
+    """
+    Update monthly sales evolution chart with area fill and smooth lines.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_ventas_por_mes(vendedor)
@@ -1331,27 +1299,40 @@ def update_ventas_mes(session_data, dropdown_value, theme):
             fig = go.Figure()
             fig.add_annotation(
                 text="No hay datos disponibles",
-                xref="paper",
-                yref="paper",
-                x=0.5,
-                y=0.5,
-                showarrow=False,
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
                 font=dict(size=16, color=theme_styles['text_color'])
             )
             fig.update_layout(
-                height=400, paper_bgcolor=theme_styles['plot_bg'])
+                height=400,
+                paper_bgcolor=theme_styles['plot_bg'],
+                plot_bgcolor=theme_styles['plot_bg'],
+                font=dict(color=theme_styles['text_color'])
+            )
             return fig
 
         fig = go.Figure()
 
-        # Add sales line
+        # Área azul moderna con gradiente
         fig.add_trace(go.Scatter(
             x=data['mes_nombre'],
             y=data['valor_neto'],
             mode='lines+markers',
             name='Ventas',
-            line=dict(color='#27ae60', width=3),
-            marker=dict(size=8, color='#27ae60'),
+            line=dict(
+                color='rgba(74, 144, 226, 0.9)',  # Azul moderno
+                width=4,
+                shape='spline',  # Líneas redondeadas/suaves
+                smoothing=1.0    # Máximo suavizado
+            ),
+            marker=dict(
+                size=10,
+                color='rgba(74, 144, 226, 1.0)',
+                line=dict(color='white', width=3),
+                symbol='circle'
+            ),
+            fill='tozeroy',  # Rellenar hasta el eje Y (área)
+            fillcolor='rgba(74, 144, 226, 0.2)',  # Azul claro transparente
             hovertemplate="<b>%{x}</b><br>Ventas: %{customdata}<br>Facturas: %{text}<extra></extra>",
             customdata=[format_currency_int(val)
                         for val in data['valor_neto']],
@@ -1362,22 +1343,27 @@ def update_ventas_mes(session_data, dropdown_value, theme):
             height=400,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             xaxis=dict(
                 showgrid=True,
                 gridcolor=theme_styles['grid_color'],
                 tickangle=-45,
-                title="Mes"
+                title="Mes",
+                tickfont=dict(color=theme_styles['text_color']),
+                linecolor=theme_styles['line_color']
             ),
             yaxis=dict(
                 showgrid=True,
                 gridcolor=theme_styles['grid_color'],
                 tickformat='$,.0f',
-                title="Ventas ($)"
+                title="Ventas ($)",
+                tickfont=dict(color=theme_styles['text_color']),
+                linecolor=theme_styles['line_color']
             ),
             showlegend=False,
-            margin=dict(t=20, b=80, l=80, r=20)
+            margin=dict(t=20, b=80, l=80, r=20),
+            hovermode='x unified'
         )
 
         return fig
@@ -1394,7 +1380,9 @@ def update_ventas_mes(session_data, dropdown_value, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_estacionalidad(session_data, dropdown_value, mes, theme):
-    """Update seasonality chart by day of week."""
+    """
+    Update seasonality chart by day of week with pastel colors and transparency.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_ventas_por_dia_semana(vendedor, mes)
@@ -1408,9 +1396,16 @@ def update_estacionalidad(session_data, dropdown_value, mes, theme):
                 height=400, paper_bgcolor=theme_styles['plot_bg'])
             return fig
 
-        # Create bar chart with different colors for each day
-        colors = ['#3498db', '#e74c3c', '#2ecc71',
-                  '#f39c12', '#9b59b6', '#1abc9c', '#34495e']
+        # Colores pasteles con transparencia
+        pastel_colors = [
+            'rgba(173, 216, 230, 0.6)',  # Light Blue
+            'rgba(255, 182, 193, 0.6)',  # Light Pink
+            'rgba(144, 238, 144, 0.6)',  # Light Green
+            'rgba(255, 218, 185, 0.6)',  # Peach
+            'rgba(221, 160, 221, 0.6)',  # Plum
+            'rgba(175, 238, 238, 0.6)',  # Pale Turquoise
+            'rgba(211, 211, 211, 0.6)'   # Light Gray
+        ]
 
         fig = go.Figure()
 
@@ -1418,8 +1413,10 @@ def update_estacionalidad(session_data, dropdown_value, mes, theme):
             x=data['dia_semana_es'],
             y=data['valor_neto'],
             marker=dict(
-                color=[colors[i % len(colors)] for i in range(len(data))],
-                line=dict(color='white', width=1)
+                color=[pastel_colors[i % len(pastel_colors)]
+                       for i in range(len(data))],
+                line=dict(color='white', width=2),
+                opacity=0.8  # Transparencia adicional
             ),
             text=[format_currency_int(val) for val in data['valor_neto']],
             textposition='outside',
@@ -1436,7 +1433,7 @@ def update_estacionalidad(session_data, dropdown_value, mes, theme):
             height=400,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             xaxis=dict(
                 showgrid=False,
@@ -1465,7 +1462,9 @@ def update_estacionalidad(session_data, dropdown_value, mes, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_treemap_dias_sin_venta(session_data, dropdown_value, theme):
-    """Update days without sales treemap."""
+    """
+    Update days without sales treemap.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_dias_sin_venta_por_cliente(vendedor)
@@ -1512,7 +1511,7 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, theme):
                          "Ventas históricas: %{customdata[0]}<br>" +
                          "Última venta: %{customdata[1]}<br>" +
                          "<extra></extra>",
-            text=[cliente[:40] + "..." if len(cliente) > 40 else cliente
+            text=[cliente[:80] + "..." if len(cliente) > 80 else cliente
                   for cliente in data['cliente_completo']],
             customdata=[[format_currency_int(ventas), fecha_str]
                         for ventas, fecha_str in zip(
@@ -1532,7 +1531,7 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, theme):
 
         fig.update_layout(
             height=500,
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
@@ -1553,7 +1552,9 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_zona(session_data, dropdown_value, mes, theme):
-    """Update sales by zone chart."""
+    """
+    Update sales by zone chart with red-to-green color scale and transparency.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_ventas_por_zona(vendedor, mes)
@@ -1564,29 +1565,78 @@ def update_zona(session_data, dropdown_value, mes, theme):
             fig.add_annotation(text="No hay datos disponibles", xref="paper", yref="paper",
                                x=0.5, y=0.5, showarrow=False, font=dict(size=16, color=theme_styles['text_color']))
             fig.update_layout(
-                height=350, paper_bgcolor=theme_styles['plot_bg'])
+                height=350,
+                paper_bgcolor=theme_styles['plot_bg'],
+                plot_bgcolor=theme_styles['plot_bg']
+            )
             return fig
 
-        fig = px.bar(data, x='zona', y='valor_neto',
-                     color='valor_neto', color_continuous_scale='Blues')
+        # Normalizar valores para escala de color (0-1)
+        min_val = data['valor_neto'].min()
+        max_val = data['valor_neto'].max()
 
-        fig.update_traces(
+        # Crear colores basados en escala rojo-verde con transparencia
+        colors_red_to_green = []
+        for val in data['valor_neto']:
+            if max_val == min_val:
+                normalized = 0.5  # Si todos son iguales, usar color medio
+            else:
+                normalized = (val - min_val) / (max_val - min_val)
+
+            # Escala de rojo (0) a verde (1)
+            if normalized <= 0.5:
+                # De rojo a amarillo
+                red = 255
+                green = int(255 * (normalized * 2))
+                blue = 0
+            else:
+                # De amarillo a verde
+                red = int(255 * (2 - normalized * 2))
+                green = 255
+                blue = 0
+
+            # Agregar transparencia
+            alpha = 0.8
+            colors_red_to_green.append(
+                f'rgba({red}, {green}, {blue}, {alpha})')
+
+        fig = go.Figure()
+
+        fig.add_trace(go.Bar(
+            x=data['zona'],
+            y=data['valor_neto'],
+            marker=dict(
+                color=colors_red_to_green,
+                line=dict(color='white', width=2),
+                opacity=0.4
+            ),
             text=[format_currency_int(val) for val in data['valor_neto']],
             textposition='outside',
+            textfont=dict(size=10, color=theme_styles['text_color']),
             hovertemplate="<b>%{x}</b><br>Ventas: %{customdata[0]}<br>Clientes: %{customdata[1]}<extra></extra>",
             customdata=[[format_currency_int(val), clientes] for val, clientes in zip(
                 data['valor_neto'], data['cliente'])]
-        )
+        ))
 
         fig.update_layout(
             height=350,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
-            xaxis=dict(tickangle=-45, showgrid=False),
-            yaxis=dict(showgrid=True,
-                       gridcolor=theme_styles['grid_color'], tickformat='$,.0f'),
+            xaxis=dict(
+                tickangle=-45,
+                showgrid=False,
+                tickfont=dict(color=theme_styles['text_color']),
+                linecolor=theme_styles['line_color']
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor=theme_styles['grid_color'],
+                tickformat='$,.0f',
+                tickfont=dict(color=theme_styles['text_color']),
+                linecolor=theme_styles['line_color']
+            ),
             showlegend=False,
             margin=dict(t=20, b=80, l=80, r=20)
         )
@@ -1605,7 +1655,9 @@ def update_zona(session_data, dropdown_value, mes, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_forma_pago(session_data, dropdown_value, mes, theme):
-    """Update payment method chart."""
+    """
+    Update payment method chart.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_forma_pago_distribution(vendedor, mes)
@@ -1613,16 +1665,26 @@ def update_forma_pago(session_data, dropdown_value, mes, theme):
 
         if data.empty:
             fig = go.Figure()
-            fig.add_annotation(text="No hay datos disponibles", xref="paper", yref="paper",
-                               x=0.5, y=0.5, showarrow=False, font=dict(size=16, color=theme_styles['text_color']))
+            fig.add_annotation(
+                text="No hay datos disponibles",
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
             fig.update_layout(
-                height=350, paper_bgcolor=theme_styles['plot_bg'])
+                height=350,
+                paper_bgcolor=theme_styles['plot_bg']
+            )
             return fig
 
         fig = go.Figure(data=[go.Pie(
             labels=data['forma_pago'],
             values=data['valor_neto'],
             hole=.4,
+            opacity=0.6,
             textinfo='percent',
             marker=dict(colors=['#3498DB', '#E74C3C', '#2ECC71', '#F39C12',
                         '#9B59B6'], line=dict(color='#FFFFFF', width=2)),
@@ -1632,7 +1694,7 @@ def update_forma_pago(session_data, dropdown_value, mes, theme):
 
         fig.update_layout(
             height=350,
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
@@ -1656,7 +1718,9 @@ def update_forma_pago(session_data, dropdown_value, mes, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_treemap(session_data, dropdown_value, mes, theme):
-    """Update sales treemap."""
+    """
+    Update sales treemap.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_treemap_data(vendedor, mes)
@@ -1685,7 +1749,7 @@ def update_treemap(session_data, dropdown_value, mes, theme):
 
         fig.update_layout(
             height=500,
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
@@ -1706,7 +1770,9 @@ def update_treemap(session_data, dropdown_value, mes, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_top_clientes(session_data, dropdown_value, mes, theme):
-    """Update top customers chart."""
+    """
+    Update top customers chart.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_top_clientes(vendedor, mes)
@@ -1755,7 +1821,7 @@ def update_top_clientes(session_data, dropdown_value, mes, theme):
             height=400,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             xaxis=dict(tickformat='$,.0f', showgrid=True,
                        gridcolor=theme_styles['grid_color']),
@@ -1778,7 +1844,9 @@ def update_top_clientes(session_data, dropdown_value, mes, theme):
      Input('ventas-dropdown-vendedor', 'value')]
 )
 def update_clientes_dropdown(session_data, dropdown_value):
-    """Update client dropdown based on selected salesperson."""
+    """
+    Update client dropdown based on selected salesperson.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         clientes = analyzer.get_clientes_list(vendedor)
@@ -1794,7 +1862,9 @@ def update_clientes_dropdown(session_data, dropdown_value):
     [Input('ventas-dropdown-vendedor', 'value')]
 )
 def reset_cliente_selection(vendedor):
-    """Reset client selection when salesperson changes."""
+    """
+    Reset client selection when salesperson changes.
+    """
     return 'Seleccione un cliente'
 
 
@@ -1803,16 +1873,20 @@ def reset_cliente_selection(vendedor):
     [Input('ventas-dropdown-cliente', 'value'),
      Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-dropdown-mes', 'value'),
      Input('ventas-theme-store', 'data')]
 )
-def update_evolucion_cliente(cliente, session_data, dropdown_value, theme):
-    """Update client evolution chart - now showing daily sales."""
+def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, theme):
+    """
+    Update client evolution chart - filtered by month using main DataFrame.
+    """
     try:
-        vendedor = get_selected_vendor(session_data, dropdown_value)
-        data = analyzer.get_evolucion_cliente(cliente, vendedor)
-        theme_styles = get_theme_styles(theme)
+        vendedor = \
+            get_selected_vendor(session_data, dropdown_value)
+        theme_styles = \
+            get_theme_styles(theme)
 
-        if data.empty or cliente == 'Seleccione un cliente':
+        if cliente == 'Seleccione un cliente':
             fig = go.Figure()
             fig.add_annotation(
                 text="Seleccione un cliente para ver su evolución diaria de ventas",
@@ -1825,18 +1899,78 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, theme):
                 height=400,
                 plot_bgcolor=theme_styles['plot_bg'],
                 paper_bgcolor=theme_styles['plot_bg'],
-                font=dict(family="Arial", size=12,
+                font=dict(family="Inter", size=12,
                           color=theme_styles['text_color'])
             )
             return fig
 
-        # Create bar chart with daily data
+        # Filter dataframe based on client's name
+        data_filtered = df[df['cliente_completo'] == cliente].copy()
+
+        # Filtro por vendedor
+        if vendedor and vendedor != 'Todos':
+            data_filtered = data_filtered[data_filtered['vendedor'] == vendedor]
+
+        # FILTRO POR MES - AQUÍ ES DONDE ESTABA EL PROBLEMA
+        if mes and mes != 'Todos':
+            data_filtered = data_filtered[data_filtered['mes_nombre'] == mes]
+            print(
+                f"Filtrando {cliente} por mes {mes}: {len(data_filtered)} registros")
+
+        if data_filtered.empty:
+            mensaje = f"No hay datos para {cliente}"
+            if mes != 'Todos':
+                mensaje += f" en {mes}"
+
+            fig = go.Figure()
+            fig.add_annotation(
+                text=mensaje,
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                xanchor='center',
+                yanchor='middle',
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=400,
+                plot_bgcolor=theme_styles['plot_bg'],
+                paper_bgcolor=theme_styles['plot_bg'],
+                font=dict(family="Inter", size=12,
+                          color=theme_styles['text_color'])
+            )
+            return fig
+
+        # Crear fecha_str si no existe
+        data_filtered = data_filtered.copy()
+        data_filtered['fecha_str'] = pd.to_datetime(
+            data_filtered['fecha']).dt.strftime('%Y-%m-%d')
+
+        # Agrupar por fecha para obtener ventas diarias
+        data = data_filtered.groupby(['fecha', 'fecha_str']).agg({
+            'valor_neto': 'sum',
+            'documento_id': 'count'
+        }).reset_index().sort_values('fecha')
+
+        # Calcular total del período FILTRADO
+        total_ventas_periodo = data['valor_neto'].sum()
+        num_dias = len(data)
+
+        # Create bar chart
         fig = go.Figure()
 
-        # Add bars with gradient colors
-        colors = ['#27ae60', '#2ecc71', '#58d68d',
-                  '#82e0aa', '#abebc6', '#d5f4e6']
-        bar_colors = [colors[i % len(colors)] for i in range(len(data))]
+        pastel_colors = [
+            'rgba(144, 238, 144, 0.8)', 'rgba(173, 216, 230, 0.8)',
+            'rgba(255, 218, 185, 0.8)', 'rgba(221, 160, 221, 0.8)',
+            'rgba(175, 238, 238, 0.8)', 'rgba(255, 182, 193, 0.8)'
+        ]
+
+        bar_colors = \
+            [
+                pastel_colors[i % len(pastel_colors)] for i in range(len(data))
+            ]
 
         fig.add_trace(go.Bar(
             x=data['fecha_str'],
@@ -1845,8 +1979,8 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, theme):
                 color=bar_colors,
                 line=dict(color='white', width=1)
             ),
-            text=[format_currency_int(val) if val >
-                  50000 else '' for val in data['valor_neto']],
+            text=[format_currency_int(
+                val) if val > 50000 else '' for val in data['valor_neto']],
             textposition='outside',
             textfont=dict(size=9, color=theme_styles['text_color']),
             hovertemplate="<b>%{x}</b><br>" +
@@ -1857,31 +1991,44 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, theme):
                 data['valor_neto'], data['documento_id'])]
         ))
 
+        # Título con información específica del período
+        cliente_corto = cliente[:80] + '...' if len(cliente) > 80 else cliente
+
+        if mes != 'Todos':
+            titulo_completo = f"{cliente_corto} - {mes}<br><sub>Total: {format_currency_int(total_ventas_periodo)} ({num_dias} días)</sub>"
+        else:
+            titulo_completo = f"{cliente_corto}<br><sub>Total: {format_currency_int(total_ventas_periodo)} ({num_dias} días)</sub>"
+
         fig.update_layout(
-            title=f"Evolución Diaria - {cliente[:50]}{'...' if len(cliente) > 50 else ''}",
-            title_x=0.5,
-            xaxis_title="Fecha",
-            yaxis_title="Ventas ($)",
-            height=400,
+            title=dict(
+                text=titulo_completo,
+                x=0.5,
+                font=dict(size=14, color=theme_styles['text_color'])
+            ),
+            height=450,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             xaxis=dict(
+                title="Fecha",
                 showgrid=True,
                 gridcolor=theme_styles['grid_color'],
                 linecolor=theme_styles['line_color'],
                 tickangle=-45,
-                type='category'  # Treat dates as categories for better spacing
+                type='category',
+                tickfont=dict(color=theme_styles['text_color'])
             ),
             yaxis=dict(
+                title="Ventas ($)",
                 showgrid=True,
                 gridcolor=theme_styles['grid_color'],
                 linecolor=theme_styles['line_color'],
-                tickformat='$,.0f'
+                tickformat='$,.0f',
+                tickfont=dict(color=theme_styles['text_color'])
             ),
             showlegend=False,
-            margin=dict(t=60, b=80, l=80, r=40)
+            margin=dict(t=80, b=80, l=80, r=40)
         )
 
         return fig
@@ -1898,7 +2045,9 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_treemap_acumuladas(session_data, dropdown_value, mes, theme):
-    """Update accumulated sales treemap."""
+    """
+    Update accumulated sales treemap.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_ventas_acumuladas_mes(mes, vendedor)
@@ -1938,7 +2087,7 @@ def update_treemap_acumuladas(session_data, dropdown_value, mes, theme):
 
         fig.update_layout(
             height=500,  # Increased height since it's now alone in its row
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
@@ -1958,7 +2107,9 @@ def update_treemap_acumuladas(session_data, dropdown_value, mes, theme):
      Input('ventas-dropdown-mes', 'value')]
 )
 def update_titulo_recaudo(session_data, dropdown_value, mes):
-    """Update collection title with total amount."""
+    """
+    Update collection title with total amount.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         total_recaudo = analyzer.get_resumen_recaudo(vendedor, mes)
@@ -1977,7 +2128,9 @@ def update_titulo_recaudo(session_data, dropdown_value, mes):
      Input('ventas-theme-store', 'data')]
 )
 def update_clientes_impactados(session_data, dropdown_value, theme):
-    """Update clients impacted chart with horizontal bars and total clients bar."""
+    """
+    Update clients impacted chart with horizontal bars and total clients bar.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data, porcentaje_promedio, total_clientes = analyzer.get_clientes_impactados_por_periodo(
@@ -2022,7 +2175,7 @@ def update_clientes_impactados(session_data, dropdown_value, theme):
             marker=dict(color='#3498db', opacity=0.9),
             text=[f"{pct:.1f}%" for pct in percentages],
             textposition='inside',
-            textfont=dict(color='white', size=10, family='Arial'),
+            textfont=dict(color='white', size=10, family='Inter'),
             hovertemplate="<b>%{y}</b><br>" +
                          "Clientes Impactados: %{x}<br>" +
                          "Porcentaje: %{text}<br>" +
@@ -2042,7 +2195,7 @@ def update_clientes_impactados(session_data, dropdown_value, theme):
             height=400,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             xaxis=dict(
                 showgrid=True,
@@ -2077,7 +2230,9 @@ def update_clientes_impactados(session_data, dropdown_value, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_tabla_convenios(session_data, dropdown_value, mes, theme):
-    """Update convenios analysis table with enhanced design and expected sales."""
+    """
+    Update convenios analysis table with enhanced design and expected sales.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_analisis_convenios(vendedor, mes)
@@ -2086,7 +2241,7 @@ def update_tabla_convenios(session_data, dropdown_value, mes, theme):
         if data.empty:
             return html.Div([
                 html.P("No hay datos de convenios disponibles o no se encontraron coincidencias por NIT.",
-                       style={'textAlign': 'center', 'color': 'gray', 'fontSize': '16px', 'fontFamily': 'Arial'})
+                       style={'textAlign': 'center', 'color': 'gray', 'fontSize': '16px', 'fontFamily': 'Inter'})
             ])
 
         # Get expected percentage (same for all rows)
@@ -2094,7 +2249,9 @@ def update_tabla_convenios(session_data, dropdown_value, mes, theme):
             data) > 0 else 0
 
         def create_progress_bar(percentage, status_color='#27ae60', width="100px", height="20px"):
-            """Create a progress bar with status-based color."""
+            """
+            Create a progress bar with status-based color.
+            """
             bar_content = [
                 html.Div(
                     style={
@@ -2130,19 +2287,19 @@ def update_tabla_convenios(session_data, dropdown_value, mes, theme):
         # Header
         header = html.Tr([
             html.Th("Cliente", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Arial', 'fontSize': '12px', 'textAlign': 'left'}),
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'left'}),
             html.Th("Vendedor", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Arial', 'fontSize': '12px', 'textAlign': 'center'}),
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center'}),
             html.Th("Ventas", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Arial', 'fontSize': '12px', 'textAlign': 'center'}),
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center'}),
             html.Th("Ventas Esperadas", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Arial', 'fontSize': '12px', 'textAlign': 'center'}),
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center'}),
             html.Th("Meta", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Arial', 'fontSize': '12px', 'textAlign': 'center'}),
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center'}),
             html.Th("% Cumplimiento", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Arial', 'fontSize': '12px', 'textAlign': 'center'}),
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center'}),
             html.Th("Estado", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Arial', 'fontSize': '12px', 'textAlign': 'center'})
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center'})
         ])
 
         # Data rows
@@ -2174,20 +2331,20 @@ def update_tabla_convenios(session_data, dropdown_value, mes, theme):
                              style={'fontWeight': 'bold', 'fontSize': '11px'}),
                     html.Div(f"NIT: {row['nit']}", style={
                              'fontSize': '9px', 'color': '#7f8c8d'})
-                ], style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Arial', 'textAlign': 'left'}),
+                ], style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'textAlign': 'left'}),
 
                 # All other columns centered
                 html.Td(row['seller_name'][:30] + "..." if len(row['seller_name']) > 30 else row['seller_name'],
-                        style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Arial', 'fontSize': '10px', 'textAlign': 'center'}),
+                        style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'}),
 
                 html.Td(format_currency_int(row['valor_neto']),
-                        style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Arial', 'fontSize': '10px', 'textAlign': 'center'}),
+                        style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'}),
 
                 html.Td(format_currency_int(row['ventas_esperadas']),
-                        style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Arial', 'fontSize': '10px', 'textAlign': 'center'}),
+                        style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'}),
 
                 html.Td(format_currency_int(row['target_value']),
-                        style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Arial', 'fontSize': '10px', 'textAlign': 'center'}),
+                        style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'}),
 
                 # Progress bar for % Cumplimiento with status color
                 html.Td(create_progress_bar(row['progreso_meta_pct'], estado_color),
@@ -2195,7 +2352,7 @@ def update_tabla_convenios(session_data, dropdown_value, mes, theme):
 
                 html.Td(estado_text,
                         style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'color': estado_color,
-                               'fontWeight': 'bold', 'fontFamily': 'Arial', 'fontSize': '10px', 'textAlign': 'center'})
+                               'fontWeight': 'bold', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'})
             ])
             table_rows.append(table_row)
 
@@ -2225,7 +2382,7 @@ def update_tabla_convenios(session_data, dropdown_value, mes, theme):
         summary = html.Div([
             html.Div([
                 html.H4("📊 Resumen Ejecutivo de Convenios",
-                        style={'color': theme_styles['text_color'], 'fontFamily': 'Arial', 'margin': '0 0 15px 0', 'textAlign': 'center'}),
+                        style={'color': theme_styles['text_color'], 'fontFamily': 'Inter', 'margin': '0 0 15px 0', 'textAlign': 'center'}),
 
                 html.Div([
                     html.Div([
@@ -2297,9 +2454,13 @@ def update_tabla_convenios(session_data, dropdown_value, mes, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_grafico_recaudo_vendedor(mes, theme):
-    """Update vendor summary chart (only when 'Todos' is selected)."""
+    """
+    Update vendor summary chart - filter by specific month if selected.
+    """
     try:
-        data, total_recaudo = analyzer.get_recaudo_por_vendedor()
+        # CAMBIO: Pasar el parámetro mes para filtrar
+        data, total_recaudo = \
+            analyzer.get_recaudo_por_vendedor(mes)
         theme_styles = get_theme_styles(theme)
 
         if data.empty:
@@ -2311,20 +2472,36 @@ def update_grafico_recaudo_vendedor(mes, theme):
                 font=dict(size=14, color=theme_styles['text_color'])
             )
             fig.update_layout(
-                height=350, plot_bgcolor=theme_styles['plot_bg'], paper_bgcolor=theme_styles['plot_bg'])
+                height=350,
+                plot_bgcolor=theme_styles['plot_bg'],
+                paper_bgcolor=theme_styles['plot_bg']
+            )
             return fig
 
-        # Create bar chart with different colors for each vendor
-        colors = ['#27ae60', '#3498db', '#e74c3c',
-                  '#f39c12', '#9b59b6', '#1abc9c', '#34495e']
-        bar_colors = [colors[i % len(colors)] for i in range(len(data))]
+        # Colores pasteles con transparencia
+        pastel_colors_transparent = [
+            'rgba(144, 238, 144, 0.7)',   # Light Green
+            'rgba(173, 216, 230, 0.7)',   # Light Blue
+            'rgba(255, 182, 193, 0.7)',   # Light Pink
+            'rgba(255, 218, 185, 0.7)',   # Peach
+            'rgba(221, 160, 221, 0.7)',   # Plum
+            'rgba(175, 238, 238, 0.7)',   # Pale Turquoise
+            'rgba(211, 211, 211, 0.7)'    # Light Gray
+        ]
+
+        bar_colors = [pastel_colors_transparent[i %
+                                                len(pastel_colors_transparent)] for i in range(len(data))]
 
         fig = go.Figure()
 
         fig.add_trace(go.Bar(
             x=data['vendedor'],
             y=data['valor_recibo'],
-            marker=dict(color=bar_colors, line=dict(color='white', width=1)),
+            marker=dict(
+                color=bar_colors,
+                line=dict(color='white', width=2),
+                opacity=0.8
+            ),
             text=[format_currency_int(val) for val in data['valor_recibo']],
             textposition='outside',
             textfont=dict(size=9, color=theme_styles['text_color']),
@@ -2333,17 +2510,34 @@ def update_grafico_recaudo_vendedor(mes, theme):
                 data['valor_recibo'], data['recibo_id'])]
         ))
 
+        # Título dinámico basado en filtro de mes
+        titulo_mes = f" - {mes}" if mes != 'Todos' else ""
+
         fig.update_layout(
-            height=450,
+            title=f"Recaudo por Vendedor{titulo_mes}",
+            title_x=0.5,
+            height=500,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Arial", size=11,
+            font=dict(family="Inter", size=11,
                       color=theme_styles['text_color']),
-            xaxis=dict(showgrid=False, tickangle=-45, title="Vendedor"),
+            xaxis=dict(
+                showgrid=False,
+                tickangle=-45,
+                title="Vendedor",
+                tickfont=dict(color=theme_styles['text_color']),
+                linecolor=theme_styles['line_color']
+            ),
             yaxis=dict(
-                showgrid=True, gridcolor=theme_styles['grid_color'], tickformat='$,.0f', title="Recaudo ($)"),
+                showgrid=True,
+                gridcolor=theme_styles['grid_color'],
+                tickformat='$,.0f',
+                title="Recaudo ($)",
+                tickfont=dict(color=theme_styles['text_color']),
+                linecolor=theme_styles['line_color']
+            ),
             showlegend=False,
-            margin=dict(t=20, b=80, l=60, r=20)
+            margin=dict(t=50, b=80, l=60, r=20)
         )
 
         return fig
@@ -2361,19 +2555,23 @@ def update_grafico_recaudo_vendedor(mes, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo, mes, theme):
-    """Update temporal recaudo chart."""
+    """
+    Update temporal recaudo chart with ascending/descending colors for daily view.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         theme_styles = get_theme_styles(theme)
 
         # Get data based on view type
         if vista_recaudo == 'mensual':
-            data, total_recaudo = analyzer.get_recaudo_por_mes(vendedor)
+            data, total_recaudo = \
+                analyzer.get_recaudo_por_mes(vendedor)
             x_field = 'mes_nombre'
             x_title = "Mes"
             chart_type = 'line'
         else:
-            data, total_recaudo = analyzer.get_recaudo_por_dia(vendedor, mes)
+            data, total_recaudo = \
+                analyzer.get_recaudo_por_dia(vendedor, mes)
             x_field = 'fecha_str'
             x_title = "Fecha"
             chart_type = 'bar'
@@ -2382,37 +2580,68 @@ def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo,
             fig = go.Figure()
             fig.add_annotation(
                 text="No hay datos de recaudo disponibles",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, showarrow=False,
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                showarrow=False,
                 font=dict(size=14, color=theme_styles['text_color'])
             )
             fig.update_layout(
-                height=350, plot_bgcolor=theme_styles['plot_bg'], paper_bgcolor=theme_styles['plot_bg'])
+                height=350,
+                plot_bgcolor=theme_styles['plot_bg'],
+                paper_bgcolor=theme_styles['plot_bg']
+            )
             return fig
 
         # Create chart
         fig = go.Figure()
 
         if chart_type == 'line':
-            # Line chart for monthly evolution
+            # Line chart for monthly evolution with pastel color
             fig.add_trace(go.Scatter(
                 x=data[x_field],
                 y=data['valor_recibo'],
                 mode='lines+markers',
-                line=dict(color='#27ae60', width=3),
-                marker=dict(size=6, color='#27ae60'),
+                # Light green with transparency
+                line=dict(color='rgba(144, 238, 144, 0.8)', width=3),
+                marker=dict(size=8, color='rgba(144, 238, 144, 0.9)',
+                            line=dict(color='white', width=2)),
                 hovertemplate="<b>%{x}</b><br>Recaudo: %{customdata}<br>Recibos: %{text}<extra></extra>",
                 customdata=[format_currency_int(val)
                             for val in data['valor_recibo']],
                 text=data['recibo_id']
             ))
         else:
-            # Bar chart for daily
+            # Bar chart for daily with ascending/descending colors
+            # Calcular diferencias para determinar ascendente/descendente
+            valores = data['valor_recibo'].tolist()
+            bar_colors = []
+
+            # Color para la primera barra (neutro)
+            bar_colors.append('rgba(173, 216, 230, 0.8)')  # Light blue
+
+            # Determinar colores basado en tendencia
+            for i in range(1, len(valores)):
+                if valores[i] > valores[i-1]:
+                    # Ascendente - Verde pastel
+                    bar_colors.append(
+                        'rgba(144, 238, 144, 0.8)')  # Light green
+                elif valores[i] < valores[i-1]:
+                    # Descendente - Rosa pastel
+                    bar_colors.append('rgba(255, 182, 193, 0.8)')  # Light pink
+                else:
+                    # Igual - Azul pastel
+                    bar_colors.append('rgba(173, 216, 230, 0.8)')  # Light blue
+
             fig.add_trace(go.Bar(
                 x=data[x_field],
                 y=data['valor_recibo'],
-                marker=dict(color='#27ae60', line=dict(
-                    color='white', width=1)),
+                marker=dict(
+                    color=bar_colors,
+                    line=dict(color='white', width=2),
+                    opacity=0.8
+                ),
                 text=[format_currency_int(
                     val) if val > 0 else '' for val in data['valor_recibo']],
                 textposition='outside',
@@ -2426,7 +2655,7 @@ def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo,
             height=350,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Arial", size=11,
+            font=dict(family="Inter", size=11,
                       color=theme_styles['text_color']),
             xaxis=dict(showgrid=True, gridcolor=theme_styles['grid_color'],
                        title=x_title, tickangle=-45 if chart_type == 'bar' else 0),

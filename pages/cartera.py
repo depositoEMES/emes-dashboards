@@ -26,13 +26,13 @@ layout = html.Div([
         # Dropdown para administradores (siempre presente, visibility controlada)
         html.Div([
             html.Label("Vendedor:", style={
-                       'fontWeight': 'bold', 'marginBottom': '5px', 'fontFamily': 'Arial'}, id='cartera-dropdown-label'),
+                       'fontWeight': 'bold', 'marginBottom': '5px', 'fontFamily': 'Inter'}, id='cartera-dropdown-label'),
             dcc.Dropdown(
                 id='cartera-dropdown-vendedor',
                 options=[{'label': v, 'value': v}
                          for v in analyzer.vendedores_list],
                 value='Todos',
-                style={'fontFamily': 'Arial'},
+                style={'fontFamily': 'Inter'},
                 className='custom-dropdown'
             )
         ], style={'width': '20%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginLeft': '5%'}, id='cartera-dropdown-container'),
@@ -48,36 +48,36 @@ layout = html.Div([
         html.Div([
             html.Div([
                 html.H3("Cartera Total", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(
-                    id='cartera-total-cartera', children="$0", style={'color': '#e74c3c', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                    id='cartera-total-cartera', children="$0", style={'color': '#e74c3c', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='cartera-card-1'),
 
             html.Div([
                 html.H3("Vencida", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(
-                    id='cartera-total-vencida', children="$0", style={'color': '#e74c3c', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                    id='cartera-total-vencida', children="$0", style={'color': '#e74c3c', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='cartera-card-2'),
 
             html.Div([
                 html.H3("Sin Vencer", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='cartera-total-sin-vencer', children="$0",
-                        style={'color': '#27ae60', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        style={'color': '#27ae60', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='cartera-card-3'),
 
             html.Div([
                 html.H3("Calidad Cartera", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='cartera-calidad-cartera', children="0%",
-                        style={'color': '#9b59b6', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        style={'color': '#9b59b6', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='cartera-card-4')
@@ -87,36 +87,36 @@ layout = html.Div([
         html.Div([
             html.Div([
                 html.H3("Clientes", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='cartera-total-clientes', children="0",
-                        style={'color': '#3498db', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        style={'color': '#3498db', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='cartera-card-5'),
 
             html.Div([
                 html.H3("Clientes con cartera vencida", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='cartera-clientes-vencida', children="0",
-                        style={'color': '#e67e22', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        style={'color': '#e67e22', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='cartera-card-6'),
 
             html.Div([
                 html.H3("Facturas", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(
-                    id='cartera-num-facturas', children="0", style={'color': '#16a085', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                    id='cartera-num-facturas', children="0", style={'color': '#16a085', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='cartera-card-7'),
 
             html.Div([
                 html.H3("% Vencida", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Arial'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
                 html.H2(id='cartera-porcentaje-vencida', children="0%",
-                        style={'color': '#f39c12', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Arial'})
+                        style={'color': '#f39c12', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
                       'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
                       'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='cartera-card-8')
@@ -127,13 +127,13 @@ layout = html.Div([
     html.Div([
         html.Div([
             html.H3("Distribución por Días Vencidos", style={
-                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
             dcc.Graph(id='cartera-grafico-rangos')
         ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'}),
 
         html.Div([
             html.H3("Distribución por Forma de Pago", style={
-                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
             dcc.Graph(id='cartera-grafico-forma-pago')
         ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'})
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
@@ -143,7 +143,7 @@ layout = html.Div([
     # Fila 2: Treemap Cartera Total
     html.Div([
         html.H3("Mapa de Cartera Total por Cliente", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
         dcc.Graph(id='cartera-treemap-cartera')
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'},
@@ -152,7 +152,7 @@ layout = html.Div([
     # Fila 2.5: Treemap Cartera Vencida
     html.Div([
         html.H3("Mapa de Cartera Vencida por Cliente", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
         dcc.Graph(id='cartera-treemap-cartera-vencida')
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'},
@@ -162,13 +162,13 @@ layout = html.Div([
     html.Div([
         html.Div([
             html.H3("Top 10 - Cartera Vencida",
-                    style={'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                    style={'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
             dcc.Graph(id='cartera-top-vencida')
         ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'}),
 
         html.Div([
             html.H3("Top 10 - Cartera Sin Vencer",
-                    style={'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                    style={'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
             dcc.Graph(id='cartera-top-sin-vencer')
         ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'})
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
@@ -178,10 +178,10 @@ layout = html.Div([
     # Fila 4: Análisis de Vencimientos - Configuración
     html.Div([
         html.H3("Análisis de Vencimientos Próximos", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
         html.Div([
             html.Label("Días para análisis:", style={
-                       'marginBottom': '10px', 'fontWeight': 'bold', 'fontFamily': 'Arial'}),
+                       'marginBottom': '10px', 'fontWeight': 'bold', 'fontFamily': 'Inter'}),
             dcc.Slider(
                 id='cartera-slider-dias',
                 min=1, max=90, step=1, value=5,
@@ -195,7 +195,7 @@ layout = html.Div([
     # Fila 5: Gráfico de Vencimientos Próximos
     html.Div([
         html.H3("Documentos Próximos a Vencer", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
         dcc.Graph(id='cartera-grafico-proximos-vencer')
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'},
@@ -204,7 +204,7 @@ layout = html.Div([
     # Fila 6: Tabla Detallada de Vencimientos
     html.Div([
         html.H3("Detalle de Documentos por Vencer", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Arial'}),
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
         html.Div(id='cartera-tabla-proximos-vencer')
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'},
@@ -215,10 +215,10 @@ layout = html.Div([
         html.Button('Actualizar Datos', id='cartera-btn-actualizar', n_clicks=0,
                     style={'backgroundColor': '#3498db', 'color': 'white', 'border': 'none',
                            'padding': '10px 20px', 'borderRadius': '5px', 'cursor': 'pointer',
-                           'fontFamily': 'Arial'})
+                           'fontFamily': 'Inter'})
     ], style={'textAlign': 'center', 'margin': '20px 0'})
 
-], style={'fontFamily': 'Arial', 'backgroundColor': '#f5f5f5', 'padding': '20px'}, id='cartera-main-container')
+], style={'fontFamily': 'Inter', 'backgroundColor': '#f5f5f5', 'padding': '20px'}, id='cartera-main-container')
 
 
 # Función auxiliar mejorada para obtener el vendedor seleccionado
@@ -266,7 +266,7 @@ def update_dropdown_visibility(session_data):
             label_style = {
                 'fontWeight': 'bold',
                 'marginBottom': '5px',
-                'fontFamily': 'Arial'
+                'fontFamily': 'Inter'
             }
             return base_style, label_style
     except Exception as e:
@@ -294,7 +294,7 @@ def toggle_theme(n_clicks, current_theme):
     theme_styles = get_theme_styles(new_theme)
 
     main_style = {
-        'fontFamily': 'Arial',
+        'fontFamily': 'Inter',
         'backgroundColor': theme_styles['bg_color'],
         'padding': '20px',
         'color': theme_styles['text_color']
@@ -328,15 +328,15 @@ def update_dropdown_style(theme, session_data):
 
         if theme == 'dark':
             return {
-                'fontFamily': 'Arial',
+                'fontFamily': 'Inter',
                 'backgroundColor': theme_styles['paper_color'],
                 'color': theme_styles['text_color']
             }
         else:
-            return {'fontFamily': 'Arial'}
+            return {'fontFamily': 'Inter'}
     except Exception as e:
         print(f"Error en update_dropdown_style: {e}")
-        return {'fontFamily': 'Arial'}
+        return {'fontFamily': 'Inter'}
 
 
 # Card styles callback
@@ -514,7 +514,7 @@ def update_rangos(session_data, dropdown_value, n_clicks, theme):
             showlegend=False,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             xaxis=dict(
                 showgrid=False,
@@ -577,7 +577,7 @@ def update_forma_pago(session_data, dropdown_value, n_clicks, theme):
         fig.update_layout(
             title="",
             height=350,
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
@@ -660,7 +660,7 @@ def update_treemap(session_data, dropdown_value, n_clicks, theme):
         fig.update_layout(
             title="",
             height=500,
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
@@ -699,7 +699,7 @@ def update_treemap_vencida(session_data, dropdown_value, n_clicks, theme):
                 height=500,
                 plot_bgcolor=theme_styles['plot_bg'],
                 paper_bgcolor=theme_styles['plot_bg'],
-                font=dict(family="Arial", size=12,
+                font=dict(family="Inter", size=12,
                           color=theme_styles['text_color'])
             )
             return fig
@@ -719,7 +719,7 @@ def update_treemap_vencida(session_data, dropdown_value, n_clicks, theme):
                 height=500,
                 plot_bgcolor=theme_styles['plot_bg'],
                 paper_bgcolor=theme_styles['plot_bg'],
-                font=dict(family="Arial", size=12,
+                font=dict(family="Inter", size=12,
                           color=theme_styles['text_color'])
             )
             return fig
@@ -745,7 +745,7 @@ def update_treemap_vencida(session_data, dropdown_value, n_clicks, theme):
         fig.update_layout(
             title="",
             height=500,
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
@@ -805,7 +805,7 @@ def update_top_vencida(session_data, dropdown_value, n_clicks, theme):
             height=450,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             xaxis=dict(
                 tickformat='$,.0f',
@@ -875,7 +875,7 @@ def update_top_sin_vencer(session_data, dropdown_value, n_clicks, theme):
             height=450,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Arial", size=12,
+            font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             xaxis=dict(
                 tickformat='$,.0f',
@@ -928,7 +928,7 @@ def update_proximos_vencer(dias, session_data, dropdown_value, theme):
                 height=450,
                 plot_bgcolor=theme_styles['plot_bg'],
                 paper_bgcolor=theme_styles['plot_bg'],
-                font=dict(family="Arial", size=12,
+                font=dict(family="Inter", size=12,
                           color=theme_styles['text_color'])
             )
         else:
@@ -1014,7 +1014,7 @@ def update_proximos_vencer(dias, session_data, dropdown_value, theme):
                     customdata=hover_data,
                     text=text_data,
                     textposition='inside',
-                    textfont=dict(size=9, color='white', family='Arial'),
+                    textfont=dict(size=9, color='white', family='Inter'),
                     showlegend=False
                 ))
 
@@ -1026,7 +1026,7 @@ def update_proximos_vencer(dias, session_data, dropdown_value, theme):
                 height=450,
                 plot_bgcolor=theme_styles['plot_bg'],
                 paper_bgcolor=theme_styles['plot_bg'],
-                font=dict(family="Arial", size=12,
+                font=dict(family="Inter", size=12,
                           color=theme_styles['text_color']),
                 xaxis=dict(
                     showgrid=True,
@@ -1054,7 +1054,7 @@ def update_proximos_vencer(dias, session_data, dropdown_value, theme):
                 xanchor='center', yanchor='bottom',
                 showarrow=False,
                 font=dict(
-                    size=11, color=theme_styles['text_color'], family='Arial'),
+                    size=11, color=theme_styles['text_color'], family='Inter'),
                 bgcolor=theme_styles['paper_color'],
                 bordercolor=theme_styles['line_color'],
                 borderwidth=1
@@ -1064,7 +1064,7 @@ def update_proximos_vencer(dias, session_data, dropdown_value, theme):
         if data_documentos_table.empty:
             tabla = html.Div([
                 html.P("No hay documentos próximos a vencer en este período.",
-                       style={'textAlign': 'center', 'color': 'gray', 'fontSize': '16px', 'fontFamily': 'Arial'})
+                       style={'textAlign': 'center', 'color': 'gray', 'fontSize': '16px', 'fontFamily': 'Inter'})
             ])
         else:
             # Group by customer
@@ -1082,7 +1082,7 @@ def update_proximos_vencer(dias, session_data, dropdown_value, theme):
                             html.H5(current_cliente,
                                     style={'backgroundColor': urgency_color, 'color': 'white',
                                            'padding': '10px', 'margin': '10px 0 0 0', 'borderRadius': '5px',
-                                           'fontFamily': 'Arial'})
+                                           'fontFamily': 'Inter'})
                         ])
                     )
 
@@ -1092,13 +1092,13 @@ def update_proximos_vencer(dias, session_data, dropdown_value, theme):
                     html.Div([
                         html.Div([
                             html.Span(f"{urgency_emoji} Documento: {row['documento_id']}",
-                                      style={'fontWeight': 'bold', 'marginRight': '20px', 'fontFamily': 'Arial'}),
+                                      style={'fontWeight': 'bold', 'marginRight': '20px', 'fontFamily': 'Inter'}),
                             html.Span(f"Valor: {format_currency_int(row['sin_vencer'])}",
-                                      style={'color': '#27AE60', 'marginRight': '20px', 'fontFamily': 'Arial'}),
+                                      style={'color': '#27AE60', 'marginRight': '20px', 'fontFamily': 'Inter'}),
                             html.Span(f"Vence en: {int(row['dias_hasta_vencimiento'])} días",
-                                      style={'color': '#E74C3C', 'fontFamily': 'Arial'}),
+                                      style={'color': '#E74C3C', 'fontFamily': 'Inter'}),
                             html.Span(f"Fecha: {row['vencimiento'].strftime('%Y-%m-%d')}",
-                                      style={'color': '#7F8C8D', 'marginLeft': '20px', 'fontFamily': 'Arial'})
+                                      style={'color': '#7F8C8D', 'marginLeft': '20px', 'fontFamily': 'Inter'})
                         ], style={'padding': '8px 15px', 'backgroundColor': theme_styles['paper_color'] if theme == 'dark' else '#F8F9FA',
                                   'margin': '2px 0', 'borderRadius': '3px', 'borderLeft': '3px solid #3498DB',
                                   'color': theme_styles['text_color']})

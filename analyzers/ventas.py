@@ -611,6 +611,7 @@ class VentasAnalyzer:
         Get client's sales evolution by day.
         """
         df = self.filter_data(vendedor, 'Todos')
+
         ventas_reales = df[df['tipo'].str.contains(
             'Remision|Factura', case=False, na=False)]
 
@@ -633,6 +634,7 @@ class VentasAnalyzer:
         }).reset_index()
 
         resultado = resultado.sort_values('fecha_str')
+
         return resultado
 
     def get_ventas_acumuladas_mes(self, mes='Todos', vendedor='Todos'):
@@ -773,3 +775,43 @@ class VentasAnalyzer:
         resultado = resultado.sort_values('dias_sin_venta', ascending=False)
 
         return resultado
+
+    def get_recaudo_por_vendedor(self, mes=None):
+        """
+        Get collection data by vendor, optionally filtered by month.
+
+        Args:
+            mes (_type_, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
+        try:
+            df_recibos = self.load_recibos_from_firebase()
+
+            if df_recibos.empty:
+                return pd.DataFrame(), 0
+
+            # Aplicar filtro de mes si está especificado
+            if mes and mes != 'Todos':
+                # Assumiendo que df_recibos tiene una columna 'mes_nombre'
+                df_filtered = df_recibos[df_recibos['mes_nombre'] == mes]
+            else:
+                df_filtered = df_recibos
+
+            if df_filtered.empty:
+                return pd.DataFrame(), 0
+
+            # Agrupar por vendedor
+            result = df_filtered.groupby('vendedor').agg({
+                'valor_recibo': 'sum',
+                'recibo_id': 'count'
+            }).reset_index()
+
+            result = result.sort_values('valor_recibo', ascending=False)
+            total_recaudo = result['valor_recibo'].sum()
+
+            return result, total_recaudo
+        except Exception as e:
+            print(f"Error en get_recaudo_por_vendedor: {e}")
+            return pd.DataFrame(), 0
