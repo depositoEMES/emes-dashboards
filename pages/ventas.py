@@ -14,16 +14,11 @@ from analyzers import VentasAnalyzer
 from utils import format_currency_int, get_theme_styles
 
 
-# ========== INICIALIZACIÓN ACTUALIZADA ==========
-
-# Initialize analyzer (sin carga automática inicial)
 analyzer = VentasAnalyzer()
 
 # Carga inicial opcional (se recarga on-demand)
 try:
-    print("🚀 [VentasPage] Inicializando VentasAnalyzer...")
     df = analyzer.load_data_from_firebase()
-    print(f"✅ [VentasPage] Carga inicial completada: {len(df)} registros")
 except Exception as e:
     print(f"⚠️ [VentasPage] Carga inicial falló (se recargará on-demand): {e}")
     df = pd.DataFrame()
@@ -31,29 +26,27 @@ except Exception as e:
 # Try to load optional data (convenios, recibos, num_clientes)
 try:
     df_convenios = analyzer.load_convenios_from_firebase()
-    print(f"📋 [VentasPage] Convenios cargados: {len(df_convenios)} registros")
 except Exception as e:
     print(f"⚠️ [VentasPage] Could not load convenios: {e}")
     df_convenios = pd.DataFrame()
 
 try:
     df_recibos = analyzer.load_recibos_from_firebase()
-    print(f"💰 [VentasPage] Recibos cargados: {len(df_recibos)} registros")
 except Exception as e:
     print(f"⚠️ [VentasPage] Could not load recibos: {e}")
     df_recibos = pd.DataFrame()
 
 try:
     df_num_clientes = analyzer.load_num_clientes_from_firebase()
-    print(
-        f"👥 [VentasPage] Num clientes cargados: {len(df_num_clientes)} registros")
 except Exception as e:
     print(f"⚠️ [VentasPage] Could not load num_clientes: {e}")
     df_num_clientes = pd.DataFrame()
 
 
 def get_dropdown_style(theme):
-    """Get dropdown styles based on theme."""
+    """
+    Get dropdown styles based on theme.
+    """
     if theme == 'dark':
         return {
             'backgroundColor': '#2d2d2d',
@@ -69,7 +62,9 @@ def get_dropdown_style(theme):
 
 
 def get_selected_vendor(session_data, dropdown_value):
-    """Obtener vendedor basado en permisos y selección."""
+    """
+    Obtener vendedor basado en permisos y selección.
+    """
     from utils import can_see_all_vendors, get_user_vendor_filter
 
     try:
@@ -87,16 +82,12 @@ def get_selected_vendor(session_data, dropdown_value):
         return 'Todos'
 
 
-# ========== LAYOUT ACTUALIZADO ==========
-
 layout = html.Div([
     # Store for theme
     dcc.Store(id='ventas-theme-store', data='light'),
-
-    # ¡NUEVO! Store para datos actualizados
     dcc.Store(id='ventas-data-store', data={'last_update': 0}),
 
-    # ¡NUEVO! Área de notificaciones
+    # Notification area
     html.Div(id='ventas-notification-area', children=[], style={
         'position': 'fixed',
         'top': '20px',
@@ -440,8 +431,6 @@ layout = html.Div([
 ], style={'fontFamily': 'Inter', 'backgroundColor': '#f5f5f5', 'padding': '20px'}, id='ventas-main-container')
 
 
-# ========== CALLBACKS NUEVOS DE ACTUALIZACIÓN ==========
-
 @callback(
     Output('ventas-data-store', 'data'),
     [Input('ventas-btn-actualizar', 'n_clicks')],
@@ -453,7 +442,6 @@ def update_ventas_data(n_clicks):
     """
     if n_clicks > 0:
         try:
-            print(f"🔄 [VentasPage] Iniciando actualización #{n_clicks}")
             start_time = time.time()
 
             # ¡CLAVE! Usar reload_data() para forzar recarga completa
@@ -464,9 +452,6 @@ def update_ventas_data(n_clicks):
             # Debugging info
             if hasattr(analyzer, 'print_data_summary'):
                 analyzer.print_data_summary()
-
-            print(
-                f"✅ [VentasPage] Actualización #{n_clicks} completada en {load_time:.2f}s")
 
             return {
                 'last_update': n_clicks,
@@ -494,7 +479,9 @@ def update_ventas_data(n_clicks):
     prevent_initial_call=True
 )
 def show_update_notification(data_store):
-    """Mostrar notificación cuando se actualicen los datos."""
+    """
+    Mostrar notificación cuando se actualicen los datos.
+    """
     if data_store and data_store.get('last_update', 0) > 0:
         if data_store.get('error'):
             # Notificación de error
@@ -589,13 +576,10 @@ def update_button_state(data_store):
      Input('ventas-data-store', 'data')]  # ¡NUEVO!
 )
 def update_cards(session_data, dropdown_value, mes, data_store):
-    """Update summary cards with sales statistics."""
+    """
+    Update summary cards with sales statistics.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"📊 [update_cards] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         resumen = analyzer.get_resumen_ventas(vendedor, mes)
 
@@ -622,13 +606,10 @@ def update_cards(session_data, dropdown_value, mes, data_store):
      Input('ventas-theme-store', 'data')]
 )
 def update_ventas_mes(session_data, dropdown_value, data_store, theme):
-    """Update monthly sales evolution chart with area fill and smooth lines."""
+    """
+    Update monthly sales evolution chart with area fill and smooth lines.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"📈 [update_ventas_mes] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_ventas_por_mes(vendedor)
         theme_styles = get_theme_styles(theme)
@@ -719,13 +700,10 @@ def update_ventas_mes(session_data, dropdown_value, data_store, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_estacionalidad(session_data, dropdown_value, mes, data_store, theme):
-    """Update seasonality chart by day of week with pastel colors and transparency."""
+    """
+    Update seasonality chart by day of week with pastel colors and transparency.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"📅 [update_estacionalidad] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_ventas_por_dia_semana(vendedor, mes)
         theme_styles = get_theme_styles(theme)
@@ -798,95 +776,6 @@ def update_estacionalidad(session_data, dropdown_value, mes, data_store, theme):
 
 
 @callback(
-    Output('ventas-treemap-dias-sin-venta', 'figure'),
-    [Input('session-store', 'data'),
-     Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-theme-store', 'data')]
-)
-def update_treemap_dias_sin_venta(session_data, dropdown_value, theme):
-    """
-    Update days without sales treemap.
-    """
-    try:
-        vendedor = get_selected_vendor(session_data, dropdown_value)
-        data = analyzer.get_dias_sin_venta_por_cliente(vendedor)
-        theme_styles = get_theme_styles(theme)
-
-        if data.empty:
-            fig = go.Figure()
-            fig.add_annotation(
-                text="No hay clientes sin ventas recientes",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, xanchor='center', yanchor='middle',
-                showarrow=False,
-                font=dict(size=16, color=theme_styles['text_color'])
-            )
-            fig.update_layout(
-                height=500, paper_bgcolor=theme_styles['plot_bg'])
-            return fig
-
-        # Create labels with client name and days
-        labels = [f"{cliente}<br>{dias} días" for cliente, dias in
-                  zip(data['cliente_completo'], data['dias_sin_venta'])]
-
-        # Format dates safely
-        fechas_formatted = []
-        for fecha in data['fecha']:
-            try:
-                if pd.isna(fecha):
-                    fechas_formatted.append("Sin fecha")
-                else:
-                    fechas_formatted.append(
-                        pd.to_datetime(fecha).strftime('%Y-%m-%d'))
-            except:
-                fechas_formatted.append("Sin fecha")
-
-        # Create treemap with size based on days without sales
-        fig = go.Figure(go.Treemap(
-            labels=labels,
-            values=data['dias_sin_venta'],  # Size by days without sales
-            parents=[""] * len(data),
-            texttemplate="<b>%{label}</b><br>Ventas: %{customdata}",
-            hovertemplate="<b>%{text}</b><br>" +
-                         # %{value} now shows days
-                         "Días sin venta: %{value}<br>" +
-                         "Ventas históricas: %{customdata[0]}<br>" +
-                         "Última venta: %{customdata[1]}<br>" +
-                         "<extra></extra>",
-            text=[cliente[:80] + "..." if len(cliente) > 80 else cliente
-                  for cliente in data['cliente_completo']],
-            customdata=[[format_currency_int(ventas), fecha_str]
-                        for ventas, fecha_str in zip(
-                data['valor_neto'],
-                fechas_formatted)],
-            marker=dict(
-                colors=data['dias_sin_venta'],  # Color by days without sales
-                # Red to Blue, reversed (red = more days)
-                colorscale='RdYlBu_r',
-                colorbar=dict(title="Días sin venta"),
-                line=dict(width=2, color='white'),
-                cmin=data['dias_sin_venta'].min(),
-                cmax=data['dias_sin_venta'].max()
-            ),
-            textfont=dict(size=10, color='white')
-        ))
-
-        fig.update_layout(
-            height=500,
-            font=dict(family="Inter", size=12,
-                      color=theme_styles['text_color']),
-            plot_bgcolor=theme_styles['plot_bg'],
-            paper_bgcolor=theme_styles['plot_bg'],
-            margin=dict(t=0, b=0, l=0, r=0)
-        )
-
-        return fig
-    except Exception as e:
-        print(f"Error en update_treemap_dias_sin_venta: {e}")
-        return go.Figure()
-
-
-@callback(
     Output('ventas-grafico-zona', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
@@ -895,13 +784,10 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_zona(session_data, dropdown_value, mes, data_store, theme):
-    """Update sales by zone chart with red-to-green color scale and transparency."""
+    """
+    Update sales by zone chart with red-to-green color scale and transparency.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"🗺️ [update_zona] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_ventas_por_zona(vendedor, mes)
         theme_styles = get_theme_styles(theme)
@@ -923,6 +809,7 @@ def update_zona(session_data, dropdown_value, mes, data_store, theme):
 
         # Crear colores basados en escala rojo-verde con transparencia
         colors_red_to_green = []
+
         for val in data['valor_neto']:
             if max_val == min_val:
                 normalized = 0.5  # Si todos son iguales, usar color medio
@@ -1002,13 +889,10 @@ def update_zona(session_data, dropdown_value, mes, data_store, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_forma_pago(session_data, dropdown_value, mes, data_store, theme):
-    """Update payment method chart."""
+    """
+    Update payment method chart.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"💳 [update_forma_pago] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_forma_pago_distribution(vendedor, mes)
         theme_styles = get_theme_styles(theme)
@@ -1069,13 +953,10 @@ def update_forma_pago(session_data, dropdown_value, mes, data_store, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_treemap(session_data, dropdown_value, mes, data_store, theme):
-    """Update sales treemap."""
+    """
+    Update sales treemap.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"🗺️ [update_treemap] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_treemap_data(vendedor, mes)
         theme_styles = get_theme_styles(theme)
@@ -1125,13 +1006,10 @@ def update_treemap(session_data, dropdown_value, mes, data_store, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_top_clientes(session_data, dropdown_value, mes, data_store, theme):
-    """Update top customers chart."""
+    """
+    Update top customers chart.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"🏆 [update_top_clientes] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_top_clientes(vendedor, mes)
         theme_styles = get_theme_styles(theme)
@@ -1204,13 +1082,10 @@ def update_top_clientes(session_data, dropdown_value, mes, data_store, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_treemap_acumuladas(session_data, dropdown_value, mes, data_store, theme):
-    """Update accumulated sales treemap."""
+    """
+    Update accumulated sales treemap.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"📈 [update_treemap_acumuladas] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_ventas_acumuladas_mes(mes, vendedor)
         theme_styles = get_theme_styles(theme)
@@ -1270,16 +1145,13 @@ def update_treemap_acumuladas(session_data, dropdown_value, mes, data_store, the
      Input('ventas-theme-store', 'data')]
 )
 def update_clientes_impactados(session_data, dropdown_value, data_store, theme):
-    """Update clients impacted chart with horizontal bars and total clients bar."""
+    """
+    Update clients impacted chart with horizontal bars and total clients bar.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"👥 [update_clientes_impactados] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
-        data, porcentaje_promedio, total_clientes = analyzer.get_clientes_impactados_por_periodo(
-            vendedor)
+        data, porcentaje_promedio, total_clientes = \
+            analyzer.get_clientes_impactados_por_periodo(vendedor)
         theme_styles = get_theme_styles(theme)
 
         if data.empty:
@@ -1376,13 +1248,10 @@ def update_clientes_impactados(session_data, dropdown_value, data_store, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme):
-    """Update convenios analysis table with enhanced design and expected sales."""
+    """
+    Update convenios analysis table with enhanced design and expected sales.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"📋 [update_tabla_convenios] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_analisis_convenios(vendedor, mes)
         theme_styles = get_theme_styles(theme)
@@ -1605,13 +1474,10 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
      Input('ventas-theme-store', 'data')]
 )
 def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo, mes, data_store, theme):
-    """Update temporal recaudo chart with ascending/descending colors for daily view."""
+    """
+    Update temporal recaudo chart with ascending/descending colors for daily view.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"💰 [update_grafico_recaudo_temporal] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         theme_styles = get_theme_styles(theme)
 
@@ -1729,14 +1595,10 @@ def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo,
      Input('ventas-theme-store', 'data')]
 )
 def update_grafico_recaudo_vendedor(mes, data_store, theme):
-    """Update vendor summary chart - filter by specific month if selected."""
+    """
+    Update vendor summary chart - filter by specific month if selected.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"📊 [update_grafico_recaudo_vendedor] Detectada actualización #{data_store.get('last_update')}")
-
-        # CAMBIO: Pasar el parámetro mes para filtrar
         data, total_recaudo = analyzer.get_recaudo_por_vendedor(mes)
         theme_styles = get_theme_styles(theme)
 
@@ -1831,13 +1693,10 @@ def update_grafico_recaudo_vendedor(mes, data_store, theme):
      Input('ventas-theme-store', 'data')]
 )
 def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, theme):
-    """Update days without sales treemap."""
+    """
+    Update days without sales treemap.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"📅 [update_treemap_dias_sin_venta] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_dias_sin_venta_por_cliente(vendedor)
         theme_styles = get_theme_styles(theme)
@@ -1926,13 +1785,10 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, them
      Input('ventas-theme-store', 'data')]
 )
 def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_store, theme):
-    """Update client evolution chart - filtered by month using main DataFrame."""
+    """
+    Update client evolution chart - filtered by month using main DataFrame.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"👤 [update_evolucion_cliente] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         theme_styles = get_theme_styles(theme)
 
@@ -2081,15 +1937,12 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
      Input('ventas-theme-store', 'data')]
 )
 def update_comparativa_vendedores(session_data, tipo_grafico, data_store, theme):
-    """Update comparative sales chart with enhanced visual appeal."""
+    """
+    Update comparative sales chart with enhanced visual appeal.
+    """
     from utils import can_see_all_vendors
 
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"📊 [update_comparativa_vendedores] Detectada actualización #{data_store.get('last_update')}")
-
         # Solo mostrar si es administrador
         if not session_data or not can_see_all_vendors(session_data):
             fig = go.Figure()
@@ -2407,15 +2260,12 @@ def update_comparativa_vendedores(session_data, tipo_grafico, data_store, theme)
      Input('ventas-theme-store', 'data')]
 )
 def update_area_charts_individuales(session_data, data_store, theme):
-    """Create individual area charts for each vendor (4 per row, all vendors)."""
+    """
+    Create individual area charts for each vendor (4 per row, all vendors).
+    """
     from utils import can_see_all_vendors
 
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"📊 [update_area_charts_individuales] Detectada actualización #{data_store.get('last_update')}")
-
         theme_styles = get_theme_styles(theme)
 
         # Solo mostrar si es administrador
@@ -2587,13 +2437,10 @@ def update_area_charts_individuales(session_data, data_store, theme):
      Input('ventas-data-store', 'data')]  # ¡NUEVO!
 )
 def update_clientes_dropdown(session_data, dropdown_value, data_store):
-    """Update client dropdown based on selected salesperson."""
+    """
+    Update client dropdown based on selected salesperson.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"📋 [update_clientes_dropdown] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         clientes = analyzer.get_clientes_list(vendedor)
         return [{'label': cliente, 'value': cliente} for cliente in clientes]
@@ -2619,13 +2466,10 @@ def reset_cliente_selection(vendedor):
      Input('ventas-data-store', 'data')]  # ¡NUEVO!
 )
 def update_titulo_recaudo(session_data, dropdown_value, mes, data_store):
-    """Update collection title with total amount."""
+    """
+    Update collection title with total amount.
+    """
     try:
-        # ¡VERIFICAR ACTUALIZACIÓN!
-        if data_store and data_store.get('last_update', 0) > 0:
-            print(
-                f"💰 [update_titulo_recaudo] Detectada actualización #{data_store.get('last_update')}")
-
         vendedor = get_selected_vendor(session_data, dropdown_value)
         total_recaudo = analyzer.get_resumen_recaudo(vendedor, mes)
         periodo_text = f" - {vendedor}" if vendedor != 'Todos' else ""
@@ -2636,8 +2480,6 @@ def update_titulo_recaudo(session_data, dropdown_value, mes, data_store):
         return "Recaudo Total: $0"
 
 
-# ========== CALLBACKS DE VISIBILIDAD Y CONTROL ==========
-
 @callback(
     [Output('ventas-container-vendedor', 'style'),
      Output('ventas-vista-recaudo-container', 'style'),
@@ -2647,7 +2489,9 @@ def update_titulo_recaudo(session_data, dropdown_value, mes, data_store):
      Input('ventas-dropdown-vista-recaudo', 'value')]
 )
 def update_recaudo_visibility(session_data, dropdown_value, vista_recaudo):
-    """Show/hide recaudo components based on vendor selection."""
+    """
+    Show/hide recaudo components based on vendor selection.
+    """
     vendedor = get_selected_vendor(session_data, dropdown_value)
 
     if vendedor == 'Todos':
@@ -2766,8 +2610,6 @@ def update_title(session_data, dropdown_value, mes):
         return "Dashboard de Ventas"
 
 
-# ========== CALLBACKS DE THEME Y ESTILOS ==========
-
 @callback(
     [Output('ventas-theme-store', 'data'),
      Output('ventas-theme-toggle', 'children'),
@@ -2777,7 +2619,9 @@ def update_title(session_data, dropdown_value, mes):
     [State('ventas-theme-store', 'data')]
 )
 def toggle_theme(n_clicks, current_theme):
-    """Toggle between light and dark themes."""
+    """
+    Toggle between light and dark themes.
+    """
     if n_clicks % 2 == 1:
         new_theme = 'dark'
         icon = '☀️'
@@ -2787,19 +2631,21 @@ def toggle_theme(n_clicks, current_theme):
 
     theme_styles = get_theme_styles(new_theme)
 
-    main_style = {
-        'fontFamily': 'Inter',
-        'backgroundColor': theme_styles['bg_color'],
-        'padding': '20px',
-        'color': theme_styles['text_color']
-    }
+    main_style = \
+        {
+            'fontFamily': 'Inter',
+            'backgroundColor': theme_styles['bg_color'],
+            'padding': '20px',
+            'color': theme_styles['text_color']
+        }
 
-    header_style = {
-        'marginBottom': '30px',
-        'padding': '20px',
-        'backgroundColor': theme_styles['paper_color'],
-        'borderRadius': '8px'
-    }
+    header_style = \
+        {
+            'marginBottom': '30px',
+            'padding': '20px',
+            'backgroundColor': theme_styles['paper_color'],
+            'borderRadius': '8px'
+        }
 
     return new_theme, icon, main_style, header_style
 
@@ -2819,7 +2665,9 @@ def toggle_theme(n_clicks, current_theme):
      Input('session-store', 'data')]
 )
 def update_dropdown_styles(theme, session_data):
-    """Update dropdown styles based on theme and visibility."""
+    """
+    Update dropdown styles based on theme and visibility.
+    """
     from utils import can_see_all_vendors
 
     dropdown_style = get_dropdown_style(theme)
@@ -2888,7 +2736,9 @@ def update_card_styles(theme):
     [Input('ventas-theme-store', 'data')]
 )
 def update_container_styles(theme):
-    """Update styles for chart containers based on theme."""
+    """
+    Update styles for chart containers based on theme.
+    """
     theme_styles = get_theme_styles(theme)
 
     chart_style = {
@@ -2901,30 +2751,3 @@ def update_container_styles(theme):
     }
 
     return [chart_style] * 10  # 10 containers
-
-
-# def verify_callback_updates():
-#     """Función de verificación para debugging."""
-#     print("🔍 [VentasPage] Verificando implementación de callbacks...")
-
-#     # Verificar que analyzer tiene los nuevos métodos
-#     if hasattr(analyzer, 'reload_data'):
-#         print("✅ analyzer.reload_data() disponible")
-#     else:
-#         print("❌ analyzer.reload_data() NO encontrado")
-
-#     if hasattr(analyzer, 'get_cache_status'):
-#         print("✅ analyzer.get_cache_status() disponible")
-#         try:
-#             status = analyzer.get_cache_status()
-#             print(f"📊 Estado del cache: {status}")
-#         except Exception as e:
-#             print(f"⚠️ Error obteniendo cache status: {e}")
-#     else:
-#         print("❌ analyzer.get_cache_status() NO encontrado")
-
-#     print("✅ [VentasPage] Verificación completada")
-
-
-# # Llamar al verificar la página
-# verify_callback_updates()

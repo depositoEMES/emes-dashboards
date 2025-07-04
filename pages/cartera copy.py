@@ -1,6 +1,4 @@
-import time
 import pandas as pd
-from datetime import datetime
 
 import dash
 from dash import dcc, html, Input, Output, State, callback
@@ -13,28 +11,13 @@ from utils import format_currency_int, get_theme_styles
 
 # Initialize analyzer
 analyzer = CarteraAnalyzer()
+df = analyzer.load_data_from_firebase()
 
-try:
-    print("🚀 [CarteraPage] Inicializando CarteraAnalyzer...")
-    df = analyzer.load_data_from_firebase()
-    print(f"✅ [CarteraPage] Carga inicial completada: {len(df)} registros")
-except Exception as e:
-    print(
-        f"⚠️ [CarteraPage] Carga inicial falló (se recargará on-demand): {e}")
-    df = pd.DataFrame()
 
 layout = html.Div([
     # Store for theme
     dcc.Store(id='cartera-theme-store', data='light'),
     dcc.Store(id='cartera-data-store', data={'last_update': 0}),
-
-    html.Div(id='cartera-notification-area', children=[], style={
-        'position': 'fixed',
-        'top': '20px',
-        'right': '20px',
-        'zIndex': '1000',
-        'maxWidth': '300px'
-    }),
 
     # Header
     html.Div([
@@ -254,28 +237,9 @@ layout = html.Div([
 ], style={'fontFamily': 'Inter', 'backgroundColor': '#f5f5f5', 'padding': '20px'}, id='cartera-main-container')
 
 
-def get_dropdown_style(theme):
-    """
-    Get dropdown styles based on theme.
-    """
-    if theme == 'dark':
-        return {
-            'backgroundColor': '#2d2d2d',
-            'color': '#ffffff',
-            'border': '1px solid #505050'
-        }
-    else:
-        return {
-            'backgroundColor': 'white',
-            'color': '#2c3e50',
-            'border': '1px solid #ddd'
-        }
-
-
+# Función auxiliar mejorada para obtener el vendedor seleccionado
 def get_selected_vendor(session_data, dropdown_value):
-    """
-    Obtener vendedor basado en permisos y selección.
-    """
+    """Obtener vendedor basado en permisos y selección."""
     from utils import can_see_all_vendors, get_user_vendor_filter
 
     try:
@@ -300,121 +264,21 @@ def get_selected_vendor(session_data, dropdown_value):
 )
 def update_cartera_data(n_clicks):
     """
-    Callback central para recargar TODOS los datos cuando se presiona actualizar.
+    Callback para recargar datos desde Firebase cuando se presiona actualizar.
     """
     if n_clicks > 0:
         try:
-            start_time = time.time()
-
-            result = analyzer.reload_data()
-
-            load_time = time.time() - start_time
-
-            return {
-                'last_update': n_clicks,
-                'timestamp': datetime.now().isoformat(),
-                'success': True,
-                'load_time': load_time,
-                'records_count': len(result)
-            }
-
+            # Recargar datos frescos desde Firebase
+            analyzer.load_data_from_firebase()
+            print(f"✅ Datos de cartera actualizados - Click #{n_clicks}")
+            return {'last_update': n_clicks, 'timestamp': pd.Timestamp.now().isoformat()}
         except Exception as e:
-            print(f"❌ [CarteraPage] Error en actualización #{n_clicks}: {e}")
-            return {
-                'last_update': n_clicks,
-                'timestamp': datetime.now().isoformat(),
-                'error': str(e),
-                'success': False
-            }
+            print(f"❌ Error actualizando datos de cartera: {e}")
+            return {'error': str(e), 'timestamp': pd.Timestamp.now().isoformat()}
 
     return dash.no_update
 
-
-@callback(
-    Output('cartera-notification-area', 'children'),
-    [Input('cartera-data-store', 'data')],
-    prevent_initial_call=True
-)
-def show_update_notification(data_store):
-    """
-    Mostrar notificación cuando se actualicen los datos.
-    """
-    if data_store and data_store.get('last_update', 0) > 0:
-        if data_store.get('error'):
-            return html.Div([
-                html.Div([
-                    html.Span("❌", style={'marginRight': '8px'}),
-                    html.Span("Error al actualizar datos"),
-                    html.Br(),
-                    html.Small(str(data_store.get('error', ''))[:100] + "...",
-                               style={'fontSize': '10px', 'opacity': '0.8'})
-                ], style={
-                    'backgroundColor': '#e74c3c',
-                    'color': 'white',
-                    'padding': '12px 16px',
-                    'borderRadius': '6px',
-                    'marginBottom': '10px',
-                    'boxShadow': '0 4px 8px rgba(0,0,0,0.2)',
-                    'animation': 'slideIn 0.3s ease-out',
-                    'fontSize': '12px'
-                })
-            ])
-        else:
-            # Notificación de éxito
-            load_time = data_store.get('load_time', 0)
-            records_count = data_store.get('records_count', 0)
-
-            return html.Div([
-                html.Div([
-                    html.Span("✅", style={'marginRight': '8px'}),
-                    html.Span("Datos actualizados correctamente"),
-                    html.Br(),
-                    html.Small(f"{records_count} registros en {load_time:.1f}s",
-                               style={'fontSize': '10px', 'opacity': '0.8'})
-                ], style={
-                    'backgroundColor': '#27ae60',
-                    'color': 'white',
-                    'padding': '12px 16px',
-                    'borderRadius': '6px',
-                    'marginBottom': '10px',
-                    'boxShadow': '0 4px 8px rgba(0,0,0,0.2)',
-                    'animation': 'slideIn 0.3s ease-out',
-                    'fontSize': '12px'
-                }, id='cartera-success-notification')
-            ])
-
-    return []
-
-
-@callback(
-    [Output('cartera-btn-actualizar', 'children'),
-     Output('cartera-btn-actualizar', 'disabled')],
-    [Input('cartera-data-store', 'data')],
-    prevent_initial_call=True
-)
-def update_button_state(data_store):
-    """
-    Actualizar estado del botón durante y después de la carga.
-    """
-    if data_store and data_store.get('last_update', 0) > 0:
-        if data_store.get('success', True):
-            # Actualización exitosa - botón normal
-            return [
-                html.Span("🔄", style={'marginRight': '8px'}),
-                'Actualizar Datos'
-            ], False
-        else:
-            # Error - botón con indicador de error
-            return [
-                html.Span("⚠️", style={'marginRight': '8px'}),
-                'Reintentar'
-            ], False
-
-    # Estado normal
-    return [
-        html.Span("🔄", style={'marginRight': '8px'}),
-        'Actualizar Datos'
-    ], False
+# Callback para controlar visibilidad del dropdown
 
 
 @callback(
@@ -460,9 +324,7 @@ def update_dropdown_visibility(session_data):
     [State('cartera-theme-store', 'data')]
 )
 def toggle_theme(n_clicks, current_theme):
-    """
-    Toggle between light and dark themes.
-    """
+    """Toggle between light and dark themes."""
     if n_clicks % 2 == 1:
         new_theme = 'dark'
         icon = '☀️'
@@ -490,37 +352,32 @@ def toggle_theme(n_clicks, current_theme):
 
 
 @callback(
-    [Output('cartera-dropdown-vendedor', 'style'),
-     Output('cartera-dropdown-vendedor', 'className')],
+    Output('cartera-dropdown-vendedor', 'style'),
     [Input('cartera-theme-store', 'data'),
      Input('session-store', 'data')]
 )
-def update_dropdown_styles(theme, session_data):
-    """
-    Update dropdown styles based on theme and visibility.
-    """
+def update_dropdown_style(theme, session_data):
+    """Update dropdown style based on theme and visibility."""
     from utils import can_see_all_vendors
 
-    dropdown_style = get_dropdown_style(theme)
-    dropdown_style['fontFamily'] = 'Inter'
+    try:
+        # Si el usuario no puede ver todos los vendedores, mantener oculto
+        if not session_data or not can_see_all_vendors(session_data):
+            return {'display': 'none'}
 
-    # Special handling for vendor dropdown - hide if not admin
-    if not session_data or not can_see_all_vendors(session_data):
-        vendedor_style = {'display': 'none'}
-        tipo_grafico_style = {'display': 'none'}
-    else:
-        vendedor_style = dropdown_style.copy()
-        tipo_grafico_style = dropdown_style.copy()
-        tipo_grafico_style.update(
-            {'width': '250px', 'display': 'inline-block'})
+        theme_styles = get_theme_styles(theme)
 
-    vista_style = dropdown_style.copy()
-    vista_style.update({'width': '200px', 'display': 'inline-block'})
-
-    # CSS class for dark theme
-    css_class = 'dash-dropdown dark-theme' if theme == 'dark' else 'dash-dropdown'
-
-    return vendedor_style, css_class
+        if theme == 'dark':
+            return {
+                'fontFamily': 'Inter',
+                'backgroundColor': theme_styles['paper_color'],
+                'color': theme_styles['text_color']
+            }
+        else:
+            return {'fontFamily': 'Inter'}
+    except Exception as e:
+        print(f"Error en update_dropdown_style: {e}")
+        return {'fontFamily': 'Inter'}
 
 
 # Card styles callback
@@ -536,9 +393,7 @@ def update_dropdown_styles(theme, session_data):
     [Input('cartera-theme-store', 'data')]
 )
 def update_card_styles(theme):
-    """
-    Update styles for summary cards based on theme.
-    """
+    """Update styles for summary cards based on theme."""
     theme_styles = get_theme_styles(theme)
 
     card_style = {
@@ -568,9 +423,7 @@ def update_card_styles(theme):
     [Input('cartera-theme-store', 'data')]
 )
 def update_container_styles(theme):
-    """
-    Update styles for chart containers based on theme.
-    """
+    """Update styles for chart containers based on theme."""
     theme_styles = get_theme_styles(theme)
 
     chart_style = {
@@ -593,15 +446,14 @@ def update_container_styles(theme):
     return chart_style, chart_style, chart_style, chart_style, chart_style, chart_style, config_style
 
 
+# Callback para título
 @callback(
     Output('cartera-titulo-dashboard', 'children'),
     [Input('session-store', 'data'),
      Input('cartera-dropdown-vendedor', 'value')]
 )
 def update_title(session_data, dropdown_value):
-    """
-    Update dashboard title based on user permissions and selection.
-    """
+    """Update dashboard title based on user permissions and selection."""
     from utils import can_see_all_vendors, get_user_vendor_filter
 
     try:
@@ -632,12 +484,10 @@ def update_title(session_data, dropdown_value):
      Output('cartera-porcentaje-vencida', 'children')],
     [Input('session-store', 'data'),
      Input('cartera-dropdown-vendedor', 'value'),
-     Input('cartera-data-store', 'data')]
+     Input('cartera-btn-actualizar', 'n_clicks')]
 )
-def update_cards(session_data, dropdown_value, data_store):
-    """
-    Update summary cards with portfolio statistics.
-    """
+def update_cards(session_data, dropdown_value, n_clicks):
+    """Update summary cards with portfolio statistics."""
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         resumen = analyzer.get_resumen(vendedor)
@@ -656,7 +506,7 @@ def update_cards(session_data, dropdown_value, data_store):
 
         return total_cartera, total_vencida, total_sin_vencer, calidad_cartera, total_clientes, clientes_vencida, num_facturas, porcentaje_vencida
     except Exception as e:
-        print(f"❌ [update_cards] Error: {e}")
+        print(f"Error en update_cards: {e}")
         return "$0", "$0", "$0", "0%", "0", "0", "0", "0%"
 
 
@@ -664,13 +514,11 @@ def update_cards(session_data, dropdown_value, data_store):
     Output('cartera-grafico-rangos', 'figure'),
     [Input('session-store', 'data'),
      Input('cartera-dropdown-vendedor', 'value'),
-     Input('cartera-data-store', 'data'),
+     Input('cartera-btn-actualizar', 'n_clicks'),
      Input('cartera-theme-store', 'data')]
 )
 def update_rangos(session_data, dropdown_value, n_clicks, theme):
-    """
-    Update overdue ranges chart.
-    """
+    """Update overdue ranges chart."""
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_rangos_vencimiento(vendedor)
@@ -735,13 +583,11 @@ def update_rangos(session_data, dropdown_value, n_clicks, theme):
     Output('cartera-grafico-forma-pago', 'figure'),
     [Input('session-store', 'data'),
      Input('cartera-dropdown-vendedor', 'value'),
-     Input('cartera-data-store', 'data'),
+     Input('cartera-btn-actualizar', 'n_clicks'),
      Input('cartera-theme-store', 'data')]
 )
 def update_forma_pago(session_data, dropdown_value, n_clicks, theme):
-    """
-    Update payment method distribution chart.
-    """
+    """Update payment method distribution chart."""
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_forma_pago(vendedor)
@@ -797,13 +643,11 @@ def update_forma_pago(session_data, dropdown_value, n_clicks, theme):
     Output('cartera-treemap-cartera', 'figure'),
     [Input('session-store', 'data'),
      Input('cartera-dropdown-vendedor', 'value'),
-     Input('cartera-data-store', 'data'),
+     Input('cartera-btn-actualizar', 'n_clicks'),
      Input('cartera-theme-store', 'data')]
 )
 def update_treemap(session_data, dropdown_value, n_clicks, theme):
-    """
-    Update portfolio treemap with combined client-company names.
-    """
+    """Update portfolio treemap with combined client-company names."""
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_treemap_data(vendedor)
@@ -874,13 +718,11 @@ def update_treemap(session_data, dropdown_value, n_clicks, theme):
     Output('cartera-treemap-cartera-vencida', 'figure'),
     [Input('session-store', 'data'),
      Input('cartera-dropdown-vendedor', 'value'),
-     Input('cartera-data-store', 'data'),
+     Input('cartera-btn-actualizar', 'n_clicks'),
      Input('cartera-theme-store', 'data')]
 )
 def update_treemap_vencida(session_data, dropdown_value, n_clicks, theme):
-    """
-    Update overdue portfolio treemap with combined client-company names.
-    """
+    """Update overdue portfolio treemap with combined client-company names."""
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_treemap_data_vencida(vendedor)
@@ -961,13 +803,11 @@ def update_treemap_vencida(session_data, dropdown_value, n_clicks, theme):
     Output('cartera-top-vencida', 'figure'),
     [Input('session-store', 'data'),
      Input('cartera-dropdown-vendedor', 'value'),
-     Input('cartera-data-store', 'data'),
+     Input('cartera-btn-actualizar', 'n_clicks'),
      Input('cartera-theme-store', 'data')]
 )
 def update_top_vencida(session_data, dropdown_value, n_clicks, theme):
-    """
-    Update top overdue customers chart with combined names.
-    """
+    """Update top overdue customers chart with combined names."""
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_top_clientes('vencida', vendedor)
@@ -1033,13 +873,11 @@ def update_top_vencida(session_data, dropdown_value, n_clicks, theme):
     Output('cartera-top-sin-vencer', 'figure'),
     [Input('session-store', 'data'),
      Input('cartera-dropdown-vendedor', 'value'),
-     Input('cartera-data-store', 'data'),
+     Input('cartera-btn-actualizar', 'n_clicks'),
      Input('cartera-theme-store', 'data')]
 )
 def update_top_sin_vencer(session_data, dropdown_value, n_clicks, theme):
-    """
-    Update top current customers chart with combined names.
-    """
+    """Update top current customers chart with combined names."""
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_top_clientes('sin_vencer', vendedor)

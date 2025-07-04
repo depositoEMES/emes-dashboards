@@ -19,15 +19,11 @@ class CarteraAnalyzer:
         Force reloading of data from Firebase.
         """
         try:
-            print("🔄 Recargando datos de cartera desde Firebase...")
             self.df_documentos = pd.DataFrame()
             self.vendedores_list = ['Todos']
 
             result = self.load_data_from_firebase()
             self._last_update = datetime.now()
-
-            print(
-                f"✅ Datos de cartera recargados exitosamente a las {self._last_update}")
 
             return result
 
@@ -49,9 +45,6 @@ class CarteraAnalyzer:
 
                 if db:
                     return db
-
-                print(
-                    f"⚠️ Intento {attempt + 1}/{max_retries}: DB connection failed")
 
             except Exception as e:
                 print(
@@ -87,10 +80,7 @@ class CarteraAnalyzer:
             data = db.get("cartera_actual")
 
             if data:
-                print(f"📊 Procesando {len(data)} registros de cartera...")
                 result = self.process_data(data)
-                print(
-                    f"✅ Cartera cargada: {len(result)} documentos procesados")
                 return result
             else:
                 print("⚠️ No data found in Firebase - cartera_actual")
