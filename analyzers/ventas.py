@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 from datetime import datetime
 
@@ -12,29 +13,137 @@ class VentasAnalyzer:
         self.vendedores_list = ['Todos']
         self.meses_list = ['Todos']
 
+        # Cache para evitar recargas innecesarias
+        self._df_convenios = pd.DataFrame()
+        self._df_recibos = pd.DataFrame()
+        self._df_num_clientes = pd.DataFrame()
+
+        # Control de actualizaciones
+        self._last_update = None
+        self._last_convenios_update = None
+        self._last_recibos_update = None
+        self._last_num_clientes_update = None
+
+    def reload_data(self):
+        """
+        Forzar recarga de TODOS los datos desde Firebase.
+        """
+        try:
+            print("🔄 [VentasAnalyzer] Recargando TODOS los datos desde Firebase...")
+
+            # Limpiar cache
+            self.df_ventas = pd.DataFrame()
+            self._df_convenios = pd.DataFrame()
+            self._df_recibos = pd.DataFrame()
+            self._df_num_clientes = pd.DataFrame()
+
+            self.vendedores_list = ['Todos']
+            self.meses_list = ['Todos']
+
+            # Recargar datos principales
+            start_time = time.time()
+            result = self.load_data_from_firebase(force_reload=True)
+            load_time = time.time() - start_time
+
+            # Marcar actualización
+            self._last_update = datetime.now()
+            self._last_convenios_update = None  # Forzar recarga en próximo acceso
+            self._last_recibos_update = None
+            self._last_num_clientes_update = None
+
+            print(
+                f"✅ [VentasAnalyzer] Datos principales recargados exitosamente en {load_time:.2f}s")
+            print(
+                f"📊 [VentasAnalyzer] {len(result)} registros de ventas procesados")
+            print(
+                f"⏰ [VentasAnalyzer] Última actualización: {self._last_update}")
+
+            return result
+
+        except Exception as e:
+            print(f"❌ [VentasAnalyzer] Error recargando datos: {e}")
+            return pd.DataFrame()
+
     def _get_db(self):
         """
-        Get database instance.
+        Get database instance with retry logic.
         """
         from server import get_db
 
-        return get_db()
+        max_retries = 3
 
-    def load_data_from_firebase(self):
+        for attempt in range(max_retries):
+            try:
+                db = get_db()
+
+                if db:
+                    return db
+
+                print(
+                    f"⚠️ Intento {attempt + 1}/{max_retries}: DB connection failed")
+
+            except Exception as e:
+                print(
+                    f"⚠️ Intento {attempt + 1}/{max_retries}: Error conectando a DB: {e}")
+
+            # Wait until next attempt
+            if attempt < max_retries - 1:
+                time.sleep(1)
+
+        print(
+            "❌ No se pudo establecer conexión a la base de datos después de varios intentos")
+
+        return None
+
+    def load_data_from_firebase(self, force_reload=False):
         """
-        Load data from Firebase database.
+        Load sales data from Firebase database with caching and retry logic.
+
+        Args:
+            force_reload (bool): Si True, fuerza la recarga incluso si ya hay datos
         """
         try:
+            # Si ya tenemos datos y no es recarga forzada, usar cache
+            if not force_reload and not self.df_ventas.empty:
+                print(
+                    f"📋 [VentasAnalyzer] Usando datos en cache ({len(self.df_ventas)} registros)")
+                return self.df_ventas
+
+            print("🔄 [VentasAnalyzer] Cargando datos de ventas desde Firebase...")
+            start_time = time.time()
+
             db = self._get_db()
+            if not db:
+                print(
+                    "❌ [VentasAnalyzer] No se pudo obtener conexión a la base de datos")
+                return pd.DataFrame()
+
             data = db.get("ventas_vendedor")
 
             if data:
-                return self.process_data(data)
+                print(
+                    f"📊 [VentasAnalyzer] Procesando {len(data)} vendedores con datos de ventas...")
+                result = self.process_data(data)
+
+                load_time = time.time() - start_time
+                print(
+                    f"✅ [VentasAnalyzer] Ventas cargadas exitosamente en {load_time:.2f}s")
+                print(
+                    f"📈 [VentasAnalyzer] {len(result)} registros de ventas procesados")
+                print(
+                    f"👥 [VentasAnalyzer] {len(self.vendedores_list)} vendedores disponibles")
+                print(
+                    f"📅 [VentasAnalyzer] {len(self.meses_list)} meses disponibles")
+
+                return result
             else:
-                print("No sales data found in Firebase")
+                print(
+                    "⚠️ [VentasAnalyzer] No data found in Firebase - ventas_vendedor")
                 return pd.DataFrame()
+
         except Exception as e:
-            print(f"Error loading sales data from Firebase: {e}")
+            print(
+                f"❌ [VentasAnalyzer] Error loading sales data from Firebase: {e}")
             return pd.DataFrame()
 
     def process_data(self, data):
@@ -172,6 +281,7 @@ class VentasAnalyzer:
         Get sales distribution by day of week for seasonality analysis.
         """
         df = self.filter_data(vendedor, mes)
+
         ventas_reales = df[df['tipo'].str.contains(
             'Remision|Factura', case=False, na=False)]
 
@@ -208,21 +318,56 @@ class VentasAnalyzer:
 
         return resultado
 
-    def load_convenios_from_firebase(self):
+    def load_convenios_from_firebase(self, force_reload=False):
         """
-        Load convenios data from Firebase database.
+        Load convenios data from Firebase database with caching.
+
+        Args:
+            force_reload (bool): Si True, fuerza la recarga incluso si ya hay datos
         """
         try:
+            # Usar cache si está disponible y no es recarga forzada
+            if not force_reload and not self._df_convenios.empty:
+                print(
+                    f"📋 [VentasAnalyzer] Usando convenios en cache ({len(self._df_convenios)} registros)")
+                return self._df_convenios
+
+            print("🔄 [VentasAnalyzer] Cargando datos de convenios desde Firebase...")
+            start_time = time.time()
+
             db = self._get_db()
+            if not db:
+                print(
+                    "❌ [VentasAnalyzer] No se pudo obtener conexión para convenios")
+                return pd.DataFrame()
+
             data = db.get("convenios")
 
             if data:
-                return self.process_convenios_data(data)
+                print(
+                    f"📊 [VentasAnalyzer] Procesando {len(data)} convenios...")
+                result = self.process_convenios_data(data)
+
+                # Guardar en cache
+                self._df_convenios = result
+                self._last_convenios_update = datetime.now()
+
+                load_time = time.time() - start_time
+                print(
+                    f"✅ [VentasAnalyzer] Convenios cargados exitosamente en {load_time:.2f}s")
+                print(
+                    f"📋 [VentasAnalyzer] {len(result)} convenios confirmados procesados")
+
+                return result
             else:
-                print("No convenios data found in Firebase")
+                print("⚠️ [VentasAnalyzer] No convenios data found in Firebase")
+                self._df_convenios = pd.DataFrame()
                 return pd.DataFrame()
+
         except Exception as e:
-            print(f"Error loading convenios data from Firebase: {e}")
+            print(
+                f"❌ [VentasAnalyzer] Error loading convenios data from Firebase: {e}")
+            self._df_convenios = pd.DataFrame()
             return pd.DataFrame()
 
     def process_convenios_data(self, data):
@@ -339,21 +484,55 @@ class VentasAnalyzer:
 
         return resultado
 
-    def load_recibos_from_firebase(self):
+    def load_recibos_from_firebase(self, force_reload=False):
         """
-        Load recibos_caja data from Firebase database.
+        Load recibos_caja data from Firebase database with caching.
+
+        Args:
+            force_reload (bool): Si True, fuerza la recarga incluso si ya hay datos
         """
         try:
+            # Usar cache si está disponible y no es recarga forzada
+            if not force_reload and not self._df_recibos.empty:
+                print(
+                    f"📋 [VentasAnalyzer] Usando recibos en cache ({len(self._df_recibos)} registros)")
+                return self._df_recibos
+
+            print("🔄 [VentasAnalyzer] Cargando datos de recibos desde Firebase...")
+            start_time = time.time()
+
             db = self._get_db()
+            if not db:
+                print("❌ [VentasAnalyzer] No se pudo obtener conexión para recibos")
+                return pd.DataFrame()
+
             data = db.get("recibos_caja")
 
             if data:
-                return self.process_recibos_data(data)
+                print(
+                    f"📊 [VentasAnalyzer] Procesando {len(data)} recibos de caja...")
+                result = self.process_recibos_data(data)
+
+                # Guardar en cache
+                self._df_recibos = result
+                self._last_recibos_update = datetime.now()
+
+                load_time = time.time() - start_time
+                print(
+                    f"✅ [VentasAnalyzer] Recibos cargados exitosamente en {load_time:.2f}s")
+                print(f"💰 [VentasAnalyzer] {len(result)} recibos procesados")
+
+                return result
             else:
-                print("No recibos_caja data found in Firebase")
+                print(
+                    "⚠️ [VentasAnalyzer] No recibos_caja data found in Firebase")
+                self._df_recibos = pd.DataFrame()
                 return pd.DataFrame()
+
         except Exception as e:
-            print(f"Error loading recibos_caja data from Firebase: {e}")
+            print(
+                f"❌ [VentasAnalyzer] Error loading recibos_caja data from Firebase: {e}")
+            self._df_recibos = pd.DataFrame()
             return pd.DataFrame()
 
     def process_recibos_data(self, data):
@@ -387,23 +566,130 @@ class VentasAnalyzer:
 
         return df_recibos
 
-    def load_num_clientes_from_firebase(self):
+    def load_num_clientes_from_firebase(self, force_reload=False):
         """
-        Load num_clientes_por_vendedor data from Firebase database.
+        Load num_clientes_por_vendedor data from Firebase database with caching.
+
+        Args:
+            force_reload (bool): Si True, fuerza la recarga incluso si ya hay datos
         """
         try:
+            # Usar cache si está disponible y no es recarga forzada
+            if not force_reload and not self._df_num_clientes.empty:
+                print(
+                    f"📋 [VentasAnalyzer] Usando num_clientes en cache ({len(self._df_num_clientes)} registros)")
+                return self._df_num_clientes
+
+            print(
+                "🔄 [VentasAnalyzer] Cargando datos de num_clientes desde Firebase...")
+            start_time = time.time()
+
             db = self._get_db()
+            if not db:
+                print(
+                    "❌ [VentasAnalyzer] No se pudo obtener conexión para num_clientes")
+                return pd.DataFrame()
+
             data = db.get("num_clientes_por_vendedor")
 
             if data:
-                return self.process_num_clientes_data(data)
+                print(
+                    f"📊 [VentasAnalyzer] Procesando datos de {len(data)} vendedores...")
+                result = self.process_num_clientes_data(data)
+
+                # Guardar en cache
+                self._df_num_clientes = result
+                self._last_num_clientes_update = datetime.now()
+
+                load_time = time.time() - start_time
+                print(
+                    f"✅ [VentasAnalyzer] Num_clientes cargados exitosamente en {load_time:.2f}s")
+                print(
+                    f"👥 [VentasAnalyzer] {len(result)} vendedores con conteo de clientes")
+
+                return result
             else:
-                print("No num_clientes_por_vendedor data found in Firebase")
+                print(
+                    "⚠️ [VentasAnalyzer] No num_clientes_por_vendedor data found in Firebase")
+                self._df_num_clientes = pd.DataFrame()
                 return pd.DataFrame()
+
         except Exception as e:
             print(
-                f"Error loading num_clientes_por_vendedor data from Firebase: {e}")
+                f"❌ [VentasAnalyzer] Error loading num_clientes_por_vendedor data from Firebase: {e}")
+            self._df_num_clientes = pd.DataFrame()
             return pd.DataFrame()
+
+    def clear_all_cache(self):
+        """
+        Clean cache to force reload.
+        """
+        print("🧹 [VentasAnalyzer] Limpiando todo el cache...")
+
+        self.df_ventas = pd.DataFrame()
+        self._df_convenios = pd.DataFrame()
+        self._df_recibos = pd.DataFrame()
+        self._df_num_clientes = pd.DataFrame()
+
+        self.vendedores_list = ['Todos']
+        self.meses_list = ['Todos']
+
+        self._last_update = None
+        self._last_convenios_update = None
+        self._last_recibos_update = None
+        self._last_num_clientes_update = None
+
+        print("✅ [VentasAnalyzer] Cache limpiado completamente")
+
+    def get_cache_status(self):
+        """
+        Obtener estado actual del cache para debugging.
+        """
+        return {
+            'ventas': {
+                'records': len(self.df_ventas),
+                'last_update': self._last_update.isoformat() if self._last_update else None
+            },
+            'convenios': {
+                'records': len(self._df_convenios),
+                'last_update': self._last_convenios_update.isoformat() if self._last_convenios_update else None
+            },
+            'recibos': {
+                'records': len(self._df_recibos),
+                'last_update': self._last_recibos_update.isoformat() if self._last_recibos_update else None
+            },
+            'num_clientes': {
+                'records': len(self._df_num_clientes),
+                'last_update': self._last_num_clientes_update.isoformat() if self._last_num_clientes_update else None
+            }
+        }
+
+    def get_convenios_data(self, force_reload=False):
+        """
+        Convenient access to self-loading agreement data.
+        """
+        if self._df_convenios.empty or force_reload:
+            return self.load_convenios_from_firebase(force_reload)
+
+        return self._df_convenios
+
+    def get_recibos_data(self, force_reload=False):
+        """
+        Convenient access to auto-loaded receipt data.
+        """
+        if self._df_recibos.empty or force_reload:
+            return self.load_recibos_from_firebase(force_reload)
+
+        return self._df_recibos
+
+    def get_num_clientes_data(self, force_reload=False):
+        """
+        Convenient access to num_clients data with autoload.
+        """
+        if self._df_num_clientes.empty or force_reload:
+            return self.load_num_clientes_from_firebase(force_reload)
+
+        return self._df_num_clientes
 
     def process_num_clientes_data(self, data):
         """

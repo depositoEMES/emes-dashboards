@@ -1,5 +1,7 @@
 import math
 import numpy as np
+import time
+from datetime import datetime
 
 import dash
 from dash import dcc, html, Input, Output, State, callback
@@ -12,36 +14,46 @@ from analyzers import VentasAnalyzer
 from utils import format_currency_int, get_theme_styles
 
 
-# Initialize analyzer
-analyzer = VentasAnalyzer()
-df = analyzer.load_data_from_firebase()
+# ========== INICIALIZACIÓN ACTUALIZADA ==========
 
-# Try to load convenios data (optional, won't break if not available)
+# Initialize analyzer (sin carga automática inicial)
+analyzer = VentasAnalyzer()
+
+# Carga inicial opcional (se recarga on-demand)
+try:
+    print("🚀 [VentasPage] Inicializando VentasAnalyzer...")
+    df = analyzer.load_data_from_firebase()
+    print(f"✅ [VentasPage] Carga inicial completada: {len(df)} registros")
+except Exception as e:
+    print(f"⚠️ [VentasPage] Carga inicial falló (se recargará on-demand): {e}")
+    df = pd.DataFrame()
+
+# Try to load optional data (convenios, recibos, num_clientes)
 try:
     df_convenios = analyzer.load_convenios_from_firebase()
+    print(f"📋 [VentasPage] Convenios cargados: {len(df_convenios)} registros")
 except Exception as e:
-    print(f"Could not load convenios: {e}")
+    print(f"⚠️ [VentasPage] Could not load convenios: {e}")
     df_convenios = pd.DataFrame()
 
-# Try to load recibos data (optional, won't break if not available)
 try:
     df_recibos = analyzer.load_recibos_from_firebase()
+    print(f"💰 [VentasPage] Recibos cargados: {len(df_recibos)} registros")
 except Exception as e:
-    print(f"Could not load recibos: {e}")
+    print(f"⚠️ [VentasPage] Could not load recibos: {e}")
     df_recibos = pd.DataFrame()
 
-# Try to load num_clientes data (optional, won't break if not available)
 try:
     df_num_clientes = analyzer.load_num_clientes_from_firebase()
+    print(
+        f"👥 [VentasPage] Num clientes cargados: {len(df_num_clientes)} registros")
 except Exception as e:
-    print(f"Could not load num_clientes: {e}")
+    print(f"⚠️ [VentasPage] Could not load num_clientes: {e}")
     df_num_clientes = pd.DataFrame()
 
 
 def get_dropdown_style(theme):
-    """
-    Get dropdown styles based on theme.
-    """
+    """Get dropdown styles based on theme."""
     if theme == 'dark':
         return {
             'backgroundColor': '#2d2d2d',
@@ -57,9 +69,7 @@ def get_dropdown_style(theme):
 
 
 def get_selected_vendor(session_data, dropdown_value):
-    """
-    Obtener vendedor basado en permisos y selección.
-    """
+    """Obtener vendedor basado en permisos y selección."""
     from utils import can_see_all_vendors, get_user_vendor_filter
 
     try:
@@ -77,9 +87,23 @@ def get_selected_vendor(session_data, dropdown_value):
         return 'Todos'
 
 
+# ========== LAYOUT ACTUALIZADO ==========
+
 layout = html.Div([
     # Store for theme
     dcc.Store(id='ventas-theme-store', data='light'),
+
+    # ¡NUEVO! Store para datos actualizados
+    dcc.Store(id='ventas-data-store', data={'last_update': 0}),
+
+    # ¡NUEVO! Área de notificaciones
+    html.Div(id='ventas-notification-area', children=[], style={
+        'position': 'fixed',
+        'top': '20px',
+        'right': '20px',
+        'zIndex': '1000',
+        'maxWidth': '300px'
+    }),
 
     # Header
     html.Div([
@@ -392,905 +416,219 @@ layout = html.Div([
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row6-container'),
 
-    # Botón actualizar
+    # Botón actualizar MEJORADO
     html.Div([
-        html.Button('Actualizar Datos', id='ventas-btn-actualizar', n_clicks=0,
-                    style={'backgroundColor': '#3498db', 'color': 'white', 'border': 'none',
-                           'padding': '10px 20px', 'borderRadius': '5px', 'cursor': 'pointer',
-                           'fontFamily': 'Inter'})
+        html.Button([
+            html.Span("🔄", style={'marginRight': '8px'}),
+            'Actualizar Datos'
+        ], id='ventas-btn-actualizar', n_clicks=0,
+            style={
+            'backgroundColor': '#3498db',
+            'color': 'white',
+            'border': 'none',
+            'padding': '12px 24px',
+            'borderRadius': '6px',
+            'cursor': 'pointer',
+            'fontFamily': 'Inter',
+            'fontSize': '14px',
+            'fontWeight': 'bold',
+            'transition': 'all 0.3s ease',
+            'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
+        })
     ], style={'textAlign': 'center', 'margin': '20px 0'})
 
 ], style={'fontFamily': 'Inter', 'backgroundColor': '#f5f5f5', 'padding': '20px'}, id='ventas-main-container')
 
 
-@callback(
-    Output('ventas-grafico-comparativa-vendedores', 'figure'),
-    [Input('session-store', 'data'),
-     Input('ventas-dropdown-tipo-grafico', 'value'),
-     Input('ventas-theme-store', 'data')]
-)
-def update_comparativa_vendedores(session_data, tipo_grafico, theme):
-    """
-    Update comparative sales chart with enhanced visual appeal.
-    """
-    from utils import can_see_all_vendors
-
-    try:
-        # Solo mostrar si es administrador
-        if not session_data or not can_see_all_vendors(session_data):
-            fig = go.Figure()
-            fig.add_annotation(
-                text="Gráfico disponible solo para administradores",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, showarrow=False,
-                font=dict(size=16, color='#7f8c8d')
-            )
-            fig.update_layout(height=400)
-            return fig
-
-        theme_styles = get_theme_styles(theme)
-
-        # Obtener datos para todos los vendedores
-        # Excluir 'Todos'
-        vendedores_disponibles = analyzer.vendedores_list[1:]
-        datos_vendedores = {}
-
-        # Obtener TODOS los vendedores que tengan ventas > 0
-        for vendedor in vendedores_disponibles:
-            try:
-                data_vendedor = analyzer.get_ventas_por_mes(vendedor)
-                if not data_vendedor.empty and data_vendedor['valor_neto'].sum() > 0:
-                    datos_vendedores[vendedor] = data_vendedor
-            except:
-                continue
-
-        if not datos_vendedores:
-            fig = go.Figure()
-            fig.add_annotation(
-                text="No hay datos disponibles para comparativa",
-                xref="paper", yref="paper",
-                x=0.5,
-                y=0.5,
-                showarrow=False,
-                font=dict(size=16, color=theme_styles['text_color'])
-            )
-            fig.update_layout(
-                height=400, paper_bgcolor=theme_styles['plot_bg'])
-            return fig
-
-        # Obtener todos los meses únicos
-        all_months = set()
-
-        for data in datos_vendedores.values():
-            all_months.update(data['mes_nombre'].tolist())
-
-        all_months = sorted(list(all_months))
-
-        # Calcular promedios mensuales
-        promedios_mensuales = {}
-
-        for mes in all_months:
-            valores_mes = []
-
-            for data in datos_vendedores.values():
-                valores_por_mes = dict(
-                    zip(data['mes_nombre'], data['valor_neto']))
-                if mes in valores_por_mes:
-                    valores_mes.append(valores_por_mes[mes])
-
-            if valores_mes:
-                promedios_mensuales[mes] = np.mean(valores_mes)
-
-        promedio_valores = \
-            [
-                promedios_mensuales.get(mes, 0)
-                for mes in all_months
-            ]
-
-        # Calcular volumen total de ventas por vendedor para color
-        volumenes_vendedores = {}
-
-        for vendedor, data in datos_vendedores.items():
-            volumenes_vendedores[vendedor] = data['valor_neto'].sum()
-
-        # Obtener min y max para normalización de colores
-        min_volumen = min(volumenes_vendedores.values())
-        max_volumen = max(volumenes_vendedores.values())
-
-        # Normalizar volúmenes para grosor de línea (todas iguales ahora)
-        line_width_standard = 3  # Grosor estándar para todas las líneas
-
-        def get_color_by_volume(volumen):
-            """
-            Retorna color basado en volumen: rojo (bajo) a verde (alto).
-            """
-            if max_volumen == min_volumen:
-                return '#FFA726'  # Naranja neutro si todos son iguales
-            normalized = (volumen - min_volumen) / (max_volumen - min_volumen)
-            # Gradiente más suave de rojo a verde
-            if normalized >= 0.9:
-                return '#1B5E20'  # Verde muy oscuro - Top performers
-            elif normalized >= 0.8:
-                return '#2E7D32'  # Verde oscuro
-            elif normalized >= 0.7:
-                return '#388E3C'  # Verde medio-oscuro
-            elif normalized >= 0.6:
-                return '#4CAF50'  # Verde medio
-            elif normalized >= 0.5:
-                return '#66BB6A'  # Verde claro
-            elif normalized >= 0.4:
-                return '#9CCC65'  # Verde amarillento
-            elif normalized >= 0.3:
-                return '#FFEB3B'  # Amarillo
-            elif normalized >= 0.2:
-                return '#FF9800'  # Naranja
-            elif normalized >= 0.1:
-                return '#FF5722'  # Naranja rojizo
-            else:
-                return '#D32F2F'  # Rojo - Bajo volumen
-
-        # Crear gráfico
-        fig = go.Figure()
-
-        if tipo_grafico == 'lineas':
-            for _, (vendedor, data) in enumerate(datos_vendedores.items()):
-                volumen_total = volumenes_vendedores[vendedor]
-                color = get_color_by_volume(volumen_total)
-
-                # Determinar categoría de performance por volumen
-                normalized_vol = \
-                    (volumen_total - min_volumen) / (max_volumen -
-                                                     min_volumen) if max_volumen != min_volumen else 0.5
-                if normalized_vol >= 0.8:
-                    performance = "🟢 TOP"
-                elif normalized_vol >= 0.4:
-                    performance = "🟢 Alto"
-                elif normalized_vol >= 0.2:
-                    performance = "🟡 Medio-Alto"
-                elif normalized_vol >= 0.15:
-                    performance = "🟠 Medio"
-                else:
-                    performance = "🔴 Bajo"
-
-                # Línea principal con grosor estándar
-                fig.add_trace(go.Scatter(
-                    x=data['mes_nombre'],
-                    y=data['valor_neto'],
-                    mode='lines+markers',
-                    name=f"{vendedor[:50]}{'...' if len(vendedor) > 50 else ''} ({performance})",
-                    line=dict(
-                        color=color,
-                        width=line_width_standard,  # Grosor estándar
-                        shape='spline'
-                    ),
-                    marker=dict(
-                        size=8,  # Tamaño estándar
-                        color=color,
-                        line=dict(color='white', width=2),
-                        symbol='circle'
-                    ),
-                    hovertemplate="<b>%{fullData.name}</b> | 💰 %{customdata[0]} | 📋 %{customdata[1]} | 🎯 %{customdata[2]}<extra></extra>",
-                    customdata=[[format_currency_int(val), f"{facturas} facturas", format_currency_int(volumen_total)]
-                                for val, facturas in zip(data['valor_neto'], data['documento_id'])]
-                ))
-
-            # Línea de promedio con estilo destacado
-            fig.add_trace(go.Scatter(
-                x=all_months,
-                y=promedio_valores,
-                mode='lines+markers',
-                name='📊 PROMEDIO',
-                line=dict(
-                    color='#E74C3C',
-                    width=5,
-                    dash='dot'
-                ),
-                marker=dict(
-                    size=12,
-                    color='#E74C3C',
-                    symbol='diamond',
-                    line=dict(color='white', width=2)
-                ),
-                hovertemplate="<b>📊 Promedio</b> | %{x} | 💰 %{customdata}<extra></extra>",
-                customdata=[format_currency_int(val)
-                            for val in promedio_valores]
-            ))
-
-            # Área de fondo para zona de alto rendimiento
-            if promedio_valores:
-                max_promedio = max(promedio_valores)
-                fig.add_trace(go.Scatter(
-                    x=all_months + all_months[::-1],
-                    y=[max_promedio * 1.2] *
-                    len(all_months) + promedio_valores[::-1],
-                    fill='toself',
-                    fillcolor='rgba(39, 174, 96, 0.1)',
-                    line=dict(color='rgba(255,255,255,0)'),
-                    showlegend=False,
-                    hoverinfo='skip',
-                    name='Zona de Alto Rendimiento'
-                ))
-
-            fig.update_layout(
-                height=950,
-                plot_bgcolor=theme_styles['plot_bg'],
-                paper_bgcolor=theme_styles['plot_bg'],
-                font=dict(family="Inter", size=12,
-                          color=theme_styles['text_color']),
-                xaxis=dict(
-                    showgrid=True,
-                    gridcolor=theme_styles['grid_color'],
-                    tickangle=-45,
-                    linecolor=theme_styles['line_color'],
-                    linewidth=2
-                ),
-                yaxis=dict(
-                    showgrid=True,
-                    gridcolor=theme_styles['grid_color'],
-                    tickformat='$,.0f',
-                    linecolor=theme_styles['line_color'],
-                    linewidth=2
-                ),
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=-0.4,
-                    xanchor="center",
-                    x=0.5,
-                    font=dict(size=11),
-                    bgcolor="rgba(255,255,255,0.8)" if theme == 'light' else "rgba(0,0,0,0.8)",
-                    bordercolor=theme_styles['line_color'],
-                    borderwidth=1
-                ),
-                margin=dict(t=20, b=170, l=80, r=40),
-                hovermode='x unified'
-            )
-
-            # Aplicar estilo de hover más compacto
-            fig.update_traces(
-                hoverlabel=dict(
-                    bgcolor="white" if theme == 'light' else "#2d2d2d",
-                    bordercolor=theme_styles['line_color'],
-                    font=dict(size=11, family="Inter")  # Texto más pequeño
-                )
-            )
-
-        else:  # barras agrupadas con colores por volumen
-            # Preparar datos para barras con colores basados en volumen
-            for i, (vendedor, data) in enumerate(datos_vendedores.items()):
-                valores_por_mes = dict(
-                    zip(data['mes_nombre'], data['valor_neto']))
-                valores_ordenados = [valores_por_mes.get(
-                    mes, 0) for mes in all_months]
-
-                volumen_total = volumenes_vendedores[vendedor]
-                color = get_color_by_volume(volumen_total)
-
-                # Crear gradiente de colores basado en altura pero manteniendo el color base
-                max_valor = max(valores_ordenados) if valores_ordenados else 1
-                bar_colors = []
-                for valor in valores_ordenados:
-                    intensity = valor / max_valor if max_valor > 0 else 0
-                    # Más intenso = más opaco, pero manteniendo el color del volumen
-                    alpha = 0.4 + (intensity * 0.6)
-                    rgb = px.colors.hex_to_rgb(color)
-                    bar_colors.append(
-                        f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {alpha})")
-
-                # Categoría de performance
-                normalized_vol = (volumen_total - min_volumen) / (max_volumen -
-                                                                  min_volumen) if max_volumen != min_volumen else 0.5
-                if normalized_vol >= 0.8:
-                    performance = "🟢 TOP"
-                elif normalized_vol >= 0.6:
-                    performance = "🟢 Alto"
-                elif normalized_vol >= 0.4:
-                    performance = "🟡 M-Alto"
-                elif normalized_vol >= 0.2:
-                    performance = "🟠 Medio"
-                else:
-                    performance = "🔴 Bajo"
-
-                display_name = f"{vendedor[:30]}{'...' if len(vendedor) > 30 else ''} ({performance})"
-
-                fig.add_trace(go.Bar(
-                    x=all_months,
-                    y=valores_ordenados,
-                    name=display_name,
-                    marker=dict(
-                        color=bar_colors,
-                        line=dict(color=color, width=2),
-                        pattern=dict(shape="/", bgcolor="white",
-                                     size=8, solidity=0.1)  # Patrón sutil
-                    ),
-                    hovertemplate="<b>%{fullData.name}</b> | 💰 %{customdata[0]} | 📊 %{customdata[1]} | 🎯 %{customdata[2]}<extra></extra>",
-                    customdata=[[
-                        format_currency_int(val),
-                        f"🔥 +{format_currency_int(val - promedios_mensuales.get(mes, 0))}" if val > promedios_mensuales.get(mes, 0)
-                        else f"📉 {format_currency_int(val - promedios_mensuales.get(mes, 0))}",
-                        format_currency_int(volumen_total)
-                    ] for mes, val in zip(all_months, valores_ordenados)]
-                ))
-
-            # Línea de promedio con marcadores especiales
-            fig.add_trace(go.Scatter(
-                x=all_months,
-                y=promedio_valores,
-                mode='lines+markers',
-                name='📊 PROMEDIO',
-                line=dict(color='#E74C3C', width=5),
-                marker=dict(
-                    size=15,
-                    color='#E74C3C',
-                    symbol='star',
-                    line=dict(color='white', width=3)
-                ),
-                hovertemplate="<b>📊 Promedio</b> | %{x} | 💰 %{customdata}<extra></extra>",
-                customdata=[format_currency_int(val)
-                            for val in promedio_valores]
-            ))
-
-            fig.update_layout(
-                height=700,
-                plot_bgcolor=theme_styles['plot_bg'],
-                paper_bgcolor=theme_styles['plot_bg'],
-                font=dict(family="Inter", size=12,
-                          color=theme_styles['text_color']),
-                xaxis=dict(
-                    showgrid=False,
-                    tickangle=-45,
-                    linecolor=theme_styles['line_color'],
-                    linewidth=2
-                ),
-                yaxis=dict(
-                    showgrid=True,
-                    gridcolor=theme_styles['grid_color'],
-                    tickformat='$,.0f',
-                    linecolor=theme_styles['line_color'],
-                    linewidth=2
-                ),
-                barmode='group',
-                bargap=0.15,
-                bargroupgap=0.1,
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=-0.45,
-                    xanchor="center",
-                    x=0.5,
-                    font=dict(size=11),
-                    bgcolor="rgba(255,255,255,0.8)" if theme == 'light' else "rgba(0,0,0,0.8)",
-                    bordercolor=theme_styles['line_color'],
-                    borderwidth=1
-                ),
-                margin=dict(t=100, b=160, l=80, r=40)
-            )
-
-        return fig
-
-    except Exception as e:
-        print(f"Error en update_comparativa_vendedores: {e}")
-        fig = go.Figure()
-        fig.add_annotation(
-            text="Error al cargar datos de comparativa",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, showarrow=False,
-            font=dict(size=16, color='#e74c3c')
-        )
-        fig.update_layout(height=400)
-        return fig
-
+# ========== CALLBACKS NUEVOS DE ACTUALIZACIÓN ==========
 
 @callback(
-    Output('ventas-graficos-area-individuales', 'figure'),
-    [Input('session-store', 'data'),
-     Input('ventas-theme-store', 'data')]
+    Output('ventas-data-store', 'data'),
+    [Input('ventas-btn-actualizar', 'n_clicks')],
+    prevent_initial_call=True
 )
-def update_area_charts_individuales(session_data, theme):
+def update_ventas_data(n_clicks):
     """
-    Create individual area charts for each vendor (4 per row, all vendors).
+    Callback central para recargar TODOS los datos cuando se presiona actualizar.
     """
-    from utils import can_see_all_vendors
+    if n_clicks > 0:
+        try:
+            print(f"🔄 [VentasPage] Iniciando actualización #{n_clicks}")
+            start_time = time.time()
 
-    try:
-        theme_styles = get_theme_styles(theme)
+            # ¡CLAVE! Usar reload_data() para forzar recarga completa
+            result = analyzer.reload_data()
 
-        # Solo mostrar si es administrador
-        if not session_data or not \
-                can_see_all_vendors(session_data):
-            fig = go.Figure()
-            fig.add_annotation(
-                text="Gráficos disponibles solo para administradores",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, showarrow=False,
-                # ← USAR THEME
-                font=dict(size=16, color=theme_styles['text_color'])
-            )
-            fig.update_layout(
-                height=300,
-                paper_bgcolor=theme_styles['plot_bg'],
-                plot_bgcolor=theme_styles['plot_bg']
-            )
-            return fig
+            load_time = time.time() - start_time
 
-        # Obtener datos para TODOS los vendedores (sin límite)
-        # Excluir 'Todos'
-        vendedores_disponibles = analyzer.vendedores_list[1:]
-        datos_vendedores = {}
+            # Debugging info
+            if hasattr(analyzer, 'print_data_summary'):
+                analyzer.print_data_summary()
 
-        # Incluir TODOS los vendedores que tengan al menos una venta > 0
-        for vendedor in vendedores_disponibles:
-            try:
-                data_vendedor = analyzer.get_ventas_por_mes(vendedor)
-                if not data_vendedor.empty and data_vendedor['valor_neto'].sum() > 0:
-                    datos_vendedores[vendedor] = data_vendedor
-            except:
-                continue
+            print(
+                f"✅ [VentasPage] Actualización #{n_clicks} completada en {load_time:.2f}s")
 
-        if not datos_vendedores:
-            fig = go.Figure()
-            fig.add_annotation(
-                text="No hay datos disponibles",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, showarrow=False,
-                font=dict(size=16, color=theme_styles['text_color'])
-            )
-            fig.update_layout(
-                height=300, paper_bgcolor=theme_styles['plot_bg'])
-            return fig
-
-        # Calcular layout de subplots (4 columnas)
-        num_vendedores = len(datos_vendedores)
-        cols = 4
-        rows = math.ceil(num_vendedores / cols)
-
-        # Crear títulos completos para los vendedores
-        subplot_titles = []
-
-        for vendedor in datos_vendedores.keys():
-            subplot_titles.append(vendedor)
-
-        # Crear subplots con títulos más pequeños y menos espacio vertical
-        fig = make_subplots(
-            rows=rows,
-            cols=cols,
-            subplot_titles=subplot_titles,
-            vertical_spacing=0.08,  # Reducido de 0.15 a 0.08
-            horizontal_spacing=0.08
-        )
-
-        # Colores modernos para cada vendedor
-        modern_colors = [
-            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
-            '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D7BDE2',
-            '#AED6F1', '#A9DFBF', '#F9E79F', '#D2B4DE', '#85C1E9'
-        ]
-
-        # Añadir cada vendedor como área chart
-        for i, (vendedor, data) in enumerate(datos_vendedores.items()):
-            row = (i // cols) + 1
-            col = (i % cols) + 1
-
-            color = modern_colors[i % len(modern_colors)]
-
-            fig.add_trace(
-                go.Scatter(
-                    x=data['mes_nombre'],
-                    y=data['valor_neto'],
-                    fill='tozeroy',
-                    mode='lines+markers',
-                    line=dict(color=color, width=3, shape='spline'),
-                    marker=dict(size=6, color=color, line=dict(
-                        color='white', width=1)),
-                    fillcolor=f"rgba{tuple(list(px.colors.hex_to_rgb(color)) + [0.4])}",
-                    name=vendedor,
-                    showlegend=False,
-                    hovertemplate="<b>" + vendedor + "</b><br>" +
-                    "%{x}<br>" +
-                    "💰 Ventas: %{customdata[0]}<br>" +
-                    "📋 Facturas: %{customdata[1]}<br>" +
-                    "<extra></extra>",
-                    customdata=[[format_currency_int(val), facturas]
-                                for val, facturas in zip(data['valor_neto'], data['documento_id'])]
-                ),
-                row=row, col=col
-            )
-
-        # Actualizar layout con títulos más pequeños y altura reducida
-        fig.update_layout(
-            title="📈 Evolución Individual por Vendedor (Gráficos de Área)",
-            title_x=0.5,
-            height=200 * rows,  # Reducido de 250 a 200 por fila
-            plot_bgcolor=theme_styles['plot_bg'],
-            paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Inter", size=10,
-                      color=theme_styles['text_color']),
-            showlegend=False,
-            margin=dict(t=80, b=40, l=60, r=60)
-        )
-
-        # Actualizar ejes individuales
-        for i in range(1, rows + 1):
-            for j in range(1, cols + 1):
-                fig.update_xaxes(
-                    showgrid=True,
-                    gridcolor=theme_styles['grid_color'],
-                    tickangle=-45,
-                    tickfont=dict(size=8, color=theme_styles['text_color']),
-                    linecolor=theme_styles['line_color'],
-                    row=i, col=j
-                )
-                fig.update_yaxes(
-                    showgrid=True,
-                    gridcolor=theme_styles['grid_color'],
-                    tickformat='$,.0f',
-                    tickfont=dict(size=8, color=theme_styles['text_color']),
-                    linecolor=theme_styles['line_color'],
-                    row=i, col=j
-                )
-
-        # Actualizar títulos de subplots para que sean más pequeños
-        for i in range(len(subplot_titles)):
-            fig.layout.annotations[i].update(
-                font=dict(size=10, color=theme_styles['text_color']))
-
-        return fig
-
-    except Exception as e:
-        print(f"Error en update_area_charts_individuales: {e}")
-        theme_styles = get_theme_styles(theme)
-
-        fig = go.Figure()
-        fig.add_annotation(
-            text="Error al cargar gráficos de área",
-            xref="paper", yref="paper",
-            x=0.5,
-            y=0.5,
-            showarrow=False,
-            font=dict(size=16, color=theme_styles['text_color'])
-        )
-        fig.update_layout(
-            height=300,
-            paper_bgcolor=theme_styles['plot_bg'],
-            plot_bgcolor=theme_styles['plot_bg']
-        )
-        return fig
-
-
-@callback(
-    Output('ventas-row1-2-container', 'style'),
-    [Input('session-store', 'data'),
-     Input('ventas-theme-store', 'data')]
-)
-def update_comparativa_visibility(session_data, theme):
-    """
-    Mostrar/ocultar sección de comparativa según permisos del usuario.
-    """
-    from utils import can_see_all_vendors
-
-    theme_styles = get_theme_styles(theme)
-
-    try:
-        if not session_data or not can_see_all_vendors(session_data):
-            # Ocultar para usuarios normales
-            return {'display': 'none'}
-        else:
-            # Mostrar para administradores
             return {
-                'backgroundColor': theme_styles['paper_color'],
-                'padding': '20px',
-                'borderRadius': '8px',
-                'boxShadow': theme_styles['card_shadow'],
-                'margin': '10px 0',
-                'color': theme_styles['text_color']
+                'last_update': n_clicks,
+                'timestamp': datetime.now().isoformat(),
+                'success': True,
+                'load_time': load_time,
+                'records_count': len(result)
             }
-    except Exception as e:
-        print(f"Error en update_comparativa_visibility: {e}")
-        return {'display': 'none'}
+
+        except Exception as e:
+            print(f"❌ [VentasPage] Error en actualización #{n_clicks}: {e}")
+            return {
+                'last_update': n_clicks,
+                'timestamp': datetime.now().isoformat(),
+                'error': str(e),
+                'success': False
+            }
+
+    return dash.no_update
 
 
 @callback(
-    [Output('ventas-dropdown-vendedor-container', 'style'),
-     Output('ventas-dropdown-vendedor-label', 'style')],
-    [Input('session-store', 'data')]
+    Output('ventas-notification-area', 'children'),
+    [Input('ventas-data-store', 'data')],
+    prevent_initial_call=True
 )
-def update_dropdown_visibility(session_data):
-    """
-    Mostrar/ocultar dropdown de vendedores según permisos del usuario.
-    """
-    from utils import can_see_all_vendors
-
-    try:
-        if not session_data or not can_see_all_vendors(session_data):
-            # Ocultar para usuarios normales o sin sesión
-            return {'display': 'none'}, {'display': 'none'}
+def show_update_notification(data_store):
+    """Mostrar notificación cuando se actualicen los datos."""
+    if data_store and data_store.get('last_update', 0) > 0:
+        if data_store.get('error'):
+            # Notificación de error
+            return html.Div([
+                html.Div([
+                    html.Span("❌", style={'marginRight': '8px'}),
+                    html.Span("Error al actualizar datos"),
+                    html.Br(),
+                    html.Small(str(data_store.get('error', ''))[:100] + "...",
+                               style={'fontSize': '10px', 'opacity': '0.8'})
+                ], style={
+                    'backgroundColor': '#e74c3c',
+                    'color': 'white',
+                    'padding': '12px 16px',
+                    'borderRadius': '6px',
+                    'marginBottom': '10px',
+                    'boxShadow': '0 4px 8px rgba(0,0,0,0.2)',
+                    'animation': 'slideIn 0.3s ease-out',
+                    'fontSize': '12px'
+                })
+            ])
         else:
-            # Mostrar para administradores
-            base_style = {
-                'width': '20%',
-                'display': 'inline-block',
-                'verticalAlign': 'top',
-                'marginLeft': '2%'
-            }
-            label_style = {
-                'fontWeight': 'bold',
-                'marginBottom': '5px',
-                'fontFamily': 'Inter'
-            }
-            return base_style, label_style
-    except Exception as e:
-        print(f"Error en update_dropdown_visibility: {e}")
-        return {'display': 'none'}, {'display': 'none'}
+            # Notificación de éxito
+            load_time = data_store.get('load_time', 0)
+            records_count = data_store.get('records_count', 0)
+
+            return html.Div([
+                html.Div([
+                    html.Span("✅", style={'marginRight': '8px'}),
+                    html.Span("Datos actualizados correctamente"),
+                    html.Br(),
+                    html.Small(f"{records_count} registros en {load_time:.1f}s",
+                               style={'fontSize': '10px', 'opacity': '0.8'})
+                ], style={
+                    'backgroundColor': '#27ae60',
+                    'color': 'white',
+                    'padding': '12px 16px',
+                    'borderRadius': '6px',
+                    'marginBottom': '10px',
+                    'boxShadow': '0 4px 8px rgba(0,0,0,0.2)',
+                    'animation': 'slideIn 0.3s ease-out',
+                    'fontSize': '12px'
+                }, id='ventas-success-notification')
+            ])
+
+    return []
 
 
 @callback(
-    [Output('ventas-theme-store', 'data'),
-     Output('ventas-theme-toggle', 'children'),
-     Output('ventas-main-container', 'style'),
-     Output('ventas-header-container', 'style')],
-    [Input('ventas-theme-toggle', 'n_clicks')],
-    [State('ventas-theme-store', 'data')]
+    [Output('ventas-btn-actualizar', 'children'),
+     Output('ventas-btn-actualizar', 'disabled')],
+    [Input('ventas-data-store', 'data')],
+    prevent_initial_call=True
 )
-def toggle_theme(n_clicks, current_theme):
-    """Toggle between light and dark themes."""
-    if n_clicks % 2 == 1:
-        new_theme = 'dark'
-        icon = '☀️'
-    else:
-        new_theme = 'light'
-        icon = '🌙'
-
-    theme_styles = get_theme_styles(new_theme)
-
-    main_style = {
-        'fontFamily': 'Inter',
-        'backgroundColor': theme_styles['bg_color'],
-        'padding': '20px',
-        'color': theme_styles['text_color']
-    }
-
-    header_style = {
-        'marginBottom': '30px',
-        'padding': '20px',
-        'backgroundColor': theme_styles['paper_color'],
-        'borderRadius': '8px'
-    }
-
-    return new_theme, icon, main_style, header_style
-
-
-# Dropdown theme styling callback
-@callback(
-    [Output('ventas-dropdown-vendedor', 'style'),
-     Output('ventas-dropdown-mes', 'style'),
-     Output('ventas-dropdown-cliente', 'style'),
-     Output('ventas-dropdown-vista-recaudo', 'style'),
-     Output('ventas-dropdown-tipo-grafico', 'style'),
-     Output('ventas-dropdown-vendedor', 'className'),
-     Output('ventas-dropdown-mes', 'className'),
-     Output('ventas-dropdown-cliente', 'className'),
-     Output('ventas-dropdown-vista-recaudo', 'className'),
-     Output('ventas-dropdown-tipo-grafico', 'className')],
-    [Input('ventas-theme-store', 'data'),
-     Input('session-store', 'data')]
-)
-def update_dropdown_styles(theme, session_data):
-    """
-    Update dropdown styles based on theme and visibility.
-    """
-    from utils import can_see_all_vendors
-
-    dropdown_style = get_dropdown_style(theme)
-    dropdown_style['fontFamily'] = 'Inter'
-
-    # Special handling for vendor dropdown - hide if not admin
-    if not session_data or not can_see_all_vendors(session_data):
-        vendedor_style = {'display': 'none'}
-        tipo_grafico_style = {'display': 'none'}
-    else:
-        vendedor_style = dropdown_style.copy()
-        tipo_grafico_style = dropdown_style.copy()
-        tipo_grafico_style.update(
-            {'width': '250px', 'display': 'inline-block'})
-
-    vista_style = dropdown_style.copy()
-    vista_style.update({'width': '200px', 'display': 'inline-block'})
-
-    # CSS class for dark theme
-    css_class = 'dash-dropdown dark-theme' if theme == 'dark' else 'dash-dropdown'
-
-    return vendedor_style, dropdown_style, dropdown_style, vista_style, tipo_grafico_style, css_class, css_class, css_class, css_class, css_class
-
-
-@callback(
-    [Output('ventas-card-1', 'style'),
-     Output('ventas-card-2', 'style'),
-     Output('ventas-card-3', 'style'),
-     Output('ventas-card-4', 'style'),
-     Output('ventas-card-5', 'style'),
-     Output('ventas-card-6', 'style'),
-     Output('ventas-card-7', 'style'),
-     Output('ventas-card-8', 'style')],
-    [Input('ventas-theme-store', 'data')]
-)
-def update_card_styles(theme):
-    """
-    Update styles for summary cards based on theme.
-    """
-    theme_styles = get_theme_styles(theme)
-
-    card_style = {
-        'backgroundColor': theme_styles['paper_color'],
-        'padding': '15px',
-        'borderRadius': '8px',
-        'boxShadow': theme_styles['card_shadow'],
-        'textAlign': 'center',
-        'width': '20%',
-        'display': 'inline-block',
-        'margin': '1.5%',
-        'color': theme_styles['text_color']
-    }
-
-    return [card_style] * 8
-
-
-# Container styles callback
-@callback(
-    [Output('ventas-row1-container', 'style'),
-     #  Output('ventas-row1-2-container', 'style'),
-     #  Output('ventas-row1-3-container', 'style'),
-     Output('ventas-row1-5-container', 'style'),
-     Output('ventas-row-nueva-treemap', 'style'),
-     Output('ventas-row2-container', 'style'),
-     Output('ventas-row2-5-container', 'style'),
-     Output('ventas-row3-container', 'style'),
-     Output('ventas-row4-container', 'style'),
-     Output('ventas-row5-container', 'style'),
-     Output('ventas-row6-container', 'style')],
-    [Input('ventas-theme-store', 'data')]
-)
-def update_container_styles(theme):
-    """
-    Update styles for chart containers based on theme.
-    """
-    theme_styles = get_theme_styles(theme)
-
-    chart_style = \
-        {
-            'backgroundColor': theme_styles['paper_color'],
-            'padding': '20px',
-            'borderRadius': '8px',
-            'boxShadow': theme_styles['card_shadow'],
-            'margin': '10px 0',
-            'color': theme_styles['text_color']
-        }
-
-    return [chart_style] * 9  # 10 containers now
-
-
-@callback(
-    [Output('ventas-container-vendedor', 'style'),
-     Output('ventas-vista-recaudo-container', 'style'),
-     Output('ventas-titulo-recaudo-temporal', 'children')],
-    [Input('session-store', 'data'),
-     Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-dropdown-vista-recaudo', 'value')]
-)
-def update_recaudo_visibility(session_data, dropdown_value, vista_recaudo):
-    """
-    Show/hide recaudo components based on vendor selection.
-    """
-    vendedor = get_selected_vendor(session_data, dropdown_value)
-
-    if vendedor == 'Todos':
-        # Show vendor chart and vista selector
-        vendor_style = {'width': '100%',
-                        'marginBottom': '20px', 'display': 'block'}
-        vista_style = {'display': 'flex', 'alignItems': 'center',
-                       'justifyContent': 'center', 'marginBottom': '20px'}
-        titulo_temporal = f"Evolución {vista_recaudo.title()} - Todos los Vendedores"
-    else:
-        # Hide vendor chart, still show vista selector
-        vendor_style = {'display': 'none'}
-        vista_style = {'display': 'flex', 'alignItems': 'center',
-                       'justifyContent': 'center', 'marginBottom': '20px'}
-        titulo_temporal = f"Evolución {vista_recaudo.title()} - {vendedor}"
-
-    return vendor_style, vista_style, titulo_temporal
-
-
-@callback(
-    Output('ventas-titulo-dashboard', 'children'),
-    [Input('session-store', 'data'),
-     Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-dropdown-mes', 'value')]
-)
-def update_title(session_data, dropdown_value, mes):
-    """
-    Update dashboard title based on filters.
-    """
-    from utils import can_see_all_vendors, get_user_vendor_filter
-
-    try:
-        if not session_data:
-            return "Dashboard de Ventas"
-
-        if can_see_all_vendors(session_data):
-            vendedor = dropdown_value if dropdown_value else 'Todos'
-            title = "Dashboard de Ventas"
-            if vendedor != 'Todos' and mes != 'Todos':
-                title += f" - {vendedor} - {mes}"
-            elif vendedor != 'Todos':
-                title += f" - {vendedor}"
-            elif mes != 'Todos':
-                title += f" - {mes}"
-            else:
-                title += " - Todos los Vendedores"
-            return title
+def update_button_state(data_store):
+    """Actualizar estado del botón durante y después de la carga."""
+    if data_store and data_store.get('last_update', 0) > 0:
+        if data_store.get('success', True):
+            # Actualización exitosa - botón normal
+            return [
+                html.Span("🔄", style={'marginRight': '8px'}),
+                'Actualizar Datos'
+            ], False
         else:
-            vendor = get_user_vendor_filter(session_data)
-            title = f"Dashboard de Ventas - {vendor}"
-            if mes != 'Todos':
-                title += f" - {mes}"
-            return title
-    except Exception as e:
-        print(f"Error en update_title: {e}")
-        return "Dashboard de Ventas"
+            # Error - botón con indicador de error
+            return [
+                html.Span("⚠️", style={'marginRight': '8px'}),
+                'Reintentar'
+            ], False
 
+    # Estado normal
+    return [
+        html.Span("🔄", style={'marginRight': '8px'}),
+        'Actualizar Datos'
+    ], False
+
+
+# ========== CALLBACKS PRINCIPALES ACTUALIZADOS ==========
 
 @callback(
-    [
-        Output('ventas-ventas-totales', 'children'),
-        Output('ventas-ventas-netas', 'children'),
-        Output('ventas-total-devoluciones', 'children'),
-        Output('ventas-total-descuentos', 'children'),
-        Output('ventas-valor-promedio', 'children'),
-        Output('ventas-num-facturas', 'children'),
-        Output('ventas-num-devoluciones', 'children'),
-        Output('ventas-num-clientes', 'children')],
+    [Output('ventas-ventas-totales', 'children'),
+     Output('ventas-ventas-netas', 'children'),
+     Output('ventas-total-devoluciones', 'children'),
+     Output('ventas-total-descuentos', 'children'),
+     Output('ventas-valor-promedio', 'children'),
+     Output('ventas-num-facturas', 'children'),
+     Output('ventas-num-devoluciones', 'children'),
+     Output('ventas-num-clientes', 'children')],
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-btn-actualizar', 'n_clicks')]
+     Input('ventas-data-store', 'data')]  # ¡NUEVO!
 )
-def update_cards(session_data, dropdown_value, mes, n_clicks):
-    """
-    Update summary cards with sales statistics.
-    """
+def update_cards(session_data, dropdown_value, mes, data_store):
+    """Update summary cards with sales statistics."""
     try:
-        vendedor = \
-            get_selected_vendor(session_data, dropdown_value)
-        resumen = \
-            analyzer.get_resumen_ventas(vendedor, mes)
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"📊 [update_cards] Detectada actualización #{data_store.get('last_update')}")
 
-        return \
-            (
-                format_currency_int(resumen['total_ventas']),
-                format_currency_int(resumen['ventas_netas']),
-                format_currency_int(resumen['total_devoluciones']),
-                format_currency_int(resumen['total_descuentos']),
-                format_currency_int(resumen['ticket_promedio']),
-                f"{resumen['num_facturas']:,}",
-                f"{resumen['num_devoluciones']:,}",
-                f"{resumen['num_clientes']:,}",
-            )
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        resumen = analyzer.get_resumen_ventas(vendedor, mes)
+
+        return (
+            format_currency_int(resumen['total_ventas']),
+            format_currency_int(resumen['ventas_netas']),
+            format_currency_int(resumen['total_devoluciones']),
+            format_currency_int(resumen['total_descuentos']),
+            format_currency_int(resumen['ticket_promedio']),
+            f"{resumen['num_facturas']:,}",
+            f"{resumen['num_devoluciones']:,}",
+            f"{resumen['num_clientes']:,}",
+        )
     except Exception as e:
-        print(f"Error en update_cards: {e}")
-        return "$0", "$0", "0", "$0", "0", "0", "$0", "0%"
+        print(f"❌ [update_cards] Error: {e}")
+        return "$0", "$0", "$0", "$0", "$0", "0", "0", "0"
 
 
 @callback(
     Output('ventas-grafico-ventas-mes', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
      Input('ventas-theme-store', 'data')]
 )
-def update_ventas_mes(session_data, dropdown_value, theme):
-    """
-    Update monthly sales evolution chart with area fill and smooth lines.
-    """
+def update_ventas_mes(session_data, dropdown_value, data_store, theme):
+    """Update monthly sales evolution chart with area fill and smooth lines."""
     try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"📈 [update_ventas_mes] Detectada actualización #{data_store.get('last_update')}")
+
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_ventas_por_mes(vendedor)
         theme_styles = get_theme_styles(theme)
@@ -1368,7 +706,7 @@ def update_ventas_mes(session_data, dropdown_value, theme):
 
         return fig
     except Exception as e:
-        print(f"Error en update_ventas_mes: {e}")
+        print(f"❌ [update_ventas_mes] Error: {e}")
         return go.Figure()
 
 
@@ -1377,13 +715,17 @@ def update_ventas_mes(session_data, dropdown_value, theme):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
      Input('ventas-theme-store', 'data')]
 )
-def update_estacionalidad(session_data, dropdown_value, mes, theme):
-    """
-    Update seasonality chart by day of week with pastel colors and transparency.
-    """
+def update_estacionalidad(session_data, dropdown_value, mes, data_store, theme):
+    """Update seasonality chart by day of week with pastel colors and transparency."""
     try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"📅 [update_estacionalidad] Detectada actualización #{data_store.get('last_update')}")
+
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_ventas_por_dia_semana(vendedor, mes)
         theme_styles = get_theme_styles(theme)
@@ -1451,7 +793,7 @@ def update_estacionalidad(session_data, dropdown_value, mes, theme):
 
         return fig
     except Exception as e:
-        print(f"Error en update_estacionalidad: {e}")
+        print(f"❌ [update_estacionalidad] Error: {e}")
         return go.Figure()
 
 
@@ -1549,13 +891,17 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, theme):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
      Input('ventas-theme-store', 'data')]
 )
-def update_zona(session_data, dropdown_value, mes, theme):
-    """
-    Update sales by zone chart with red-to-green color scale and transparency.
-    """
+def update_zona(session_data, dropdown_value, mes, data_store, theme):
+    """Update sales by zone chart with red-to-green color scale and transparency."""
     try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"🗺️ [update_zona] Detectada actualización #{data_store.get('last_update')}")
+
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_ventas_por_zona(vendedor, mes)
         theme_styles = get_theme_styles(theme)
@@ -1643,7 +989,7 @@ def update_zona(session_data, dropdown_value, mes, theme):
 
         return fig
     except Exception as e:
-        print(f"Error en update_zona: {e}")
+        print(f"❌ [update_zona] Error: {e}")
         return go.Figure()
 
 
@@ -1652,13 +998,17 @@ def update_zona(session_data, dropdown_value, mes, theme):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
      Input('ventas-theme-store', 'data')]
 )
-def update_forma_pago(session_data, dropdown_value, mes, theme):
-    """
-    Update payment method chart.
-    """
+def update_forma_pago(session_data, dropdown_value, mes, data_store, theme):
+    """Update payment method chart."""
     try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"💳 [update_forma_pago] Detectada actualización #{data_store.get('last_update')}")
+
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_forma_pago_distribution(vendedor, mes)
         theme_styles = get_theme_styles(theme)
@@ -1706,7 +1056,7 @@ def update_forma_pago(session_data, dropdown_value, mes, theme):
 
         return fig
     except Exception as e:
-        print(f"Error en update_forma_pago: {e}")
+        print(f"❌ [update_forma_pago] Error: {e}")
         return go.Figure()
 
 
@@ -1715,13 +1065,17 @@ def update_forma_pago(session_data, dropdown_value, mes, theme):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
      Input('ventas-theme-store', 'data')]
 )
-def update_treemap(session_data, dropdown_value, mes, theme):
-    """
-    Update sales treemap.
-    """
+def update_treemap(session_data, dropdown_value, mes, data_store, theme):
+    """Update sales treemap."""
     try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"🗺️ [update_treemap] Detectada actualización #{data_store.get('last_update')}")
+
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_treemap_data(vendedor, mes)
         theme_styles = get_theme_styles(theme)
@@ -1758,7 +1112,7 @@ def update_treemap(session_data, dropdown_value, mes, theme):
 
         return fig
     except Exception as e:
-        print(f"Error en update_treemap: {e}")
+        print(f"❌ [update_treemap] Error: {e}")
         return go.Figure()
 
 
@@ -1767,13 +1121,17 @@ def update_treemap(session_data, dropdown_value, mes, theme):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
      Input('ventas-theme-store', 'data')]
 )
-def update_top_clientes(session_data, dropdown_value, mes, theme):
-    """
-    Update top customers chart.
-    """
+def update_top_clientes(session_data, dropdown_value, mes, data_store, theme):
+    """Update top customers chart."""
     try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"🏆 [update_top_clientes] Detectada actualización #{data_store.get('last_update')}")
+
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_top_clientes(vendedor, mes)
         theme_styles = get_theme_styles(theme)
@@ -1833,207 +1191,7 @@ def update_top_clientes(session_data, dropdown_value, mes, theme):
 
         return fig
     except Exception as e:
-        print(f"Error en update_top_clientes: {e}")
-        return go.Figure()
-
-
-# Callback para actualizar lista de clientes
-@callback(
-    Output('ventas-dropdown-cliente', 'options'),
-    [Input('session-store', 'data'),
-     Input('ventas-dropdown-vendedor', 'value')]
-)
-def update_clientes_dropdown(session_data, dropdown_value):
-    """
-    Update client dropdown based on selected salesperson.
-    """
-    try:
-        vendedor = get_selected_vendor(session_data, dropdown_value)
-        clientes = analyzer.get_clientes_list(vendedor)
-        return [{'label': cliente, 'value': cliente} for cliente in clientes]
-    except Exception as e:
-        print(f"Error en update_clientes_dropdown: {e}")
-        return [{'label': 'Seleccione un cliente', 'value': 'Seleccione un cliente'}]
-
-
-# Callback para limpiar selección de cliente cuando cambia vendedor
-@callback(
-    Output('ventas-dropdown-cliente', 'value'),
-    [Input('ventas-dropdown-vendedor', 'value')]
-)
-def reset_cliente_selection(vendedor):
-    """
-    Reset client selection when salesperson changes.
-    """
-    return 'Seleccione un cliente'
-
-
-@callback(
-    Output('ventas-grafico-evolucion-cliente', 'figure'),
-    [Input('ventas-dropdown-cliente', 'value'),
-     Input('session-store', 'data'),
-     Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-theme-store', 'data')]
-)
-def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, theme):
-    """
-    Update client evolution chart - filtered by month using main DataFrame.
-    """
-    try:
-        vendedor = \
-            get_selected_vendor(session_data, dropdown_value)
-        theme_styles = \
-            get_theme_styles(theme)
-
-        if cliente == 'Seleccione un cliente':
-            fig = go.Figure()
-            fig.add_annotation(
-                text="Seleccione un cliente para ver su evolución diaria de ventas",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, xanchor='center', yanchor='middle',
-                showarrow=False,
-                font=dict(size=16, color=theme_styles['text_color'])
-            )
-            fig.update_layout(
-                height=400,
-                plot_bgcolor=theme_styles['plot_bg'],
-                paper_bgcolor=theme_styles['plot_bg'],
-                font=dict(family="Inter", size=12,
-                          color=theme_styles['text_color'])
-            )
-            return fig
-
-        # Filter dataframe based on client's name
-        data_filtered = df[df['cliente_completo'] == cliente].copy()
-
-        # Filtro por vendedor
-        if vendedor and vendedor != 'Todos':
-            data_filtered = data_filtered[data_filtered['vendedor'] == vendedor]
-
-        # FILTRO POR MES - AQUÍ ES DONDE ESTABA EL PROBLEMA
-        if mes and mes != 'Todos':
-            data_filtered = data_filtered[data_filtered['mes_nombre'] == mes]
-            print(
-                f"Filtrando {cliente} por mes {mes}: {len(data_filtered)} registros")
-
-        if data_filtered.empty:
-            mensaje = f"No hay datos para {cliente}"
-            if mes != 'Todos':
-                mensaje += f" en {mes}"
-
-            fig = go.Figure()
-            fig.add_annotation(
-                text=mensaje,
-                xref="paper",
-                yref="paper",
-                x=0.5,
-                y=0.5,
-                xanchor='center',
-                yanchor='middle',
-                showarrow=False,
-                font=dict(size=16, color=theme_styles['text_color'])
-            )
-            fig.update_layout(
-                height=400,
-                plot_bgcolor=theme_styles['plot_bg'],
-                paper_bgcolor=theme_styles['plot_bg'],
-                font=dict(family="Inter", size=12,
-                          color=theme_styles['text_color'])
-            )
-            return fig
-
-        # Crear fecha_str si no existe
-        data_filtered = data_filtered.copy()
-        data_filtered['fecha_str'] = pd.to_datetime(
-            data_filtered['fecha']).dt.strftime('%Y-%m-%d')
-
-        # Agrupar por fecha para obtener ventas diarias
-        data = data_filtered.groupby(['fecha', 'fecha_str']).agg({
-            'valor_neto': 'sum',
-            'documento_id': 'count'
-        }).reset_index().sort_values('fecha')
-
-        # Calcular total del período FILTRADO
-        total_ventas_periodo = data['valor_neto'].sum()
-        num_dias = len(data)
-
-        # Create bar chart
-        fig = go.Figure()
-
-        pastel_colors = [
-            'rgba(144, 238, 144, 0.8)', 'rgba(173, 216, 230, 0.8)',
-            'rgba(255, 218, 185, 0.8)', 'rgba(221, 160, 221, 0.8)',
-            'rgba(175, 238, 238, 0.8)', 'rgba(255, 182, 193, 0.8)'
-        ]
-
-        bar_colors = \
-            [
-                pastel_colors[i % len(pastel_colors)] for i in range(len(data))
-            ]
-
-        fig.add_trace(go.Bar(
-            x=data['fecha_str'],
-            y=data['valor_neto'],
-            marker=dict(
-                color=bar_colors,
-                line=dict(color='white', width=1)
-            ),
-            text=[format_currency_int(
-                val) if val > 50000 else '' for val in data['valor_neto']],
-            textposition='outside',
-            textfont=dict(size=9, color=theme_styles['text_color']),
-            hovertemplate="<b>%{x}</b><br>" +
-                         "Ventas: %{customdata[0]}<br>" +
-                         "Facturas: %{customdata[1]}<br>" +
-                         "<extra></extra>",
-            customdata=[[format_currency_int(val), facturas] for val, facturas in zip(
-                data['valor_neto'], data['documento_id'])]
-        ))
-
-        # Título con información específica del período
-        cliente_corto = cliente[:80] + '...' if len(cliente) > 80 else cliente
-
-        if mes != 'Todos':
-            titulo_completo = f"{cliente_corto} - {mes}<br><sub>Total: {format_currency_int(total_ventas_periodo)} ({num_dias} días)</sub>"
-        else:
-            titulo_completo = f"{cliente_corto}<br><sub>Total: {format_currency_int(total_ventas_periodo)} ({num_dias} días)</sub>"
-
-        fig.update_layout(
-            title=dict(
-                text=titulo_completo,
-                x=0.5,
-                font=dict(size=14, color=theme_styles['text_color'])
-            ),
-            height=450,
-            plot_bgcolor=theme_styles['plot_bg'],
-            paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Inter", size=12,
-                      color=theme_styles['text_color']),
-            xaxis=dict(
-                title="Fecha",
-                showgrid=True,
-                gridcolor=theme_styles['grid_color'],
-                linecolor=theme_styles['line_color'],
-                tickangle=-45,
-                type='category',
-                tickfont=dict(color=theme_styles['text_color'])
-            ),
-            yaxis=dict(
-                title="Ventas ($)",
-                showgrid=True,
-                gridcolor=theme_styles['grid_color'],
-                linecolor=theme_styles['line_color'],
-                tickformat='$,.0f',
-                tickfont=dict(color=theme_styles['text_color'])
-            ),
-            showlegend=False,
-            margin=dict(t=80, b=80, l=80, r=40)
-        )
-
-        return fig
-    except Exception as e:
-        print(f"Error en update_evolucion_cliente: {e}")
+        print(f"❌ [update_top_clientes] Error: {e}")
         return go.Figure()
 
 
@@ -2042,13 +1200,17 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, theme):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
      Input('ventas-theme-store', 'data')]
 )
-def update_treemap_acumuladas(session_data, dropdown_value, mes, theme):
-    """
-    Update accumulated sales treemap.
-    """
+def update_treemap_acumuladas(session_data, dropdown_value, mes, data_store, theme):
+    """Update accumulated sales treemap."""
     try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"📈 [update_treemap_acumuladas] Detectada actualización #{data_store.get('last_update')}")
+
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_ventas_acumuladas_mes(mes, vendedor)
         theme_styles = get_theme_styles(theme)
@@ -2096,42 +1258,25 @@ def update_treemap_acumuladas(session_data, dropdown_value, mes, theme):
 
         return fig
     except Exception as e:
-        print(f"Error en update_treemap_acumuladas: {e}")
+        print(f"❌ [update_treemap_acumuladas] Error: {e}")
         return go.Figure()
-
-
-@callback(
-    Output('ventas-total-recaudo-titulo', 'children'),
-    [Input('session-store', 'data'),
-     Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-dropdown-mes', 'value')]
-)
-def update_titulo_recaudo(session_data, dropdown_value, mes):
-    """
-    Update collection title with total amount.
-    """
-    try:
-        vendedor = get_selected_vendor(session_data, dropdown_value)
-        total_recaudo = analyzer.get_resumen_recaudo(vendedor, mes)
-        periodo_text = f" - {vendedor}" if vendedor != 'Todos' else ""
-        mes_text = f" - {mes}" if mes != 'Todos' else ""
-        return f"Recaudo Total{periodo_text}{mes_text}: {format_currency_int(total_recaudo)}"
-    except Exception as e:
-        print(f"Error en update_titulo_recaudo: {e}")
-        return "Recaudo Total: $0"
 
 
 @callback(
     Output('ventas-grafico-clientes-impactados', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
      Input('ventas-theme-store', 'data')]
 )
-def update_clientes_impactados(session_data, dropdown_value, theme):
-    """
-    Update clients impacted chart with horizontal bars and total clients bar.
-    """
+def update_clientes_impactados(session_data, dropdown_value, data_store, theme):
+    """Update clients impacted chart with horizontal bars and total clients bar."""
     try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"👥 [update_clientes_impactados] Detectada actualización #{data_store.get('last_update')}")
+
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data, porcentaje_promedio, total_clientes = analyzer.get_clientes_impactados_por_periodo(
             vendedor)
@@ -2218,7 +1363,7 @@ def update_clientes_impactados(session_data, dropdown_value, theme):
 
         return fig
     except Exception as e:
-        print(f"Error en update_clientes_impactados: {e}")
+        print(f"❌ [update_clientes_impactados] Error: {e}")
         return go.Figure()
 
 
@@ -2227,13 +1372,17 @@ def update_clientes_impactados(session_data, dropdown_value, theme):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
      Input('ventas-theme-store', 'data')]
 )
-def update_tabla_convenios(session_data, dropdown_value, mes, theme):
-    """
-    Update convenios analysis table with enhanced design and expected sales.
-    """
+def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme):
+    """Update convenios analysis table with enhanced design and expected sales."""
     try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"📋 [update_tabla_convenios] Detectada actualización #{data_store.get('last_update')}")
+
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_analisis_convenios(vendedor, mes)
         theme_styles = get_theme_styles(theme)
@@ -2249,9 +1398,7 @@ def update_tabla_convenios(session_data, dropdown_value, mes, theme):
             data) > 0 else 0
 
         def create_progress_bar(percentage, status_color='#27ae60', width="100px", height="20px"):
-            """
-            Create a progress bar with status-based color.
-            """
+            """Create a progress bar with status-based color."""
             bar_content = [
                 html.Div(
                     style={
@@ -2444,106 +1591,8 @@ def update_tabla_convenios(session_data, dropdown_value, mes, theme):
                      'border': f'1px solid {theme_styles["line_color"]}', 'borderRadius': '5px'})
         ])
     except Exception as e:
-        print(f"Error en update_tabla_convenios: {e}")
-        return html.Div([html.P("Error al cargar datos")])
-
-
-@callback(
-    Output('ventas-grafico-recaudo-vendedor', 'figure'),
-    [Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-theme-store', 'data')]
-)
-def update_grafico_recaudo_vendedor(mes, theme):
-    """
-    Update vendor summary chart - filter by specific month if selected.
-    """
-    try:
-        # CAMBIO: Pasar el parámetro mes para filtrar
-        data, total_recaudo = \
-            analyzer.get_recaudo_por_vendedor(mes)
-        theme_styles = get_theme_styles(theme)
-
-        if data.empty:
-            fig = go.Figure()
-            fig.add_annotation(
-                text="No hay datos de recaudo por vendedor",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, showarrow=False,
-                font=dict(size=14, color=theme_styles['text_color'])
-            )
-            fig.update_layout(
-                height=350,
-                plot_bgcolor=theme_styles['plot_bg'],
-                paper_bgcolor=theme_styles['plot_bg']
-            )
-            return fig
-
-        # Colores pasteles con transparencia
-        pastel_colors_transparent = [
-            'rgba(144, 238, 144, 0.7)',   # Light Green
-            'rgba(173, 216, 230, 0.7)',   # Light Blue
-            'rgba(255, 182, 193, 0.7)',   # Light Pink
-            'rgba(255, 218, 185, 0.7)',   # Peach
-            'rgba(221, 160, 221, 0.7)',   # Plum
-            'rgba(175, 238, 238, 0.7)',   # Pale Turquoise
-            'rgba(211, 211, 211, 0.7)'    # Light Gray
-        ]
-
-        bar_colors = [pastel_colors_transparent[i %
-                                                len(pastel_colors_transparent)] for i in range(len(data))]
-
-        fig = go.Figure()
-
-        fig.add_trace(go.Bar(
-            x=data['vendedor'],
-            y=data['valor_recibo'],
-            marker=dict(
-                color=bar_colors,
-                line=dict(color='white', width=2),
-                opacity=0.8
-            ),
-            text=[format_currency_int(val) for val in data['valor_recibo']],
-            textposition='outside',
-            textfont=dict(size=9, color=theme_styles['text_color']),
-            hovertemplate="<b>%{x}</b><br>Recaudo: %{customdata[0]}<br>Recibos: %{customdata[1]}<extra></extra>",
-            customdata=[[format_currency_int(val), recibos] for val, recibos in zip(
-                data['valor_recibo'], data['recibo_id'])]
-        ))
-
-        # Título dinámico basado en filtro de mes
-        titulo_mes = f" - {mes}" if mes != 'Todos' else ""
-
-        fig.update_layout(
-            title=f"Recaudo por Vendedor{titulo_mes}",
-            title_x=0.5,
-            height=500,
-            plot_bgcolor=theme_styles['plot_bg'],
-            paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Inter", size=11,
-                      color=theme_styles['text_color']),
-            xaxis=dict(
-                showgrid=False,
-                tickangle=-45,
-                title="Vendedor",
-                tickfont=dict(color=theme_styles['text_color']),
-                linecolor=theme_styles['line_color']
-            ),
-            yaxis=dict(
-                showgrid=True,
-                gridcolor=theme_styles['grid_color'],
-                tickformat='$,.0f',
-                title="Recaudo ($)",
-                tickfont=dict(color=theme_styles['text_color']),
-                linecolor=theme_styles['line_color']
-            ),
-            showlegend=False,
-            margin=dict(t=50, b=80, l=60, r=20)
-        )
-
-        return fig
-    except Exception as e:
-        print(f"Error en update_grafico_recaudo_vendedor: {e}")
-        return go.Figure()
+        print(f"❌ [update_tabla_convenios] Error: {e}")
+        return html.Div([html.P("Error al cargar datos de convenios")])
 
 
 @callback(
@@ -2552,26 +1601,28 @@ def update_grafico_recaudo_vendedor(mes, theme):
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-vista-recaudo', 'value'),
      Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
      Input('ventas-theme-store', 'data')]
 )
-def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo, mes, theme):
-    """
-    Update temporal recaudo chart with ascending/descending colors for daily view.
-    """
+def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo, mes, data_store, theme):
+    """Update temporal recaudo chart with ascending/descending colors for daily view."""
     try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"💰 [update_grafico_recaudo_temporal] Detectada actualización #{data_store.get('last_update')}")
+
         vendedor = get_selected_vendor(session_data, dropdown_value)
         theme_styles = get_theme_styles(theme)
 
         # Get data based on view type
         if vista_recaudo == 'mensual':
-            data, total_recaudo = \
-                analyzer.get_recaudo_por_mes(vendedor)
+            data, total_recaudo = analyzer.get_recaudo_por_mes(vendedor)
             x_field = 'mes_nombre'
             x_title = "Mes"
             chart_type = 'line'
         else:
-            data, total_recaudo = \
-                analyzer.get_recaudo_por_dia(vendedor, mes)
+            data, total_recaudo = analyzer.get_recaudo_por_dia(vendedor, mes)
             x_field = 'fecha_str'
             x_title = "Fecha"
             chart_type = 'bar'
@@ -2667,5 +1718,1213 @@ def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo,
 
         return fig
     except Exception as e:
-        print(f"Error en update_grafico_recaudo_temporal: {e}")
+        print(f"❌ [update_grafico_recaudo_temporal] Error: {e}")
         return go.Figure()
+
+
+@callback(
+    Output('ventas-grafico-recaudo-vendedor', 'figure'),
+    [Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-theme-store', 'data')]
+)
+def update_grafico_recaudo_vendedor(mes, data_store, theme):
+    """Update vendor summary chart - filter by specific month if selected."""
+    try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"📊 [update_grafico_recaudo_vendedor] Detectada actualización #{data_store.get('last_update')}")
+
+        # CAMBIO: Pasar el parámetro mes para filtrar
+        data, total_recaudo = analyzer.get_recaudo_por_vendedor(mes)
+        theme_styles = get_theme_styles(theme)
+
+        if data.empty:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No hay datos de recaudo por vendedor",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=14, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=350,
+                plot_bgcolor=theme_styles['plot_bg'],
+                paper_bgcolor=theme_styles['plot_bg']
+            )
+            return fig
+
+        # Colores pasteles con transparencia
+        pastel_colors_transparent = [
+            'rgba(144, 238, 144, 0.7)',   # Light Green
+            'rgba(173, 216, 230, 0.7)',   # Light Blue
+            'rgba(255, 182, 193, 0.7)',   # Light Pink
+            'rgba(255, 218, 185, 0.7)',   # Peach
+            'rgba(221, 160, 221, 0.7)',   # Plum
+            'rgba(175, 238, 238, 0.7)',   # Pale Turquoise
+            'rgba(211, 211, 211, 0.7)'    # Light Gray
+        ]
+
+        bar_colors = [pastel_colors_transparent[i %
+                                                len(pastel_colors_transparent)] for i in range(len(data))]
+
+        fig = go.Figure()
+
+        fig.add_trace(go.Bar(
+            x=data['vendedor'],
+            y=data['valor_recibo'],
+            marker=dict(
+                color=bar_colors,
+                line=dict(color='white', width=2),
+                opacity=0.8
+            ),
+            text=[format_currency_int(val) for val in data['valor_recibo']],
+            textposition='outside',
+            textfont=dict(size=9, color=theme_styles['text_color']),
+            hovertemplate="<b>%{x}</b><br>Recaudo: %{customdata[0]}<br>Recibos: %{customdata[1]}<extra></extra>",
+            customdata=[[format_currency_int(val), recibos] for val, recibos in zip(
+                data['valor_recibo'], data['recibo_id'])]
+        ))
+
+        # Título dinámico basado en filtro de mes
+        titulo_mes = f" - {mes}" if mes != 'Todos' else ""
+
+        fig.update_layout(
+            title=f"Recaudo por Vendedor{titulo_mes}",
+            title_x=0.5,
+            height=500,
+            plot_bgcolor=theme_styles['plot_bg'],
+            paper_bgcolor=theme_styles['plot_bg'],
+            font=dict(family="Inter", size=11,
+                      color=theme_styles['text_color']),
+            xaxis=dict(
+                showgrid=False,
+                tickangle=-45,
+                title="Vendedor",
+                tickfont=dict(color=theme_styles['text_color']),
+                linecolor=theme_styles['line_color']
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor=theme_styles['grid_color'],
+                tickformat='$,.0f',
+                title="Recaudo ($)",
+                tickfont=dict(color=theme_styles['text_color']),
+                linecolor=theme_styles['line_color']
+            ),
+            showlegend=False,
+            margin=dict(t=50, b=80, l=60, r=20)
+        )
+
+        return fig
+    except Exception as e:
+        print(f"❌ [update_grafico_recaudo_vendedor] Error: {e}")
+        return go.Figure()
+
+
+@callback(
+    Output('ventas-treemap-dias-sin-venta', 'figure'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-theme-store', 'data')]
+)
+def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, theme):
+    """Update days without sales treemap."""
+    try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"📅 [update_treemap_dias_sin_venta] Detectada actualización #{data_store.get('last_update')}")
+
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        data = analyzer.get_dias_sin_venta_por_cliente(vendedor)
+        theme_styles = get_theme_styles(theme)
+
+        if data.empty:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No hay clientes sin ventas recientes",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=500, paper_bgcolor=theme_styles['plot_bg'])
+            return fig
+
+        # Create labels with client name and days
+        labels = [f"{cliente}<br>{dias} días" for cliente, dias in
+                  zip(data['cliente_completo'], data['dias_sin_venta'])]
+
+        # Format dates safely
+        fechas_formatted = []
+        for fecha in data['fecha']:
+            try:
+                if pd.isna(fecha):
+                    fechas_formatted.append("Sin fecha")
+                else:
+                    fechas_formatted.append(
+                        pd.to_datetime(fecha).strftime('%Y-%m-%d'))
+            except:
+                fechas_formatted.append("Sin fecha")
+
+        # Create treemap with size based on days without sales
+        fig = go.Figure(go.Treemap(
+            labels=labels,
+            values=data['dias_sin_venta'],  # Size by days without sales
+            parents=[""] * len(data),
+            texttemplate="<b>%{label}</b><br>Ventas: %{customdata}",
+            hovertemplate="<b>%{text}</b><br>" +
+                         # %{value} now shows days
+                         "Días sin venta: %{value}<br>" +
+                         "Ventas históricas: %{customdata[0]}<br>" +
+                         "Última venta: %{customdata[1]}<br>" +
+                         "<extra></extra>",
+            text=[cliente[:80] + "..." if len(cliente) > 80 else cliente
+                  for cliente in data['cliente_completo']],
+            customdata=[[format_currency_int(ventas), fecha_str]
+                        for ventas, fecha_str in zip(
+                data['valor_neto'],
+                fechas_formatted)],
+            marker=dict(
+                colors=data['dias_sin_venta'],  # Color by days without sales
+                # Red to Blue, reversed (red = more days)
+                colorscale='RdYlBu_r',
+                colorbar=dict(title="Días sin venta"),
+                line=dict(width=2, color='white'),
+                cmin=data['dias_sin_venta'].min(),
+                cmax=data['dias_sin_venta'].max()
+            ),
+            textfont=dict(size=10, color='white')
+        ))
+
+        fig.update_layout(
+            height=500,
+            font=dict(family="Inter", size=12,
+                      color=theme_styles['text_color']),
+            plot_bgcolor=theme_styles['plot_bg'],
+            paper_bgcolor=theme_styles['plot_bg'],
+            margin=dict(t=0, b=0, l=0, r=0)
+        )
+
+        return fig
+    except Exception as e:
+        print(f"❌ [update_treemap_dias_sin_venta] Error: {e}")
+        return go.Figure()
+
+
+@callback(
+    Output('ventas-grafico-evolucion-cliente', 'figure'),
+    [Input('ventas-dropdown-cliente', 'value'),
+     Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-theme-store', 'data')]
+)
+def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_store, theme):
+    """Update client evolution chart - filtered by month using main DataFrame."""
+    try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"👤 [update_evolucion_cliente] Detectada actualización #{data_store.get('last_update')}")
+
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        theme_styles = get_theme_styles(theme)
+
+        if cliente == 'Seleccione un cliente':
+            fig = go.Figure()
+            fig.add_annotation(
+                text="Seleccione un cliente para ver su evolución diaria de ventas",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=400,
+                plot_bgcolor=theme_styles['plot_bg'],
+                paper_bgcolor=theme_styles['plot_bg'],
+                font=dict(family="Inter", size=12,
+                          color=theme_styles['text_color'])
+            )
+            return fig
+
+        # Get client evolution data using analyzer method
+        data = analyzer.get_evolucion_cliente(cliente, vendedor)
+
+        # Apply month filter if specified
+        if mes and mes != 'Todos' and not data.empty:
+            try:
+                # Assuming data has 'fecha_str' in YYYY-MM-DD format
+                data = data[data['fecha_str'].str.startswith(mes)]
+            except:
+                pass  # If filtering fails, use all data
+
+        if data.empty:
+            mensaje = f"No hay datos para {cliente}"
+            if mes != 'Todos':
+                mensaje += f" en {mes}"
+
+            fig = go.Figure()
+            fig.add_annotation(
+                text=mensaje,
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                xanchor='center',
+                yanchor='middle',
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=400,
+                plot_bgcolor=theme_styles['plot_bg'],
+                paper_bgcolor=theme_styles['plot_bg'],
+                font=dict(family="Inter", size=12,
+                          color=theme_styles['text_color'])
+            )
+            return fig
+
+        # Calculate totals for title
+        total_ventas_periodo = data['valor_neto'].sum()
+        num_dias = len(data)
+
+        # Create bar chart
+        fig = go.Figure()
+
+        pastel_colors = [
+            'rgba(144, 238, 144, 0.8)', 'rgba(173, 216, 230, 0.8)',
+            'rgba(255, 218, 185, 0.8)', 'rgba(221, 160, 221, 0.8)',
+            'rgba(175, 238, 238, 0.8)', 'rgba(255, 182, 193, 0.8)'
+        ]
+
+        bar_colors = [
+            pastel_colors[i % len(pastel_colors)] for i in range(len(data))
+        ]
+
+        fig.add_trace(go.Bar(
+            x=data['fecha_str'],
+            y=data['valor_neto'],
+            marker=dict(
+                color=bar_colors,
+                line=dict(color='white', width=1)
+            ),
+            text=[format_currency_int(
+                val) if val > 50000 else '' for val in data['valor_neto']],
+            textposition='outside',
+            textfont=dict(size=9, color=theme_styles['text_color']),
+            hovertemplate="<b>%{x}</b><br>" +
+                         "Ventas: %{customdata[0]}<br>" +
+                         "Facturas: %{customdata[1]}<br>" +
+                         "<extra></extra>",
+            customdata=[[format_currency_int(val), facturas] for val, facturas in zip(
+                data['valor_neto'], data['documento_id'])]
+        ))
+
+        # Título con información específica del período
+        cliente_corto = cliente[:80] + '...' if len(cliente) > 80 else cliente
+
+        if mes != 'Todos':
+            titulo_completo = f"Total: {format_currency_int(total_ventas_periodo)} ({num_dias} días)<br><sub>{cliente_corto} - {mes}</sub>"
+        else:
+            titulo_completo = f"Total: {format_currency_int(total_ventas_periodo)} ({num_dias} días)<br><sub>{cliente_corto}</sub>"
+
+        fig.update_layout(
+            title=dict(
+                text=titulo_completo,
+                x=0.5,
+                font=dict(size=14, color=theme_styles['text_color'])
+            ),
+            height=450,
+            plot_bgcolor=theme_styles['plot_bg'],
+            paper_bgcolor=theme_styles['plot_bg'],
+            font=dict(family="Inter", size=12,
+                      color=theme_styles['text_color']),
+            xaxis=dict(
+                title="Fecha",
+                showgrid=True,
+                gridcolor=theme_styles['grid_color'],
+                linecolor=theme_styles['line_color'],
+                tickangle=-45,
+                type='category',
+                tickfont=dict(color=theme_styles['text_color'])
+            ),
+            yaxis=dict(
+                title="Ventas ($)",
+                showgrid=True,
+                gridcolor=theme_styles['grid_color'],
+                linecolor=theme_styles['line_color'],
+                tickformat='$,.0f',
+                tickfont=dict(color=theme_styles['text_color'])
+            ),
+            showlegend=False,
+            margin=dict(t=80, b=80, l=80, r=40)
+        )
+
+        return fig
+    except Exception as e:
+        print(f"❌ [update_evolucion_cliente] Error: {e}")
+        return go.Figure()
+
+
+@callback(
+    Output('ventas-grafico-comparativa-vendedores', 'figure'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-tipo-grafico', 'value'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-theme-store', 'data')]
+)
+def update_comparativa_vendedores(session_data, tipo_grafico, data_store, theme):
+    """Update comparative sales chart with enhanced visual appeal."""
+    from utils import can_see_all_vendors
+
+    try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"📊 [update_comparativa_vendedores] Detectada actualización #{data_store.get('last_update')}")
+
+        # Solo mostrar si es administrador
+        if not session_data or not can_see_all_vendors(session_data):
+            fig = go.Figure()
+            fig.add_annotation(
+                text="Gráfico disponible solo para administradores",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16, color='#7f8c8d')
+            )
+            fig.update_layout(height=400)
+            return fig
+
+        theme_styles = get_theme_styles(theme)
+
+        # Obtener datos para todos los vendedores
+        # Excluir 'Todos'
+        vendedores_disponibles = analyzer.vendedores_list[1:]
+        datos_vendedores = {}
+
+        # Obtener TODOS los vendedores que tengan ventas > 0
+        for vendedor in vendedores_disponibles:
+            try:
+                data_vendedor = analyzer.get_ventas_por_mes(vendedor)
+                if not data_vendedor.empty and data_vendedor['valor_neto'].sum() > 0:
+                    datos_vendedores[vendedor] = data_vendedor
+            except:
+                continue
+
+        if not datos_vendedores:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No hay datos disponibles para comparativa",
+                xref="paper", yref="paper",
+                x=0.5,
+                y=0.5,
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=400, paper_bgcolor=theme_styles['plot_bg'])
+            return fig
+
+        # Obtener todos los meses únicos
+        all_months = set()
+        for data in datos_vendedores.values():
+            all_months.update(data['mes_nombre'].tolist())
+        all_months = sorted(list(all_months))
+
+        # Calcular promedios mensuales
+        promedios_mensuales = {}
+        for mes in all_months:
+            valores_mes = []
+            for data in datos_vendedores.values():
+                valores_por_mes = dict(
+                    zip(data['mes_nombre'], data['valor_neto']))
+                if mes in valores_por_mes:
+                    valores_mes.append(valores_por_mes[mes])
+            if valores_mes:
+                promedios_mensuales[mes] = np.mean(valores_mes)
+
+        promedio_valores = [
+            promedios_mensuales.get(mes, 0)
+            for mes in all_months
+        ]
+
+        # Calcular volumen total de ventas por vendedor para color
+        volumenes_vendedores = {}
+        for vendedor, data in datos_vendedores.items():
+            volumenes_vendedores[vendedor] = data['valor_neto'].sum()
+
+        # Obtener min y max para normalización de colores
+        min_volumen = min(volumenes_vendedores.values())
+        max_volumen = max(volumenes_vendedores.values())
+
+        # Normalizar volúmenes para grosor de línea (todas iguales ahora)
+        line_width_standard = 3  # Grosor estándar para todas las líneas
+
+        def get_color_by_volume(volumen):
+            """Retorna color basado en volumen: rojo (bajo) a verde (alto)."""
+            if max_volumen == min_volumen:
+                return '#FFA726'  # Naranja neutro si todos son iguales
+            normalized = (volumen - min_volumen) / (max_volumen - min_volumen)
+            # Gradiente más suave de rojo a verde
+            if normalized >= 0.9:
+                return '#1B5E20'  # Verde muy oscuro - Top performers
+            elif normalized >= 0.8:
+                return '#2E7D32'  # Verde oscuro
+            elif normalized >= 0.7:
+                return '#388E3C'  # Verde medio-oscuro
+            elif normalized >= 0.6:
+                return '#4CAF50'  # Verde medio
+            elif normalized >= 0.5:
+                return '#66BB6A'  # Verde claro
+            elif normalized >= 0.4:
+                return '#9CCC65'  # Verde amarillento
+            elif normalized >= 0.3:
+                return '#FFEB3B'  # Amarillo
+            elif normalized >= 0.2:
+                return '#FF9800'  # Naranja
+            elif normalized >= 0.1:
+                return '#FF5722'  # Naranja rojizo
+            else:
+                return '#D32F2F'  # Rojo - Bajo volumen
+
+        # Crear gráfico
+        fig = go.Figure()
+
+        if tipo_grafico == 'lineas':
+            for _, (vendedor, data) in enumerate(datos_vendedores.items()):
+                volumen_total = volumenes_vendedores[vendedor]
+                color = get_color_by_volume(volumen_total)
+
+                # Determinar categoría de performance por volumen
+                normalized_vol = (volumen_total - min_volumen) / (max_volumen -
+                                                                  min_volumen) if max_volumen != min_volumen else 0.5
+                if normalized_vol >= 0.8:
+                    performance = "🟢 TOP"
+                elif normalized_vol >= 0.4:
+                    performance = "🟢 Alto"
+                elif normalized_vol >= 0.2:
+                    performance = "🟡 Medio-Alto"
+                elif normalized_vol >= 0.15:
+                    performance = "🟠 Medio"
+                else:
+                    performance = "🔴 Bajo"
+
+                # Línea principal con grosor estándar
+                fig.add_trace(go.Scatter(
+                    x=data['mes_nombre'],
+                    y=data['valor_neto'],
+                    mode='lines+markers',
+                    name=f"{vendedor[:50]}{'...' if len(vendedor) > 50 else ''} ({performance})",
+                    line=dict(
+                        color=color,
+                        width=line_width_standard,  # Grosor estándar
+                        shape='spline'
+                    ),
+                    marker=dict(
+                        size=8,  # Tamaño estándar
+                        color=color,
+                        line=dict(color='white', width=2),
+                        symbol='circle'
+                    ),
+                    hovertemplate="<b>%{fullData.name}</b> | 💰 %{customdata[0]} | 📋 %{customdata[1]} | 🎯 %{customdata[2]}<extra></extra>",
+                    customdata=[[format_currency_int(val), f"{facturas} facturas", format_currency_int(volumen_total)]
+                                for val, facturas in zip(data['valor_neto'], data['documento_id'])]
+                ))
+
+            # Línea de promedio con estilo destacado
+            fig.add_trace(go.Scatter(
+                x=all_months,
+                y=promedio_valores,
+                mode='lines+markers',
+                name='📊 PROMEDIO',
+                line=dict(
+                    color='#E74C3C',
+                    width=5,
+                    dash='dot'
+                ),
+                marker=dict(
+                    size=12,
+                    color='#E74C3C',
+                    symbol='diamond',
+                    line=dict(color='white', width=2)
+                ),
+                hovertemplate="<b>📊 Promedio</b> | %{x} | 💰 %{customdata}<extra></extra>",
+                customdata=[format_currency_int(val)
+                            for val in promedio_valores]
+            ))
+
+            fig.update_layout(
+                height=950,
+                plot_bgcolor=theme_styles['plot_bg'],
+                paper_bgcolor=theme_styles['plot_bg'],
+                font=dict(family="Inter", size=12,
+                          color=theme_styles['text_color']),
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    tickangle=-45,
+                    linecolor=theme_styles['line_color'],
+                    linewidth=2
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    tickformat='$,.0f',
+                    linecolor=theme_styles['line_color'],
+                    linewidth=2
+                ),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.4,
+                    xanchor="center",
+                    x=0.5,
+                    font=dict(size=11),
+                    bgcolor="rgba(255,255,255,0.8)" if theme == 'light' else "rgba(0,0,0,0.8)",
+                    bordercolor=theme_styles['line_color'],
+                    borderwidth=1
+                ),
+                margin=dict(t=20, b=170, l=80, r=40),
+                hovermode='x unified'
+            )
+
+        else:  # barras agrupadas
+            for i, (vendedor, data) in enumerate(datos_vendedores.items()):
+                valores_por_mes = dict(
+                    zip(data['mes_nombre'], data['valor_neto']))
+                valores_ordenados = [valores_por_mes.get(
+                    mes, 0) for mes in all_months]
+
+                volumen_total = volumenes_vendedores[vendedor]
+                color = get_color_by_volume(volumen_total)
+
+                # Crear gradiente de colores basado en altura pero manteniendo el color base
+                max_valor = max(valores_ordenados) if valores_ordenados else 1
+                bar_colors = []
+                for valor in valores_ordenados:
+                    intensity = valor / max_valor if max_valor > 0 else 0
+                    # Más intenso = más opaco, pero manteniendo el color del volumen
+                    alpha = 0.4 + (intensity * 0.6)
+                    rgb = px.colors.hex_to_rgb(color)
+                    bar_colors.append(
+                        f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {alpha})")
+
+                # Categoría de performance
+                normalized_vol = (volumen_total - min_volumen) / (max_volumen -
+                                                                  min_volumen) if max_volumen != min_volumen else 0.5
+                if normalized_vol >= 0.8:
+                    performance = "🟢 TOP"
+                elif normalized_vol >= 0.6:
+                    performance = "🟢 Alto"
+                elif normalized_vol >= 0.4:
+                    performance = "🟡 M-Alto"
+                elif normalized_vol >= 0.2:
+                    performance = "🟠 Medio"
+                else:
+                    performance = "🔴 Bajo"
+
+                display_name = f"{vendedor[:30]}{'...' if len(vendedor) > 30 else ''} ({performance})"
+
+                fig.add_trace(go.Bar(
+                    x=all_months,
+                    y=valores_ordenados,
+                    name=display_name,
+                    marker=dict(
+                        color=bar_colors,
+                        line=dict(color=color, width=2)
+                    ),
+                    hovertemplate="<b>%{fullData.name}</b> | 💰 %{customdata[0]} | 📊 %{customdata[1]} | 🎯 %{customdata[2]}<extra></extra>",
+                    customdata=[[
+                        format_currency_int(val),
+                        f"🔥 +{format_currency_int(val - promedios_mensuales.get(mes, 0))}" if val > promedios_mensuales.get(mes, 0)
+                        else f"📉 {format_currency_int(val - promedios_mensuales.get(mes, 0))}",
+                        format_currency_int(volumen_total)
+                    ] for mes, val in zip(all_months, valores_ordenados)]
+                ))
+
+            fig.update_layout(
+                height=700,
+                plot_bgcolor=theme_styles['plot_bg'],
+                paper_bgcolor=theme_styles['plot_bg'],
+                font=dict(family="Inter", size=12,
+                          color=theme_styles['text_color']),
+                xaxis=dict(
+                    showgrid=False,
+                    tickangle=-45,
+                    linecolor=theme_styles['line_color'],
+                    linewidth=2
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    tickformat='$,.0f',
+                    linecolor=theme_styles['line_color'],
+                    linewidth=2
+                ),
+                barmode='group',
+                bargap=0.15,
+                bargroupgap=0.1,
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.45,
+                    xanchor="center",
+                    x=0.5,
+                    font=dict(size=11),
+                    bgcolor="rgba(255,255,255,0.8)" if theme == 'light' else "rgba(0,0,0,0.8)",
+                    bordercolor=theme_styles['line_color'],
+                    borderwidth=1
+                ),
+                margin=dict(t=100, b=160, l=80, r=40)
+            )
+
+        return fig
+
+    except Exception as e:
+        print(f"❌ [update_comparativa_vendedores] Error: {e}")
+        fig = go.Figure()
+        fig.add_annotation(
+            text="Error al cargar datos de comparativa",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=16, color='#e74c3c')
+        )
+        fig.update_layout(height=400)
+        return fig
+
+
+@callback(
+    Output('ventas-graficos-area-individuales', 'figure'),
+    [Input('session-store', 'data'),
+     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-theme-store', 'data')]
+)
+def update_area_charts_individuales(session_data, data_store, theme):
+    """Create individual area charts for each vendor (4 per row, all vendors)."""
+    from utils import can_see_all_vendors
+
+    try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"📊 [update_area_charts_individuales] Detectada actualización #{data_store.get('last_update')}")
+
+        theme_styles = get_theme_styles(theme)
+
+        # Solo mostrar si es administrador
+        if not session_data or not can_see_all_vendors(session_data):
+            fig = go.Figure()
+            fig.add_annotation(
+                text="Gráficos disponibles solo para administradores",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=300,
+                paper_bgcolor=theme_styles['plot_bg'],
+                plot_bgcolor=theme_styles['plot_bg']
+            )
+            return fig
+
+        # Obtener datos para TODOS los vendedores (sin límite)
+        # Excluir 'Todos'
+        vendedores_disponibles = analyzer.vendedores_list[1:]
+        datos_vendedores = {}
+
+        # Incluir TODOS los vendedores que tengan al menos una venta > 0
+        for vendedor in vendedores_disponibles:
+            try:
+                data_vendedor = analyzer.get_ventas_por_mes(vendedor)
+                if not data_vendedor.empty and data_vendedor['valor_neto'].sum() > 0:
+                    datos_vendedores[vendedor] = data_vendedor
+            except:
+                continue
+
+        if not datos_vendedores:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No hay datos disponibles",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=300, paper_bgcolor=theme_styles['plot_bg'])
+            return fig
+
+        # Calcular layout de subplots (4 columnas)
+        num_vendedores = len(datos_vendedores)
+        cols = 4
+        rows = math.ceil(num_vendedores / cols)
+
+        # Crear títulos completos para los vendedores
+        subplot_titles = []
+        for vendedor in datos_vendedores.keys():
+            subplot_titles.append(vendedor)
+
+        # Crear subplots con títulos más pequeños y menos espacio vertical
+        fig = make_subplots(
+            rows=rows,
+            cols=cols,
+            subplot_titles=subplot_titles,
+            vertical_spacing=0.08,  # Reducido de 0.15 a 0.08
+            horizontal_spacing=0.08
+        )
+
+        # Colores modernos para cada vendedor
+        modern_colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+            '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D7BDE2',
+            '#AED6F1', '#A9DFBF', '#F9E79F', '#D2B4DE', '#85C1E9'
+        ]
+
+        # Añadir cada vendedor como área chart
+        for i, (vendedor, data) in enumerate(datos_vendedores.items()):
+            row = (i // cols) + 1
+            col = (i % cols) + 1
+
+            color = modern_colors[i % len(modern_colors)]
+
+            fig.add_trace(
+                go.Scatter(
+                    x=data['mes_nombre'],
+                    y=data['valor_neto'],
+                    fill='tozeroy',
+                    mode='lines+markers',
+                    line=dict(color=color, width=3, shape='spline'),
+                    marker=dict(size=6, color=color, line=dict(
+                        color='white', width=1)),
+                    fillcolor=f"rgba{tuple(list(px.colors.hex_to_rgb(color)) + [0.4])}",
+                    name=vendedor,
+                    showlegend=False,
+                    hovertemplate="<b>" + vendedor + "</b><br>" +
+                    "%{x}<br>" +
+                    "💰 Ventas: %{customdata[0]}<br>" +
+                    "📋 Facturas: %{customdata[1]}<br>" +
+                    "<extra></extra>",
+                    customdata=[[format_currency_int(val), facturas]
+                                for val, facturas in zip(data['valor_neto'], data['documento_id'])]
+                ),
+                row=row, col=col
+            )
+
+        # Actualizar layout con títulos más pequeños y altura reducida
+        fig.update_layout(
+            title="📈 Evolución Individual por Vendedor (Gráficos de Área)",
+            title_x=0.5,
+            height=200 * rows,  # Reducido de 250 a 200 por fila
+            plot_bgcolor=theme_styles['plot_bg'],
+            paper_bgcolor=theme_styles['plot_bg'],
+            font=dict(family="Inter", size=10,
+                      color=theme_styles['text_color']),
+            showlegend=False,
+            margin=dict(t=80, b=40, l=60, r=60)
+        )
+
+        # Actualizar ejes individuales
+        for i in range(1, rows + 1):
+            for j in range(1, cols + 1):
+                fig.update_xaxes(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    tickangle=-45,
+                    tickfont=dict(size=8, color=theme_styles['text_color']),
+                    linecolor=theme_styles['line_color'],
+                    row=i, col=j
+                )
+                fig.update_yaxes(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    tickformat='$,.0f',
+                    tickfont=dict(size=8, color=theme_styles['text_color']),
+                    linecolor=theme_styles['line_color'],
+                    row=i, col=j
+                )
+
+        # Actualizar títulos de subplots para que sean más pequeños
+        for i in range(len(subplot_titles)):
+            fig.layout.annotations[i].update(
+                font=dict(size=10, color=theme_styles['text_color']))
+
+        return fig
+
+    except Exception as e:
+        print(f"❌ [update_area_charts_individuales] Error: {e}")
+        theme_styles = get_theme_styles(theme)
+
+        fig = go.Figure()
+        fig.add_annotation(
+            text="Error al cargar gráficos de área",
+            xref="paper", yref="paper",
+            x=0.5,
+            y=0.5,
+            showarrow=False,
+            font=dict(size=16, color=theme_styles['text_color'])
+        )
+        fig.update_layout(
+            height=300,
+            paper_bgcolor=theme_styles['plot_bg'],
+            plot_bgcolor=theme_styles['plot_bg']
+        )
+        return fig
+
+
+# ========== CALLBACKS DE DROPDOWNS Y INTERACCIONES ==========
+
+@callback(
+    Output('ventas-dropdown-cliente', 'options'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-data-store', 'data')]  # ¡NUEVO!
+)
+def update_clientes_dropdown(session_data, dropdown_value, data_store):
+    """Update client dropdown based on selected salesperson."""
+    try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"📋 [update_clientes_dropdown] Detectada actualización #{data_store.get('last_update')}")
+
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        clientes = analyzer.get_clientes_list(vendedor)
+        return [{'label': cliente, 'value': cliente} for cliente in clientes]
+    except Exception as e:
+        print(f"❌ [update_clientes_dropdown] Error: {e}")
+        return [{'label': 'Seleccione un cliente', 'value': 'Seleccione un cliente'}]
+
+
+@callback(
+    Output('ventas-dropdown-cliente', 'value'),
+    [Input('ventas-dropdown-vendedor', 'value')]
+)
+def reset_cliente_selection(vendedor):
+    """Reset client selection when salesperson changes."""
+    return 'Seleccione un cliente'
+
+
+@callback(
+    Output('ventas-total-recaudo-titulo', 'children'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data')]  # ¡NUEVO!
+)
+def update_titulo_recaudo(session_data, dropdown_value, mes, data_store):
+    """Update collection title with total amount."""
+    try:
+        # ¡VERIFICAR ACTUALIZACIÓN!
+        if data_store and data_store.get('last_update', 0) > 0:
+            print(
+                f"💰 [update_titulo_recaudo] Detectada actualización #{data_store.get('last_update')}")
+
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        total_recaudo = analyzer.get_resumen_recaudo(vendedor, mes)
+        periodo_text = f" - {vendedor}" if vendedor != 'Todos' else ""
+        mes_text = f" - {mes}" if mes != 'Todos' else ""
+        return f"Recaudo Total{periodo_text}{mes_text}: {format_currency_int(total_recaudo)}"
+    except Exception as e:
+        print(f"❌ [update_titulo_recaudo] Error: {e}")
+        return "Recaudo Total: $0"
+
+
+# ========== CALLBACKS DE VISIBILIDAD Y CONTROL ==========
+
+@callback(
+    [Output('ventas-container-vendedor', 'style'),
+     Output('ventas-vista-recaudo-container', 'style'),
+     Output('ventas-titulo-recaudo-temporal', 'children')],
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-dropdown-vista-recaudo', 'value')]
+)
+def update_recaudo_visibility(session_data, dropdown_value, vista_recaudo):
+    """Show/hide recaudo components based on vendor selection."""
+    vendedor = get_selected_vendor(session_data, dropdown_value)
+
+    if vendedor == 'Todos':
+        # Show vendor chart and vista selector
+        vendor_style = {'width': '100%',
+                        'marginBottom': '20px', 'display': 'block'}
+        vista_style = {'display': 'flex', 'alignItems': 'center',
+                       'justifyContent': 'center', 'marginBottom': '20px'}
+        titulo_temporal = f"Evolución {vista_recaudo.title()} - Todos los Vendedores"
+    else:
+        # Hide vendor chart, still show vista selector
+        vendor_style = {'display': 'none'}
+        vista_style = {'display': 'flex', 'alignItems': 'center',
+                       'justifyContent': 'center', 'marginBottom': '20px'}
+        titulo_temporal = f"Evolución {vista_recaudo.title()} - {vendedor}"
+
+    return vendor_style, vista_style, titulo_temporal
+
+
+@callback(
+    Output('ventas-row1-2-container', 'style'),
+    [Input('session-store', 'data'),
+     Input('ventas-theme-store', 'data')]
+)
+def update_comparativa_visibility(session_data, theme):
+    """Mostrar/ocultar sección de comparativa según permisos del usuario."""
+    from utils import can_see_all_vendors
+
+    theme_styles = get_theme_styles(theme)
+
+    try:
+        if not session_data or not can_see_all_vendors(session_data):
+            # Ocultar para usuarios normales
+            return {'display': 'none'}
+        else:
+            # Mostrar para administradores
+            return {
+                'backgroundColor': theme_styles['paper_color'],
+                'padding': '20px',
+                'borderRadius': '8px',
+                'boxShadow': theme_styles['card_shadow'],
+                'margin': '10px 0',
+                'color': theme_styles['text_color']
+            }
+    except Exception as e:
+        print(f"❌ [update_comparativa_visibility] Error: {e}")
+        return {'display': 'none'}
+
+
+@callback(
+    [Output('ventas-dropdown-vendedor-container', 'style'),
+     Output('ventas-dropdown-vendedor-label', 'style')],
+    [Input('session-store', 'data')]
+)
+def update_dropdown_visibility(session_data):
+    """Mostrar/ocultar dropdown de vendedores según permisos del usuario."""
+    from utils import can_see_all_vendors
+
+    try:
+        if not session_data or not can_see_all_vendors(session_data):
+            # Ocultar para usuarios normales o sin sesión
+            return {'display': 'none'}, {'display': 'none'}
+        else:
+            # Mostrar para administradores
+            base_style = {
+                'width': '20%',
+                'display': 'inline-block',
+                'verticalAlign': 'top',
+                'marginLeft': '2%'
+            }
+            label_style = {
+                'fontWeight': 'bold',
+                'marginBottom': '5px',
+                'fontFamily': 'Inter'
+            }
+            return base_style, label_style
+    except Exception as e:
+        print(f"❌ [update_dropdown_visibility] Error: {e}")
+        return {'display': 'none'}, {'display': 'none'}
+
+
+@callback(
+    Output('ventas-titulo-dashboard', 'children'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-dropdown-mes', 'value')]
+)
+def update_title(session_data, dropdown_value, mes):
+    """Update dashboard title based on filters."""
+    from utils import can_see_all_vendors, get_user_vendor_filter
+
+    try:
+        if not session_data:
+            return "Dashboard de Ventas"
+
+        if can_see_all_vendors(session_data):
+            vendedor = dropdown_value if dropdown_value else 'Todos'
+            title = "Dashboard de Ventas"
+            if vendedor != 'Todos' and mes != 'Todos':
+                title += f" - {vendedor} - {mes}"
+            elif vendedor != 'Todos':
+                title += f" - {vendedor}"
+            elif mes != 'Todos':
+                title += f" - {mes}"
+            else:
+                title += " - Todos los Vendedores"
+            return title
+        else:
+            vendor = get_user_vendor_filter(session_data)
+            title = f"Dashboard de Ventas - {vendor}"
+            if mes != 'Todos':
+                title += f" - {mes}"
+            return title
+    except Exception as e:
+        print(f"❌ [update_title] Error: {e}")
+        return "Dashboard de Ventas"
+
+
+# ========== CALLBACKS DE THEME Y ESTILOS ==========
+
+@callback(
+    [Output('ventas-theme-store', 'data'),
+     Output('ventas-theme-toggle', 'children'),
+     Output('ventas-main-container', 'style'),
+     Output('ventas-header-container', 'style')],
+    [Input('ventas-theme-toggle', 'n_clicks')],
+    [State('ventas-theme-store', 'data')]
+)
+def toggle_theme(n_clicks, current_theme):
+    """Toggle between light and dark themes."""
+    if n_clicks % 2 == 1:
+        new_theme = 'dark'
+        icon = '☀️'
+    else:
+        new_theme = 'light'
+        icon = '🌙'
+
+    theme_styles = get_theme_styles(new_theme)
+
+    main_style = {
+        'fontFamily': 'Inter',
+        'backgroundColor': theme_styles['bg_color'],
+        'padding': '20px',
+        'color': theme_styles['text_color']
+    }
+
+    header_style = {
+        'marginBottom': '30px',
+        'padding': '20px',
+        'backgroundColor': theme_styles['paper_color'],
+        'borderRadius': '8px'
+    }
+
+    return new_theme, icon, main_style, header_style
+
+
+@callback(
+    [Output('ventas-dropdown-vendedor', 'style'),
+     Output('ventas-dropdown-mes', 'style'),
+     Output('ventas-dropdown-cliente', 'style'),
+     Output('ventas-dropdown-vista-recaudo', 'style'),
+     Output('ventas-dropdown-tipo-grafico', 'style'),
+     Output('ventas-dropdown-vendedor', 'className'),
+     Output('ventas-dropdown-mes', 'className'),
+     Output('ventas-dropdown-cliente', 'className'),
+     Output('ventas-dropdown-vista-recaudo', 'className'),
+     Output('ventas-dropdown-tipo-grafico', 'className')],
+    [Input('ventas-theme-store', 'data'),
+     Input('session-store', 'data')]
+)
+def update_dropdown_styles(theme, session_data):
+    """Update dropdown styles based on theme and visibility."""
+    from utils import can_see_all_vendors
+
+    dropdown_style = get_dropdown_style(theme)
+    dropdown_style['fontFamily'] = 'Inter'
+
+    # Special handling for vendor dropdown - hide if not admin
+    if not session_data or not can_see_all_vendors(session_data):
+        vendedor_style = {'display': 'none'}
+        tipo_grafico_style = {'display': 'none'}
+    else:
+        vendedor_style = dropdown_style.copy()
+        tipo_grafico_style = dropdown_style.copy()
+        tipo_grafico_style.update(
+            {'width': '250px', 'display': 'inline-block'})
+
+    vista_style = dropdown_style.copy()
+    vista_style.update({'width': '200px', 'display': 'inline-block'})
+
+    # CSS class for dark theme
+    css_class = 'dash-dropdown dark-theme' if theme == 'dark' else 'dash-dropdown'
+
+    return vendedor_style, dropdown_style, dropdown_style, vista_style, tipo_grafico_style, css_class, css_class, css_class, css_class, css_class
+
+
+@callback(
+    [Output('ventas-card-1', 'style'),
+     Output('ventas-card-2', 'style'),
+     Output('ventas-card-3', 'style'),
+     Output('ventas-card-4', 'style'),
+     Output('ventas-card-5', 'style'),
+     Output('ventas-card-6', 'style'),
+     Output('ventas-card-7', 'style'),
+     Output('ventas-card-8', 'style')],
+    [Input('ventas-theme-store', 'data')]
+)
+def update_card_styles(theme):
+    """Update styles for summary cards based on theme."""
+    theme_styles = get_theme_styles(theme)
+
+    card_style = {
+        'backgroundColor': theme_styles['paper_color'],
+        'padding': '15px',
+        'borderRadius': '8px',
+        'boxShadow': theme_styles['card_shadow'],
+        'textAlign': 'center',
+        'width': '20%',
+        'display': 'inline-block',
+        'margin': '1.5%',
+        'color': theme_styles['text_color']
+    }
+
+    return [card_style] * 8
+
+
+@callback(
+    [Output('ventas-row1-container', 'style'),
+     Output('ventas-row1-3-container', 'style'),
+     Output('ventas-row1-5-container', 'style'),
+     Output('ventas-row-nueva-treemap', 'style'),
+     Output('ventas-row2-container', 'style'),
+     Output('ventas-row2-5-container', 'style'),
+     Output('ventas-row3-container', 'style'),
+     Output('ventas-row4-container', 'style'),
+     Output('ventas-row5-container', 'style'),
+     Output('ventas-row6-container', 'style')],
+    [Input('ventas-theme-store', 'data')]
+)
+def update_container_styles(theme):
+    """Update styles for chart containers based on theme."""
+    theme_styles = get_theme_styles(theme)
+
+    chart_style = {
+        'backgroundColor': theme_styles['paper_color'],
+        'padding': '20px',
+        'borderRadius': '8px',
+        'boxShadow': theme_styles['card_shadow'],
+        'margin': '10px 0',
+        'color': theme_styles['text_color']
+    }
+
+    return [chart_style] * 10  # 10 containers
+
+
+# def verify_callback_updates():
+#     """Función de verificación para debugging."""
+#     print("🔍 [VentasPage] Verificando implementación de callbacks...")
+
+#     # Verificar que analyzer tiene los nuevos métodos
+#     if hasattr(analyzer, 'reload_data'):
+#         print("✅ analyzer.reload_data() disponible")
+#     else:
+#         print("❌ analyzer.reload_data() NO encontrado")
+
+#     if hasattr(analyzer, 'get_cache_status'):
+#         print("✅ analyzer.get_cache_status() disponible")
+#         try:
+#             status = analyzer.get_cache_status()
+#             print(f"📊 Estado del cache: {status}")
+#         except Exception as e:
+#             print(f"⚠️ Error obteniendo cache status: {e}")
+#     else:
+#         print("❌ analyzer.get_cache_status() NO encontrado")
+
+#     print("✅ [VentasPage] Verificación completada")
+
+
+# # Llamar al verificar la página
+# verify_callback_updates()

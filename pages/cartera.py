@@ -1,3 +1,5 @@
+import pandas as pd
+
 import dash
 from dash import dcc, html, Input, Output, State, callback
 import plotly.express as px
@@ -15,6 +17,7 @@ df = analyzer.load_data_from_firebase()
 layout = html.Div([
     # Store for theme
     dcc.Store(id='cartera-theme-store', data='light'),
+    dcc.Store(id='cartera-data-store', data={'last_update': 0}),
 
     # Header
     html.Div([
@@ -212,10 +215,23 @@ layout = html.Div([
 
     # Botón actualizar
     html.Div([
-        html.Button('Actualizar Datos', id='cartera-btn-actualizar', n_clicks=0,
-                    style={'backgroundColor': '#3498db', 'color': 'white', 'border': 'none',
-                           'padding': '10px 20px', 'borderRadius': '5px', 'cursor': 'pointer',
-                           'fontFamily': 'Inter'})
+        html.Button([
+            html.Span("🔄", style={'marginRight': '8px'}),
+            'Actualizar Datos'
+        ], id='cartera-btn-actualizar', n_clicks=0,
+            style={
+            'backgroundColor': '#3498db',
+            'color': 'white',
+            'border': 'none',
+            'padding': '12px 24px',
+            'borderRadius': '6px',
+            'cursor': 'pointer',
+            'fontFamily': 'Inter',
+            'fontSize': '14px',
+            'fontWeight': 'bold',
+            'transition': 'all 0.3s ease',
+            'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
+        })
     ], style={'textAlign': 'center', 'margin': '20px 0'})
 
 ], style={'fontFamily': 'Inter', 'backgroundColor': '#f5f5f5', 'padding': '20px'}, id='cartera-main-container')
@@ -241,7 +257,30 @@ def get_selected_vendor(session_data, dropdown_value):
         return 'Todos'
 
 
+@callback(
+    Output('cartera-data-store', 'data'),
+    [Input('cartera-btn-actualizar', 'n_clicks')],
+    prevent_initial_call=True
+)
+def update_cartera_data(n_clicks):
+    """
+    Callback para recargar datos desde Firebase cuando se presiona actualizar.
+    """
+    if n_clicks > 0:
+        try:
+            # Recargar datos frescos desde Firebase
+            analyzer.load_data_from_firebase()
+            print(f"✅ Datos de cartera actualizados - Click #{n_clicks}")
+            return {'last_update': n_clicks, 'timestamp': pd.Timestamp.now().isoformat()}
+        except Exception as e:
+            print(f"❌ Error actualizando datos de cartera: {e}")
+            return {'error': str(e), 'timestamp': pd.Timestamp.now().isoformat()}
+
+    return dash.no_update
+
 # Callback para controlar visibilidad del dropdown
+
+
 @callback(
     [Output('cartera-dropdown-container', 'style'),
      Output('cartera-dropdown-label', 'style')],

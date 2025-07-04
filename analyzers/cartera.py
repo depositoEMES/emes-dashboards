@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -11,33 +12,92 @@ class CarteraAnalyzer:
         """
         self.df_documentos = pd.DataFrame()
         self.vendedores_list = ['Todos']
+        self._last_update = None
+
+    def reload_data(self):
+        """
+        Force reloading of data from Firebase.
+        """
+        try:
+            print("🔄 Recargando datos de cartera desde Firebase...")
+            self.df_documentos = pd.DataFrame()
+            self.vendedores_list = ['Todos']
+
+            result = self.load_data_from_firebase()
+            self._last_update = datetime.now()
+
+            print(
+                f"✅ Datos de cartera recargados exitosamente a las {self._last_update}")
+
+            return result
+
+        except Exception as e:
+            print(f"❌ Error recargando datos de cartera: {e}")
+            return pd.DataFrame()
 
     def _get_db(self):
         """
-        Get database instance.
+        Get database instance with retry logic.
         """
         from server import get_db
 
-        return get_db()
+        max_retries = 3
 
-    def load_data_from_firebase(self):
+        for attempt in range(max_retries):
+            try:
+                db = get_db()
+
+                if db:
+                    return db
+
+                print(
+                    f"⚠️ Intento {attempt + 1}/{max_retries}: DB connection failed")
+
+            except Exception as e:
+                print(
+                    f"⚠️ Intento {attempt + 1}/{max_retries}: Error conectando a DB: {e}")
+
+            # Wait until next attempt
+            if attempt < max_retries - 1:
+                time.sleep(1)
+
+        print(
+            "❌ No se pudo establecer conexión a la base de datos después de varios intentos")
+
+        return None
+
+    def load_data_from_firebase(self, force_reload=False):
         """
         Load data from Firebase database.
 
-        Returns:
-            pd.DataFrame: Processed dataframe with portfolio data
+        Args:
+            force_reload (bool): Si True, fuerza la recarga incluso si ya hay datos
         """
         try:
+            # Si ya tenemos datos y no es recarga forzada, usar cache
+            if not force_reload and not self.df_documentos.empty:
+                return self.df_documentos
+
             db = self._get_db()
+
+            if not db:
+                print("❌ No se pudo obtener conexión a la base de datos")
+                return pd.DataFrame()
+
             data = db.get("cartera_actual")
 
             if data:
-                return self.process_data(data)
+                print(f"📊 Procesando {len(data)} registros de cartera...")
+                result = self.process_data(data)
+                print(
+                    f"✅ Cartera cargada: {len(result)} documentos procesados")
+                return result
             else:
-                print("No data found in Firebase")
+                print("⚠️ No data found in Firebase - cartera_actual")
                 return pd.DataFrame()
+
         except Exception as e:
-            print(f"Error loading data from Firebase: {e}")
+            print(f"❌ Error loading data from Firebase: {e}")
             return pd.DataFrame()
 
     def process_data(self, data):
