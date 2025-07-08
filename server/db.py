@@ -22,7 +22,8 @@ class Database:
             "cartera_actual",
             "ventas_vendedor",
             "recibos_caja",
-            "num_clientes_por_vendedor"
+            "num_clientes_por_vendedor",
+            "ventas_transferencista"
         ]
 
     def __init__(self):

@@ -7,7 +7,7 @@ server = app.server
 
 # Importar paginas
 try:
-    from pages import login, dashboard_home, cartera, ventas
+    from pages import login, dashboard_home, cartera, ventas, transferencias
 except Exception as e:
     print(f"❌ Error importando login_page: {e}")
 
@@ -47,6 +47,8 @@ def display_page(pathname, session_data):
         return cartera.layout
     elif pathname == '/ventas':
         return ventas.layout
+    elif pathname == '/transferencias':
+        return transferencias.layout
     else:
         return html.Div([
             html.H1("Página no encontrada"),

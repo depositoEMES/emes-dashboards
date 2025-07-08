@@ -98,42 +98,119 @@ layout = html.Div([
 
     # Header
     html.Div([
+        # Fila del título - separada y llamativa
         html.Div([
-            html.H1(id='ventas-titulo-dashboard',
-                    children="Dashboard de Ventas")
-        ], style={'width': '40%', 'display': 'inline-block'}),
-
-        # Dropdown para vendedores (siempre presente, visibility controlada)
-        html.Div([
-            html.Label("Vendedor:", style={
-                       'fontWeight': 'bold', 'marginBottom': '5px', 'fontFamily': 'Inter'}, id='ventas-dropdown-vendedor-label'),
-            dcc.Dropdown(
-                id='ventas-dropdown-vendedor',
-                options=[{'label': v, 'value': v}
-                         for v in analyzer.vendedores_list],
-                value='Todos',
-                style={'fontFamily': 'Inter'},
-                className='custom-dropdown'
+            html.H1(
+                id='ventas-titulo-dashboard',
+                children="Dashboard de Ventas",
+                style={
+                    'textAlign': 'center',
+                    'fontSize': '2.5rem',
+                    'fontWeight': '700',
+                    'fontFamily': 'Inter',
+                    'background': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    'webkitBackgroundClip': 'text',
+                    'webkitTextFillColor': 'transparent',
+                    'backgroundClip': 'text',
+                    'margin': '0 0 20px 0',
+                    'letterSpacing': '-0.02em',
+                    'textShadow': '0 2px 4px rgba(0,0,0,0.1)'
+                }
             )
-        ], style={'width': '20%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginLeft': '2%'}, id='ventas-dropdown-vendedor-container'),
+        ], style={'width': '100%', 'marginBottom': '25px'}),
 
+        # Fila de controles - con mejor alineación
         html.Div([
-            html.Label("Mes:", style={
-                       'fontWeight': 'bold', 'marginBottom': '5px', 'fontFamily': 'Inter'}),
-            dcc.Dropdown(
-                id='ventas-dropdown-mes',
-                options=[{'label': m, 'value': m}
-                         for m in analyzer.meses_list],
-                value='Todos',
-                style={'fontFamily': 'Inter'},
-                className='custom-dropdown'
-            )
-        ], style={'width': '20%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginLeft': '2%'}),
+            # Dropdown para vendedores
+            html.Div([
+                html.Label("Vendedor:", style={
+                    'fontWeight': 'bold',
+                    'marginBottom': '8px',
+                    'fontFamily': 'Inter',
+                    'fontSize': '14px'
+                }, id='ventas-dropdown-vendedor-label'),
+                dcc.Dropdown(
+                    id='ventas-dropdown-vendedor',
+                    options=[{'label': v, 'value': v}
+                             for v in analyzer.vendedores_list],
+                    value='Todos',
+                    style={'fontFamily': 'Inter'},
+                    className='custom-dropdown'
+                )
+            ], style={
+                'flex': '0 0 40%'
+            }, id='ventas-dropdown-vendedor-container'),
 
-        html.Div([
-            html.Button('🌙', id='ventas-theme-toggle', n_clicks=0)
-        ], style={'width': '6%', 'display': 'inline-block', 'verticalAlign': 'top', 'textAlign': 'right'})
-    ], style={'marginBottom': '30px', 'padding': '20px'}, id='ventas-header-container'),
+            # Dropdown de mes
+            html.Div([
+                html.Label("Mes:", style={
+                    'fontWeight': 'bold',
+                    'marginBottom': '8px',
+                    'fontFamily': 'Inter',
+                    'fontSize': '14px'
+                }),
+                dcc.Dropdown(
+                    id='ventas-dropdown-mes',
+                    options=[{'label': m, 'value': m}
+                             for m in analyzer.meses_list],
+                    value='Todos',
+                    style={'fontFamily': 'Inter'},
+                    className='custom-dropdown'
+                )
+            ], style={
+                'flex': '0 0 25%',
+                'marginLeft': '2%'
+            }),
+
+            # Espacio flexible para empujar el botón a la derecha
+            html.Div(style={'flex': '1'}),
+
+            # Botón de tema alineado correctamente
+            html.Div([
+                html.Button(
+                    html.Div([
+                        html.Span('🌙', id='ventas-theme-icon',
+                                  style={'fontSize': '18px'}),
+                        html.Span('Oscuro', id='ventas-theme-text', style={
+                            'marginLeft': '8px',
+                            'fontSize': '13px',
+                            'fontWeight': '500'
+                        })
+                    ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}),
+                    id='ventas-theme-toggle',
+                    n_clicks=0,
+                    style={
+                        'backgroundColor': '#f8f9fa',
+                        'border': '2px solid #e9ecef',
+                        'borderRadius': '12px',
+                        'padding': '10px 16px',
+                        'cursor': 'pointer',
+                        'fontFamily': 'Inter',
+                        'fontSize': '13px',
+                        'fontWeight': '500',
+                        'transition': 'all 0.3s ease',
+                        'boxShadow': '0 2px 8px rgba(0,0,0,0.1)',
+                        'height': '40px',
+                        'display': 'flex',
+                        'alignItems': 'center',
+                        'justifyContent': 'center',
+                        'outline': 'none'
+                    }
+                )
+            ], style={
+                'flex': '0 0 140px',
+                'display': 'flex',
+                'alignItems': 'flex-end',
+                'height': '100%',
+                'paddingBottom': '0px'
+            })
+        ], style={
+            'width': '100%',
+            'display': 'flex',
+            'alignItems': 'flex-end',
+            'minHeight': '68px'
+        })
+    ], style={'marginBottom': '35px', 'padding': '25px'}, id='ventas-header-container'),
 
     # Cards de resumen - 8 cards en 2 filas
     html.Div([
@@ -2542,45 +2619,15 @@ def update_comparativa_visibility(session_data, theme):
 
 
 @callback(
-    [Output('ventas-dropdown-vendedor-container', 'style'),
-     Output('ventas-dropdown-vendedor-label', 'style')],
-    [Input('session-store', 'data')]
-)
-def update_dropdown_visibility(session_data):
-    """Mostrar/ocultar dropdown de vendedores según permisos del usuario."""
-    from utils import can_see_all_vendors
-
-    try:
-        if not session_data or not can_see_all_vendors(session_data):
-            # Ocultar para usuarios normales o sin sesión
-            return {'display': 'none'}, {'display': 'none'}
-        else:
-            # Mostrar para administradores
-            base_style = {
-                'width': '20%',
-                'display': 'inline-block',
-                'verticalAlign': 'top',
-                'marginLeft': '2%'
-            }
-            label_style = {
-                'fontWeight': 'bold',
-                'marginBottom': '5px',
-                'fontFamily': 'Inter'
-            }
-            return base_style, label_style
-    except Exception as e:
-        print(f"❌ [update_dropdown_visibility] Error: {e}")
-        return {'display': 'none'}, {'display': 'none'}
-
-
-@callback(
     Output('ventas-titulo-dashboard', 'children'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value')]
 )
 def update_title(session_data, dropdown_value, mes):
-    """Update dashboard title based on filters."""
+    """
+    Update dashboard title based on filters.
+    """
     from utils import can_see_all_vendors, get_user_vendor_filter
 
     try:
@@ -2612,42 +2659,104 @@ def update_title(session_data, dropdown_value, mes):
 
 @callback(
     [Output('ventas-theme-store', 'data'),
-     Output('ventas-theme-toggle', 'children'),
+     Output('ventas-theme-icon', 'children'),
+     Output('ventas-theme-text', 'children'),
+     Output('ventas-theme-toggle', 'style'),
      Output('ventas-main-container', 'style'),
-     Output('ventas-header-container', 'style')],
+     Output('ventas-header-container', 'style'),
+     Output('ventas-titulo-dashboard', 'style')],
     [Input('ventas-theme-toggle', 'n_clicks')],
     [State('ventas-theme-store', 'data')]
 )
 def toggle_theme(n_clicks, current_theme):
     """
-    Toggle between light and dark themes.
+    Toggle between light and dark themes with improved styling.
     """
     if n_clicks % 2 == 1:
         new_theme = 'dark'
         icon = '☀️'
+        text = 'Claro'
+        button_style = {
+            'backgroundColor': '#495057',
+            'border': '2px solid #6c757d',
+            'borderRadius': '12px',
+            'padding': '10px 16px',
+            'cursor': 'pointer',
+            'fontFamily': 'Inter',
+            'fontSize': '13px',
+            'fontWeight': '500',
+            'transition': 'all 0.3s ease',
+            'boxShadow': '0 2px 8px rgba(0,0,0,0.3)',
+            'height': '40px',
+            'display': 'flex',
+            'alignItems': 'center',
+            'justifyContent': 'center',
+            'color': '#ffffff',
+            'outline': 'none'
+        }
+        title_style = {
+            'textAlign': 'center',
+            'fontSize': '2.5rem',
+            'fontWeight': '700',
+            'fontFamily': 'Inter',
+            'webkitBackgroundClip': 'text',
+            'backgroundClip': 'text',
+            'margin': '0 0 20px 0',
+            'letterSpacing': '-0.02em',
+            'textShadow': '0 2px 4px rgba(255,255,255,0.1)'
+        }
     else:
         new_theme = 'light'
         icon = '🌙'
+        text = 'Oscuro'
+        button_style = {
+            'backgroundColor': '#f8f9fa',
+            'border': '2px solid #e9ecef',
+            'borderRadius': '12px',
+            'padding': '10px 16px',
+            'cursor': 'pointer',
+            'fontFamily': 'Inter',
+            'fontSize': '13px',
+            'fontWeight': '500',
+            'transition': 'all 0.3s ease',
+            'boxShadow': '0 2px 8px rgba(0,0,0,0.1)',
+            'height': '40px',
+            'display': 'flex',
+            'alignItems': 'center',
+            'justifyContent': 'center',
+            'color': '#212529',
+            'outline': 'none'
+        }
+        title_style = {
+            'textAlign': 'center',
+            'fontSize': '2.5rem',
+            'fontWeight': '700',
+            'fontFamily': 'Inter',
+            'webkitBackgroundClip': 'text',
+            'backgroundClip': 'text',
+            'margin': '0 0 20px 0',
+            'letterSpacing': '-0.02em',
+            'textShadow': '0 2px 4px rgba(0,0,0,0.1)'
+        }
 
     theme_styles = get_theme_styles(new_theme)
 
-    main_style = \
-        {
-            'fontFamily': 'Inter',
-            'backgroundColor': theme_styles['bg_color'],
-            'padding': '20px',
-            'color': theme_styles['text_color']
-        }
+    main_style = {
+        'fontFamily': 'Inter',
+        'backgroundColor': theme_styles['bg_color'],
+        'padding': '20px',
+        'color': theme_styles['text_color']
+    }
 
-    header_style = \
-        {
-            'marginBottom': '30px',
-            'padding': '20px',
-            'backgroundColor': theme_styles['paper_color'],
-            'borderRadius': '8px'
-        }
+    header_style = {
+        'marginBottom': '35px',
+        'padding': '25px',
+        'backgroundColor': theme_styles['paper_color'],
+        'borderRadius': '16px',
+        'boxShadow': theme_styles['card_shadow']
+    }
 
-    return new_theme, icon, main_style, header_style
+    return new_theme, icon, text, button_style, main_style, header_style, title_style
 
 
 @callback(

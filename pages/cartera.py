@@ -38,29 +38,98 @@ layout = html.Div([
 
     # Header
     html.Div([
+        # Fila del título - separada y llamativa
         html.Div([
-            html.H1(id='cartera-titulo-dashboard',
-                    children="Dashboard de Cartera")
-        ], style={'width': '60%', 'display': 'inline-block'}),
-
-        # Dropdown para administradores (siempre presente, visibility controlada)
-        html.Div([
-            html.Label("Vendedor:", style={
-                       'fontWeight': 'bold', 'marginBottom': '5px', 'fontFamily': 'Inter'}, id='cartera-dropdown-label'),
-            dcc.Dropdown(
-                id='cartera-dropdown-vendedor',
-                options=[{'label': v, 'value': v}
-                         for v in analyzer.vendedores_list],
-                value='Todos',
-                style={'fontFamily': 'Inter'},
-                className='custom-dropdown'
+            html.H1(
+                id='cartera-titulo-dashboard',
+                children="Dashboard de Cartera",
+                style={
+                    'textAlign': 'center',
+                    'fontSize': '2.5rem',
+                    'fontWeight': '700',
+                    'fontFamily': 'Inter',
+                    'background': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    'webkitBackgroundClip': 'text',
+                    'webkitTextFillColor': 'transparent',
+                    'backgroundClip': 'text',
+                    'margin': '0 0 20px 0',
+                    'letterSpacing': '-0.02em',
+                    'textShadow': '0 2px 4px rgba(0,0,0,0.1)'
+                }
             )
-        ], style={'width': '20%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginLeft': '5%'}, id='cartera-dropdown-container'),
+        ], style={'width': '100%', 'marginBottom': '25px'}),
 
+        # Fila de controles - con mejor alineación
         html.Div([
-            html.Button('🌙', id='cartera-theme-toggle', n_clicks=0)
-        ], style={'width': '10%', 'display': 'inline-block', 'verticalAlign': 'top', 'textAlign': 'right'})
-    ], style={'marginBottom': '30px', 'padding': '20px'}, id='cartera-header-container'),
+            # Dropdown para vendedores
+            html.Div([
+                html.Label("Vendedor:", style={
+                    'fontWeight': 'bold',
+                    'marginBottom': '8px',
+                    'fontFamily': 'Inter',
+                    'fontSize': '14px'
+                }, id='cartera-dropdown-vendedor-label'),
+                dcc.Dropdown(
+                    id='cartera-dropdown-vendedor',
+                    options=[{'label': v, 'value': v}
+                             for v in analyzer.vendedores_list],
+                    value='Todos',
+                    style={'fontFamily': 'Inter'},
+                    className='custom-dropdown'
+                )
+            ], style={
+                'flex': '0 0 40%'
+            }, id='cartera-dropdown-vendedor-container'),
+
+            # Espacio flexible para empujar el botón a la derecha
+            html.Div(style={'flex': '1'}),
+
+            # Botón de tema alineado correctamente
+            html.Div([
+                html.Button(
+                    html.Div([
+                        html.Span('🌙', id='cartera-theme-icon',
+                                  style={'fontSize': '18px'}),
+                        html.Span('Oscuro', id='cartera-theme-text', style={
+                            'marginLeft': '8px',
+                            'fontSize': '13px',
+                            'fontWeight': '500'
+                        })
+                    ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}),
+                    id='cartera-theme-toggle',
+                    n_clicks=0,
+                    style={
+                        'backgroundColor': '#f8f9fa',
+                        'border': '2px solid #e9ecef',
+                        'borderRadius': '12px',
+                        'padding': '10px 16px',
+                        'cursor': 'pointer',
+                        'fontFamily': 'Inter',
+                        'fontSize': '13px',
+                        'fontWeight': '500',
+                        'transition': 'all 0.3s ease',
+                        'boxShadow': '0 2px 8px rgba(0,0,0,0.1)',
+                        'height': '40px',
+                        'display': 'flex',
+                        'alignItems': 'center',
+                        'justifyContent': 'center',
+                        'outline': 'none'
+                    }
+                )
+            ], style={
+                'flex': '0 0 140px',
+                'display': 'flex',
+                'alignItems': 'flex-end',
+                'height': '100%',
+                'paddingBottom': '0px'
+            })
+        ], style={
+            'width': '100%',
+            'display': 'flex',
+            'alignItems': 'flex-end',
+            'minHeight': '68px'
+        })
+    ], style={'marginBottom': '35px', 'padding': '25px'}, id='cartera-header-container'),
 
     # Cards de resumen - 8 cards en 2 filas de 4 columnas
     html.Div([
@@ -453,22 +522,85 @@ def update_dropdown_visibility(session_data):
 
 @callback(
     [Output('cartera-theme-store', 'data'),
-     Output('cartera-theme-toggle', 'children'),
+     Output('cartera-theme-icon', 'children'),
+     Output('cartera-theme-text', 'children'),
+     Output('cartera-theme-toggle', 'style'),
      Output('cartera-main-container', 'style'),
-     Output('cartera-header-container', 'style')],
+     Output('cartera-header-container', 'style'),
+     Output('cartera-titulo-dashboard', 'style')],
     [Input('cartera-theme-toggle', 'n_clicks')],
     [State('cartera-theme-store', 'data')]
 )
 def toggle_theme(n_clicks, current_theme):
     """
-    Toggle between light and dark themes.
+    Toggle between light and dark themes with improved styling.
     """
     if n_clicks % 2 == 1:
         new_theme = 'dark'
         icon = '☀️'
+        text = 'Claro'
+        button_style = {
+            'backgroundColor': '#495057',
+            'border': '2px solid #6c757d',
+            'borderRadius': '12px',
+            'padding': '10px 16px',
+            'cursor': 'pointer',
+            'fontFamily': 'Inter',
+            'fontSize': '13px',
+            'fontWeight': '500',
+            'transition': 'all 0.3s ease',
+            'boxShadow': '0 2px 8px rgba(0,0,0,0.3)',
+            'height': '40px',
+            'display': 'flex',
+            'alignItems': 'center',
+            'justifyContent': 'center',
+            'color': '#ffffff',
+            'outline': 'none'
+        }
+        title_style = {
+            'textAlign': 'center',
+            'fontSize': '2.5rem',
+            'fontWeight': '700',
+            'fontFamily': 'Inter',
+            'webkitBackgroundClip': 'text',
+            'backgroundClip': 'text',
+            'margin': '0 0 20px 0',
+            'letterSpacing': '-0.02em',
+            'textShadow': '0 2px 4px rgba(255,255,255,0.1)'
+        }
     else:
         new_theme = 'light'
         icon = '🌙'
+        text = 'Oscuro'
+        button_style = {
+            'backgroundColor': '#f8f9fa',
+            'border': '2px solid #e9ecef',
+            'borderRadius': '12px',
+            'padding': '10px 16px',
+            'cursor': 'pointer',
+            'fontFamily': 'Inter',
+            'fontSize': '13px',
+            'fontWeight': '500',
+            'transition': 'all 0.3s ease',
+            'boxShadow': '0 2px 8px rgba(0,0,0,0.1)',
+            'height': '40px',
+            'display': 'flex',
+            'alignItems': 'center',
+            'justifyContent': 'center',
+            'color': '#212529',
+            'outline': 'none'
+        }
+        title_style = {
+            'textAlign': 'center',
+            'fontSize': '2.5rem',
+            'fontWeight': '700',
+            'fontFamily': 'Inter',
+            'webkitBackgroundClip': 'text',
+            'backgroundClip': 'text',
+            'margin': '0 0 20px 0',
+            'letterSpacing': '-0.02em',
+            'textShadow': '0 2px 4px rgba(0,0,0,0.1)'
+        }
 
     theme_styles = get_theme_styles(new_theme)
 
@@ -480,13 +612,14 @@ def toggle_theme(n_clicks, current_theme):
     }
 
     header_style = {
-        'marginBottom': '30px',
-        'padding': '20px',
+        'marginBottom': '35px',
+        'padding': '25px',
         'backgroundColor': theme_styles['paper_color'],
-        'borderRadius': '8px'
+        'borderRadius': '16px',
+        'boxShadow': theme_styles['card_shadow']
     }
 
-    return new_theme, icon, main_style, header_style
+    return new_theme, icon, text, button_style, main_style, header_style, title_style
 
 
 @callback(

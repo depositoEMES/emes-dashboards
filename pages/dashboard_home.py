@@ -34,7 +34,7 @@ layout = html.Div([
             html.Div([
                 html.Span("📊", className="card-icon",
                           style={'color': '#1e3a8a'}),
-                html.H3("Dashboard de Cartera", className="card-title"),
+                html.H3("Cartera", className="card-title"),
                 html.P("Análisis completo de cartera, clientes vencidos, rangos de vencimiento y seguimiento de cuentas por cobrar.",
                        className="card-description"),
                 dcc.Link("Acceder al Dashboard", href="/cartera",
@@ -45,12 +45,23 @@ layout = html.Div([
             html.Div([
                 html.Span("💰", className="card-icon",
                           style={'color': '#3b82f6'}),
-                html.H3("Dashboard de Ventas", className="card-title"),
+                html.H3("Ventas", className="card-title"),
                 html.P("Seguimiento de ventas por vendedor, análisis de tendencias, cumplimiento de metas y evolución temporal.",
                        className="card-description"),
                 dcc.Link("Acceder al Dashboard", href="/ventas",
                          className="card-button")
-            ], className="dashboard-card ventas-card")
+            ], className="dashboard-card ventas-card"),
+
+            # Transferencias Card
+            html.Div([
+                html.Span("💰", className="card-icon",
+                          style={'color': '#3b82f6'}),
+                html.H3("Transferencias", className="card-title"),
+                html.P("Seguimiento de ventas por transferencistas, análisis de tendencias, cumplimiento de metas y evolución temporal.",
+                       className="card-description"),
+                dcc.Link("Acceder al Dashboard", href="/transferencias",
+                         className="card-button")
+            ], className="dashboard-card transferencias-card")
         ], className="dashboards-grid"),
 
         # Stats Section
