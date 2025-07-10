@@ -202,7 +202,7 @@ class TransferenciasAnalyzer:
 
         return df
 
-    def get_resumen_ventas(self, vendedor='Todos', mes='Todos'):
+    def get_resumen_transferencias(self, vendedor='Todos', mes='Todos'):
         """
         Get sales summary statistics.
         """
@@ -223,10 +223,10 @@ class TransferenciasAnalyzer:
         ventas_netas = total_ventas - total_devoluciones
 
         return {
-            'total_ventas': total_ventas,
+            'total_transferencias': total_ventas,
             'total_devoluciones': total_devoluciones,
             'total_notas_credito': total_notas_credito,
-            'ventas_netas': ventas_netas,
+            'transferencias_netas': ventas_netas,
             'num_facturas': len(ventas_reales),
             'num_clientes': ventas_reales['cliente'].nunique() if not ventas_reales.empty else 0,
             'num_devoluciones': len(devoluciones),
@@ -235,7 +235,7 @@ class TransferenciasAnalyzer:
             'porcentaje_descuento': (abs(ventas_reales['descuento'].sum()) / ventas_reales['valor_bruto'].sum() * 100) if ventas_reales['valor_bruto'].sum() > 0 else 0
         }
 
-    def get_ventas_por_mes(self, vendedor='Todos'):
+    def get_transferencias_por_mes(self, vendedor='Todos'):
         """
         Get sales evolution by month.
         """
@@ -256,7 +256,7 @@ class TransferenciasAnalyzer:
 
         return resultado
 
-    def get_ventas_por_dia_semana(self, vendedor='Todos', mes='Todos'):
+    def get_transferencias_por_dia_semana(self, vendedor='Todos', mes='Todos'):
         """
         Get sales distribution by day of week for seasonality analysis.
         """
@@ -774,7 +774,7 @@ class TransferenciasAnalyzer:
 
         return df_recibos['valor_recibo'].sum()
 
-    def get_ventas_por_zona(self, vendedor='Todos', mes='Todos'):
+    def get_transferencias_por_zona(self, vendedor='Todos', mes='Todos'):
         """
         Get sales distribution by zone.
         """
@@ -896,7 +896,7 @@ class TransferenciasAnalyzer:
 
         return resultado
 
-    def get_ventas_acumuladas_mes(self, mes='Todos', vendedor='Todos'):
+    def get_transferencias_acumuladas_mes(self, mes='Todos', vendedor='Todos'):
         """
         Get accumulated sales up to selected month for all clients.
         """

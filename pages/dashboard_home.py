@@ -32,36 +32,46 @@ layout = html.Div([
         html.Div([
             # Cartera Card
             html.Div([
-                html.Span("📊", className="card-icon",
-                          style={'color': '#1e3a8a'}),
-                html.H3("Cartera", className="card-title"),
-                html.P("Análisis completo de cartera, clientes vencidos, rangos de vencimiento y seguimiento de cuentas por cobrar.",
-                       className="card-description"),
-                dcc.Link("Acceder al Dashboard", href="/cartera",
-                         className="card-button")
+                html.Div([
+                    html.H3("Cartera", className="card-title"),
+                    html.P("Análisis completo de cuentas por cobrar y seguimiento de clientes.",
+                           className="card-description")
+                ], className="card-content"),
+                html.Div([
+                    dcc.Link("Análisis General", href="/cartera",
+                             className="card-button primary"),
+                ], className="card-actions")
             ], className="dashboard-card cartera-card"),
 
             # Ventas Card
             html.Div([
-                html.Span("💰", className="card-icon",
-                          style={'color': '#3b82f6'}),
-                html.H3("Ventas", className="card-title"),
-                html.P("Seguimiento de ventas por vendedor, análisis de tendencias, cumplimiento de metas y evolución temporal.",
-                       className="card-description"),
-                dcc.Link("Acceder al Dashboard", href="/ventas",
-                         className="card-button")
+                html.Div([
+                    html.H3("Ventas", className="card-title"),
+                    html.P("Seguimiento de ventas, análisis de tendencias y cumplimiento de metas.",
+                           className="card-description")
+                ], className="card-content"),
+                html.Div([
+                    dcc.Link("Vendedores", href="/ventas",
+                             className="card-button primary"),
+                    dcc.Link("Transferencias", href="/transferencias",
+                             className="card-button secondary")
+                ], className="card-actions")
             ], className="dashboard-card ventas-card"),
 
-            # Transferencias Card
+            # Proveedores Card
             html.Div([
-                html.Span("💰", className="card-icon",
-                          style={'color': '#3b82f6'}),
-                html.H3("Transferencias", className="card-title"),
-                html.P("Seguimiento de ventas por transferencistas, análisis de tendencias, cumplimiento de metas y evolución temporal.",
-                       className="card-description"),
-                dcc.Link("Acceder al Dashboard", href="/transferencias",
-                         className="card-button")
-            ], className="dashboard-card transferencias-card")
+                html.Div([
+                    html.H3("Proveedores", className="card-title"),
+                    html.P("Análisis de relaciones comerciales y gestión de proveedores.",
+                           className="card-description")
+                ], className="card-content"),
+                html.Div([
+                    dcc.Link("Ventas", href="/proveedores-ventas",
+                             className="card-button primary"),
+                    dcc.Link("Compras", href="/proveedores-compras",
+                             className="card-button secondary")
+                ], className="card-actions")
+            ], className="dashboard-card proveedores-card"),
         ], className="dashboards-grid"),
 
         # Stats Section
@@ -70,7 +80,7 @@ layout = html.Div([
                     'color': 'white', 'textAlign': 'center', 'marginBottom': '20px'}),
             html.Div([
                 html.Div([
-                    html.Div("2", className="stat-number"),
+                    html.Div("4", className="stat-number"),
                     html.Div("Dashboards", className="stat-label")
                 ], className="stat-item"),
                 html.Div([

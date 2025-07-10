@@ -23,6 +23,17 @@ except Exception as e:
         f"⚠️ [CarteraPage] Carga inicial falló (se recargará on-demand): {e}")
     df = pd.DataFrame()
 
+# Definir paletas de colores pasteles
+PALETA_PASTELES_BARRAS = [
+    '#3498DB', '#E74C3C', '#2ECC71', '#F39C12',
+    '#9B59B6'
+]
+
+PALETA_PASTELES_DONA = [
+    '#3498DB', '#E74C3C', '#2ECC71', '#F39C12',
+    '#9B59B6'
+]
+
 layout = html.Div([
     # Store for theme
     dcc.Store(id='cartera-theme-store', data='light'),
@@ -137,7 +148,7 @@ layout = html.Div([
         html.Div([
             html.Div([
                 html.H3("Cartera Total", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='cartera-card-1-title'),
                 html.H2(
                     id='cartera-total-cartera', children="$0", style={'color': '#e74c3c', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -146,7 +157,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Vencida", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='cartera-card-2-title'),
                 html.H2(
                     id='cartera-total-vencida', children="$0", style={'color': '#e74c3c', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -155,7 +166,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Sin Vencer", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='cartera-card-3-title'),
                 html.H2(id='cartera-total-sin-vencer', children="$0",
                         style={'color': '#27ae60', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -164,7 +175,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Calidad Cartera", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='cartera-card-4-title'),
                 html.H2(id='cartera-calidad-cartera', children="0%",
                         style={'color': '#9b59b6', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -176,7 +187,7 @@ layout = html.Div([
         html.Div([
             html.Div([
                 html.H3("Clientes", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='cartera-card-5-title'),
                 html.H2(id='cartera-total-clientes', children="0",
                         style={'color': '#3498db', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -185,7 +196,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Clientes con cartera vencida", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='cartera-card-6-title'),
                 html.H2(id='cartera-clientes-vencida', children="0",
                         style={'color': '#e67e22', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -194,7 +205,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Facturas", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='cartera-card-7-title'),
                 html.H2(
                     id='cartera-num-facturas', children="0", style={'color': '#16a085', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -203,7 +214,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("% Vencida", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='cartera-card-8-title'),
                 html.H2(id='cartera-porcentaje-vencida', children="0%",
                         style={'color': '#f39c12', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -246,6 +257,34 @@ layout = html.Div([
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'},
         id='cartera-row2-5-container'),
+
+    # Nueva sección: Detalle por Cliente
+    html.Div([
+        html.H3("Detalle de Cartera por Cliente", style={
+                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
+
+        # Dropdown para seleccionar cliente
+        html.Div([
+            html.Label("Seleccionar Cliente:", style={
+                'fontWeight': 'bold',
+                'marginBottom': '8px',
+                'fontFamily': 'Inter',
+                'fontSize': '14px'
+            }),
+            dcc.Dropdown(
+                id='cartera-dropdown-cliente',
+                placeholder="Seleccione un cliente...",
+                style={'fontFamily': 'Inter'},
+                className='custom-dropdown'
+            )
+        ], style={'marginBottom': '20px'}),
+
+        # Contenedor para la tabla del cliente
+        html.Div(id='cartera-tabla-cliente-detalle')
+
+    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
+              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'},
+        id='cartera-cliente-detalle-container'),
 
     # Fila 3: Top 10
     html.Div([
@@ -487,6 +526,28 @@ def update_button_state(data_store):
 
 
 @callback(
+    [Output('cartera-card-1-title', 'style'),
+     Output('cartera-card-2-title', 'style'),
+     Output('cartera-card-3-title', 'style'),
+     Output('cartera-card-4-title', 'style'),
+     Output('cartera-card-5-title', 'style'),
+     Output('cartera-card-6-title', 'style'),
+     Output('cartera-card-7-title', 'style'),
+     Output('cartera-card-8-title', 'style')],
+    [Input('cartera-theme-store', 'data')]
+)
+def update_card_title_colors(theme):
+    title_color = '#ffffff' if theme == 'dark' else '#34495e'
+    title_style = {
+        'color': title_color,
+        'fontSize': '14px',
+        'margin': '0 0 10px 0',
+        'fontFamily': 'Inter'
+    }
+    return [title_style] * 8
+
+
+@callback(
     [Output('cartera-dropdown-container', 'style'),
      Output('cartera-dropdown-label', 'style')],
     [Input('session-store', 'data')]
@@ -624,7 +685,9 @@ def toggle_theme(n_clicks, current_theme):
 
 @callback(
     [Output('cartera-dropdown-vendedor', 'style'),
-     Output('cartera-dropdown-vendedor', 'className')],
+     Output('cartera-dropdown-vendedor', 'className'),
+     Output('cartera-dropdown-cliente', 'style'),
+     Output('cartera-dropdown-cliente', 'className')],
     [Input('cartera-theme-store', 'data'),
      Input('session-store', 'data')]
 )
@@ -640,20 +703,16 @@ def update_dropdown_styles(theme, session_data):
     # Special handling for vendor dropdown - hide if not admin
     if not session_data or not can_see_all_vendors(session_data):
         vendedor_style = {'display': 'none'}
-        tipo_grafico_style = {'display': 'none'}
     else:
         vendedor_style = dropdown_style.copy()
-        tipo_grafico_style = dropdown_style.copy()
-        tipo_grafico_style.update(
-            {'width': '250px', 'display': 'inline-block'})
 
-    vista_style = dropdown_style.copy()
-    vista_style.update({'width': '200px', 'display': 'inline-block'})
+    # Cliente dropdown always visible
+    cliente_style = dropdown_style.copy()
 
     # CSS class for dark theme
     css_class = 'dash-dropdown dark-theme' if theme == 'dark' else 'dash-dropdown'
 
-    return vendedor_style, css_class
+    return vendedor_style, css_class, cliente_style, css_class
 
 
 # Card styles callback
@@ -694,6 +753,7 @@ def update_card_styles(theme):
     [Output('cartera-row1-container', 'style'),
      Output('cartera-row2-container', 'style'),
      Output('cartera-row2-5-container', 'style'),
+     Output('cartera-cliente-detalle-container', 'style'),
      Output('cartera-row3-container', 'style'),
      Output('cartera-row5-container', 'style'),
      Output('cartera-row6-container', 'style'),
@@ -723,7 +783,7 @@ def update_container_styles(theme):
         'color': theme_styles['text_color']
     }
 
-    return chart_style, chart_style, chart_style, chart_style, chart_style, chart_style, config_style
+    return chart_style, chart_style, chart_style, chart_style, chart_style, chart_style, chart_style, config_style
 
 
 @callback(
@@ -752,6 +812,236 @@ def update_title(session_data, dropdown_value):
     except Exception as e:
         print(f"Error en update_title: {e}")
         return "Dashboard de Cartera"
+
+
+@callback(
+    Output('cartera-dropdown-cliente', 'options'),
+    [Input('session-store', 'data'),
+     Input('cartera-dropdown-vendedor', 'value'),
+     Input('cartera-data-store', 'data')]
+)
+def update_cliente_dropdown_options(session_data, dropdown_value, data_store):
+    """
+    Update client dropdown options based on selected vendor.
+    """
+    try:
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        clientes = analyzer.get_clientes_list(vendedor)
+
+        return [{'label': cliente, 'value': cliente} for cliente in clientes]
+    except Exception as e:
+        print(f"Error en update_cliente_dropdown_options: {e}")
+        return []
+
+
+@callback(
+    Output('cartera-tabla-cliente-detalle', 'children'),
+    [Input('cartera-dropdown-cliente', 'value'),
+     Input('session-store', 'data'),
+     Input('cartera-dropdown-vendedor', 'value'),
+     Input('cartera-theme-store', 'data')]
+)
+def update_cliente_detalle_table(cliente_seleccionado, session_data, dropdown_value, theme):
+    """
+    Update client detail table with current and overdue portfolio sections.
+    """
+    try:
+        if not cliente_seleccionado:
+            return html.Div([
+                html.P("Seleccione un cliente para ver el detalle de su cartera.",
+                       style={'textAlign': 'center', 'color': 'gray', 'fontSize': '16px', 'fontFamily': 'Inter'})
+            ])
+
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        detalle = analyzer.get_cliente_detalle(cliente_seleccionado, vendedor)
+        theme_styles = get_theme_styles(theme)
+
+        if not detalle['sin_vencer'].empty or not detalle['vencida'].empty:
+            # Header con forma de pago
+            elementos = [
+                html.Div([
+                    html.H4(f"Forma de Pago: {detalle['forma_pago']}", style={
+                        'backgroundColor': '#17a2b8',
+                        'color': 'white',
+                        'padding': '12px 20px',
+                        'margin': '0 0 20px 0',
+                        'borderRadius': '8px',
+                        'fontFamily': 'Inter',
+                        'textAlign': 'center',
+                        'fontSize': '16px',
+                        'fontWeight': 'bold'
+                    })
+                ])
+            ]
+
+            # Sección Cartera Sin Vencer (Verde)
+            if not detalle['sin_vencer'].empty:
+                elementos.append(
+                    html.Div([
+                        html.H4("📗 Cartera Sin Vencer", style={
+                            'backgroundColor': '#27ae60',
+                            'color': 'white',
+                            'padding': '10px 15px',
+                            'margin': '10px 0 15px 0',
+                            'borderRadius': '6px',
+                            'fontFamily': 'Inter',
+                            'fontSize': '16px',
+                            'fontWeight': 'bold'
+                        }),
+                        crear_tabla_documentos(
+                            detalle['sin_vencer'],
+                            theme_styles,
+                            'sin_vencer',
+                            theme
+                        )
+                    ])
+                )
+
+            # Sección Cartera Vencida (Rojo)
+            if not detalle['vencida'].empty:
+                elementos.append(
+                    html.Div([
+                        html.H4("📕 Cartera Vencida", style={
+                            'backgroundColor': '#e74c3c',
+                            'color': 'white',
+                            'padding': '10px 15px',
+                            'margin': '10px 0 15px 0',
+                            'borderRadius': '6px',
+                            'fontFamily': 'Inter',
+                            'fontSize': '16px',
+                            'fontWeight': 'bold'
+                        }),
+                        crear_tabla_documentos(
+                            detalle['vencida'],
+                            theme_styles,
+                            'vencida',
+                            theme
+                        )
+                    ])
+                )
+
+            return html.Div(elementos)
+        else:
+            return html.Div([
+                html.P("No se encontraron documentos para este cliente.",
+                       style={'textAlign': 'center', 'color': 'gray', 'fontSize': '16px', 'fontFamily': 'Inter'})
+            ])
+
+    except Exception as e:
+        print(f"Error en update_cliente_detalle_table: {e}")
+        return html.Div([
+            html.P("Error al cargar los datos del cliente.",
+                   style={'textAlign': 'center', 'color': '#e74c3c', 'fontSize': '16px', 'fontFamily': 'Inter'})
+        ])
+
+
+def crear_tabla_documentos(df, theme_styles, tipo, theme):
+    """
+    Create a formatted table for documents.
+    """
+    if df.empty:
+        return html.P("No hay documentos en esta categoría.")
+
+    # Header row
+    header_style = {
+        'backgroundColor': '#2c3e50',
+        'color': 'white',
+        'padding': '12px 8px',
+        'fontWeight': 'bold',
+        'fontSize': '13px',
+        'fontFamily': 'Inter',
+        'textAlign': 'center',
+        'border': '1px solid #34495e'
+    }
+
+    # Data row style based on type
+    if theme == 'dark':
+        if tipo == 'sin_vencer':
+            row_bg = '#1e3a28'      # Verde oscuro
+            row_bg_alt = '#2d4a35'  # Verde más oscuro
+        else:  # vencida
+            row_bg = '#3a1e1e'      # Rojo oscuro
+            row_bg_alt = '#4a2d2d'  # Rojo más oscuro
+    else:  # light theme
+        if tipo == 'sin_vencer':
+            row_bg = '#e8f5e8'
+            row_bg_alt = '#d4edda'
+        else:  # vencida
+            row_bg = '#f8e8e8'
+            row_bg_alt = '#f5c6cb'
+
+    cell_style_base = {
+        'padding': '10px 8px',
+        'fontSize': '12px',
+        'fontFamily': 'Inter',
+        'textAlign': 'center',
+        'border': '1px solid #dee2e6'
+    }
+
+    # Create table rows
+    table_rows = [
+        html.Tr([
+            html.Th("Documento", style=header_style),
+            html.Th("Valor", style=header_style),
+            html.Th("Aplicado", style=header_style),
+            html.Th("Saldo", style=header_style),
+            html.Th("Fecha", style=header_style),
+            html.Th("Vencimiento", style=header_style),
+            html.Th("Días Vencidos", style=header_style)
+        ])
+    ]
+
+    for i, (_, row) in enumerate(df.iterrows()):
+        cell_style = cell_style_base.copy()
+        cell_style['backgroundColor'] = row_bg if i % 2 == 0 else row_bg_alt
+
+        # Format dates
+        fecha_str = row['fecha'].strftime(
+            '%Y-%m-%d') if pd.notna(row['fecha']) else 'N/A'
+        vencimiento_str = row['vencimiento'].strftime(
+            '%Y-%m-%d') if pd.notna(row['vencimiento']) else 'N/A'
+
+        # Format days overdue
+        dias_vencidos = int(row['dias_vencidos']) if pd.notna(
+            row['dias_vencidos']) else 'N/A'
+        if isinstance(dias_vencidos, int):
+            if dias_vencidos > 0:
+                dias_display = f"{dias_vencidos} días"
+                dias_color = '#e74c3c'
+            elif dias_vencidos < 0:
+                dias_display = f"{abs(dias_vencidos)} días (por vencer)"
+                dias_color = '#f39c12'
+            else:
+                dias_display = "Vence hoy"
+                dias_color = '#e67e22'
+        else:
+            dias_display = 'N/A'
+            dias_color = '#95a5a6'
+
+        table_rows.append(
+            html.Tr([
+                html.Td(row['documento_id'], style=cell_style),
+                html.Td(format_currency_int(row['valor']), style=cell_style),
+                html.Td(format_currency_int(
+                    row['aplicado']), style=cell_style),
+                html.Td(format_currency_int(row['saldo']), style=cell_style),
+                html.Td(fecha_str, style=cell_style),
+                html.Td(vencimiento_str, style=cell_style),
+                html.Td(dias_display, style={
+                        **cell_style, 'color': dias_color, 'fontWeight': 'bold'})
+            ])
+        )
+
+    return html.Table(
+        table_rows,
+        style={
+            'width': '100%',
+            'borderCollapse': 'collapse',
+            'boxShadow': '0 2px 4px rgba(0,0,0,0.1)',
+            'borderRadius': '6px',
+            'overflow': 'hidden'
+        }
+    )
 
 
 @callback(
@@ -802,7 +1092,7 @@ def update_cards(session_data, dropdown_value, data_store):
 )
 def update_rangos(session_data, dropdown_value, n_clicks, theme):
     """
-    Update overdue ranges chart.
+    Update overdue ranges chart with pastel colors.
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
@@ -813,20 +1103,19 @@ def update_rangos(session_data, dropdown_value, n_clicks, theme):
             fig = px.bar(title="No hay datos disponibles")
             return fig
 
-        # Create modern chart
+        # Create modern chart with pastel colors
         fig = go.Figure()
-
-        colors = ['#2ECC71', '#F39C12', '#E74C3C',
-                  '#9B59B6', '#34495E', '#E67E22', '#95A5A6']
 
         for i, row in data.iterrows():
             fig.add_trace(go.Bar(
                 x=[row['rango']],
                 y=[row['saldo']],
                 name=row['rango'],
-                marker_color=colors[i % len(colors)],
+                marker_color=PALETA_PASTELES_BARRAS[i % len(
+                    PALETA_PASTELES_BARRAS)],
                 text=[format_currency_int(row['saldo'])],
                 textposition='outside',
+                opacity=0.6,
                 hovertemplate=f"<b>{row['rango']}</b><br>" +
                              f"Valor: {format_currency_int(row['saldo'])}<br>" +
                              f"Documentos: {row['documento_id']}<extra></extra>"
@@ -873,7 +1162,7 @@ def update_rangos(session_data, dropdown_value, n_clicks, theme):
 )
 def update_forma_pago(session_data, dropdown_value, n_clicks, theme):
     """
-    Update payment method distribution chart.
+    Update payment method distribution chart with pastel colors.
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
@@ -884,16 +1173,16 @@ def update_forma_pago(session_data, dropdown_value, n_clicks, theme):
             fig = px.pie(title="No hay datos disponibles")
             return fig
 
-        # Modern donut chart with side legend
+        # Modern donut chart with pastel colors
         fig = go.Figure(data=[go.Pie(
             labels=data['forma_pago'],
             values=data['saldo'],
             hole=.4,
+            opacity=0.6,
             textinfo='percent',
             textposition='inside',
             marker=dict(
-                colors=['#3498DB', '#E74C3C', '#2ECC71',
-                        '#F39C12', '#9B59B6', '#1ABC9C', '#E67E22'],
+                colors=PALETA_PASTELES_DONA,
                 line=dict(color='#FFFFFF', width=3)
             ),
             hovertemplate="<b>%{label}</b><br>" +
@@ -981,7 +1270,6 @@ def update_treemap(session_data, dropdown_value, n_clicks, theme):
                         for val in data_filtered['saldo']],
             marker=dict(
                 colorscale='Aggrnyl_r',
-                colorbar=dict(title="Valor de Cartera"),
                 line=dict(width=2, color='white')
             ),
             textfont=dict(size=12, color='white')
@@ -1068,7 +1356,6 @@ def update_treemap_vencida(session_data, dropdown_value, n_clicks, theme):
                         for val in data_filtered['vencida']],
             marker=dict(
                 colorscale='Agsunset_r',
-                colorbar=dict(title="Cartera Vencida"),
                 line=dict(width=2, color='white')
             ),
             textfont=dict(size=12, color='white')
@@ -1099,7 +1386,7 @@ def update_treemap_vencida(session_data, dropdown_value, n_clicks, theme):
 )
 def update_top_vencida(session_data, dropdown_value, n_clicks, theme):
     """
-    Update top overdue customers chart with combined names.
+    Update top overdue customers chart with transparency and no color scale.
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
@@ -1114,23 +1401,28 @@ def update_top_vencida(session_data, dropdown_value, n_clicks, theme):
 
         # Create shorter labels for y-axis (just numbers)
         data_sorted = data.sort_values('vencida', ascending=True)
-        data_sorted['rank'] = range(1, len(data_sorted) + 1)
+        data_sorted['rank'] = sorted(
+            range(1, len(data_sorted) + 1), reverse=True)
         data_sorted['short_label'] = [f"#{i}" for i in data_sorted['rank']]
 
         fig = px.bar(data_sorted, x='vencida', y='short_label', orientation='h',
                      labels={
-                         'vencida': 'Cartera Vencida ($)', 'short_label': 'Top'},
-                     color='vencida', color_continuous_scale='Reds')
+                         'vencida': 'Cartera Vencida ($)', 'short_label': 'Top'})
 
-        # Update format with client names inside bars
+        # Update format with client names inside bars and transparency
         fig.update_traces(
             text=[
-                name[:25] + "..." if len(name) > 25 else name for name in data_sorted['cliente_completo']],
+                name[:70] + "..." if len(name) > 70 else name for name in data_sorted['cliente_completo']],
             textposition='inside',
             textfont=dict(color='white', size=10),
+            marker=dict(
+                color='rgba(231, 76, 60, 0.7)',  # Red with transparency
+                line=dict(color='rgba(231, 76, 60, 1)', width=1),
+                opacity=0.7
+            ),
             hovertemplate="<b>%{customdata[0]}</b><br>" +
-                         "Cartera Vencida: %{customdata[1]}<br>" +
-                         "<extra></extra>",
+            "Cartera Vencida: %{customdata[1]}<br>" +
+            "<extra></extra>",
             customdata=[[cliente, format_currency_int(val)] for cliente, val in zip(
                 data_sorted['cliente_completo'], data_sorted['vencida'])]
         )
@@ -1171,7 +1463,7 @@ def update_top_vencida(session_data, dropdown_value, n_clicks, theme):
 )
 def update_top_sin_vencer(session_data, dropdown_value, n_clicks, theme):
     """
-    Update top current customers chart with combined names.
+    Update top current customers chart with transparency and no color scale.
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
@@ -1186,23 +1478,28 @@ def update_top_sin_vencer(session_data, dropdown_value, n_clicks, theme):
 
         # Create shorter labels for y-axis (just numbers)
         data_sorted = data.sort_values('sin_vencer', ascending=True)
-        data_sorted['rank'] = range(1, len(data_sorted) + 1)
+        data_sorted['rank'] = sorted(
+            range(1, len(data_sorted) + 1), reverse=True)
         data_sorted['short_label'] = [f"#{i}" for i in data_sorted['rank']]
 
         fig = px.bar(data_sorted, x='sin_vencer', y='short_label', orientation='h',
                      labels={
-                         'sin_vencer': 'Cartera Sin Vencer ($)', 'short_label': 'Top'},
-                     color='sin_vencer', color_continuous_scale='Greens')
+                         'sin_vencer': 'Cartera Sin Vencer ($)', 'short_label': 'Top'})
 
-        # Update format with client names inside bars
+        # Update format with client names inside bars and transparency
         fig.update_traces(
             text=[
-                name[:25] + "..." if len(name) > 25 else name for name in data_sorted['cliente_completo']],
+                name[:70] + "..." if len(name) > 70 else name for name in data_sorted['cliente_completo']],
             textposition='inside',
             textfont=dict(color='white', size=10),
+            marker=dict(
+                color='rgba(39, 174, 96, 0.7)',  # Green with transparency
+                line=dict(color='rgba(39, 174, 96, 1)', width=1),
+                opacity=0.7
+            ),
             hovertemplate="<b>%{customdata[0]}</b><br>" +
-                         "Cartera Sin Vencer: %{customdata[1]}<br>" +
-                         "<extra></extra>",
+            "Cartera Sin Vencer: %{customdata[1]}<br>" +
+            "<extra></extra>",
             customdata=[[cliente, format_currency_int(val)] for cliente, val in zip(
                 data_sorted['cliente_completo'], data_sorted['sin_vencer'])]
         )
@@ -1242,13 +1539,22 @@ def update_top_sin_vencer(session_data, dropdown_value, n_clicks, theme):
      Input('cartera-theme-store', 'data')]
 )
 def update_proximos_vencer(dias, session_data, dropdown_value, theme):
-    """Update upcoming expiration chart with urgency-based colors and proper sorting."""
+    """
+    Update upcoming expiration chart with urgency-based colors and proper sorting.
+    """
     try:
-        vendedor = get_selected_vendor(session_data, dropdown_value)
-        data_agrupados = analyzer.get_documentos_agrupados_por_dias(
-            dias, vendedor)
-        data_documentos_table = analyzer.get_documentos_proximos_vencer(
-            dias, vendedor)
+        vendedor = \
+            get_selected_vendor(session_data, dropdown_value)
+        data_agrupados = \
+            analyzer.get_documentos_agrupados_por_dias(
+                dias,
+                vendedor
+            )
+        data_documentos_table = \
+            analyzer.get_documentos_proximos_vencer(
+                dias,
+                vendedor
+            )
         theme_styles = get_theme_styles(theme)
 
         # Chart with urgency-based colors and proper stacking
@@ -1341,7 +1647,8 @@ def update_proximos_vencer(dias, session_data, dropdown_value, theme):
                     name=cliente_display,
                     marker=dict(
                         color=colors,
-                        line=dict(color='white', width=1)
+                        line=dict(color='white', width=1),
+                        opacity=0.6
                     ),
                     hovertemplate="<b>%{fullData.name}</b><br>" +
                     "Días hasta vencimiento: %{x}<br>" +

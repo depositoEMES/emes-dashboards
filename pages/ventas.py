@@ -218,7 +218,7 @@ layout = html.Div([
         html.Div([
             html.Div([
                 html.H3("Ventas Totales", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-1-title'),
                 html.H2(id='ventas-ventas-totales', children="$0", style={'color': '#2ecc71',
                         'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -227,7 +227,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Ventas Netas", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-2-title'),
                 html.H2(id='ventas-ventas-netas', children="$0", style={'color': '#2ecc71',
                         'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -236,7 +236,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Devoluciones", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-3-title'),
                 html.H2(id='ventas-total-devoluciones', children="$0", style={
                         'color': '#e74c3c', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -245,7 +245,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Descuentos", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-4-title'),
                 html.H2(id='ventas-total-descuentos', children="$0", style={
                         'color': '#f39c12', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -258,7 +258,7 @@ layout = html.Div([
         html.Div([
             html.Div([
                 html.H3("Valor Promedio", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-5-title'),
                 html.H2(id='ventas-valor-promedio', children="$0", style={
                         'color': '#9b59b6', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -267,7 +267,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("# Facturas", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-6-title'),
                 html.H2(id='ventas-num-facturas', children="0", style={'color': '#3498db',
                         'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -276,7 +276,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("# Devoluciones", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-7-title'),
                 html.H2(id='ventas-num-devoluciones', children="0", style={
                         'color': '#c0392b', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -285,7 +285,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Clientes", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-8-title'),
                 html.H2(id='ventas-num-clientes', children="0", style={'color': '#e67e22',
                         'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -614,7 +614,9 @@ def show_update_notification(data_store):
     prevent_initial_call=True
 )
 def update_button_state(data_store):
-    """Actualizar estado del botón durante y después de la carga."""
+    """
+    Actualizar estado del botón durante y después de la carga.
+    """
     if data_store and data_store.get('last_update', 0) > 0:
         if data_store.get('success', True):
             # Actualización exitosa - botón normal
@@ -636,7 +638,27 @@ def update_button_state(data_store):
     ], False
 
 
-# ========== CALLBACKS PRINCIPALES ACTUALIZADOS ==========
+@callback(
+    [Output('ventas-card-1-title', 'style'),
+     Output('ventas-card-2-title', 'style'),
+     Output('ventas-card-3-title', 'style'),
+     Output('ventas-card-4-title', 'style'),
+     Output('ventas-card-5-title', 'style'),
+     Output('ventas-card-6-title', 'style'),
+     Output('ventas-card-7-title', 'style'),
+     Output('ventas-card-8-title', 'style')],
+    [Input('ventas-theme-store', 'data')]
+)
+def update_card_title_colors(theme):
+    title_color = '#ffffff' if theme == 'dark' else '#34495e'
+    title_style = {
+        'color': title_color,
+        'fontSize': '14px',
+        'margin': '0 0 10px 0',
+        'fontFamily': 'Inter'
+    }
+    return [title_style] * 8
+
 
 @callback(
     [Output('ventas-ventas-totales', 'children'),
@@ -917,7 +939,7 @@ def update_zona(session_data, dropdown_value, mes, data_store, theme):
             y=data['valor_neto'],
             marker=dict(
                 color=colors_red_to_green,
-                line=dict(color='white', width=2),
+                line=dict(color='white', width=1),
                 opacity=0.4
             ),
             text=[format_currency_int(val) for val in data['valor_neto']],
@@ -1046,16 +1068,22 @@ def update_treemap(session_data, dropdown_value, mes, data_store, theme):
                 height=500, paper_bgcolor=theme_styles['plot_bg'])
             return fig
 
+        custom_data = \
+            [
+                format_currency_int(val)
+                for val in data['valor_neto']
+            ]
+
         fig = go.Figure(go.Treemap(
             labels=data['cliente_completo'],
             values=data['valor_neto'],
             parents=[""] * len(data),
             texttemplate="<b>%{label}</b><br>%{customdata}",
             hovertemplate="<b>%{label}</b><br>Ventas: %{customdata}<br><extra></extra>",
-            customdata=[format_currency_int(val)
-                        for val in data['valor_neto']],
-            marker=dict(colorscale='Aggrnyl_r', colorbar=dict(
-                title="Ventas"), line=dict(width=2, color='white')),
+            customdata=custom_data,
+            marker=dict(
+                colorscale='Bluyl',
+                line=dict(width=2, color='white')),
             textfont=dict(size=12, color='white')
         ))
 
@@ -1192,8 +1220,7 @@ def update_treemap_acumuladas(session_data, dropdown_value, mes, data_store, the
                         for val in data['valor_neto']],
             text=data['documento_id'],
             marker=dict(
-                colorscale='Agsunset_r',
-                colorbar=dict(title="Ventas Acumuladas"),
+                colorscale='Bluyl',
                 line=dict(width=2, color='white')
             ),
             textfont=dict(size=12, color='white')
@@ -1608,7 +1635,6 @@ def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo,
             ))
         else:
             # Bar chart for daily with ascending/descending colors
-            # Calcular diferencias para determinar ascendente/descendente
             valores = data['valor_recibo'].tolist()
             bar_colors = []
 
@@ -1633,7 +1659,7 @@ def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo,
                 y=data['valor_recibo'],
                 marker=dict(
                     color=bar_colors,
-                    line=dict(color='white', width=2),
+                    line=dict(color='white', width=1),
                     opacity=0.8
                 ),
                 text=[format_currency_int(
@@ -1814,7 +1840,6 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, them
             parents=[""] * len(data),
             texttemplate="<b>%{label}</b><br>Ventas: %{customdata}",
             hovertemplate="<b>%{text}</b><br>" +
-                         # %{value} now shows days
                          "Días sin venta: %{value}<br>" +
                          "Ventas históricas: %{customdata[0]}<br>" +
                          "Última venta: %{customdata[1]}<br>" +
@@ -1826,10 +1851,8 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, them
                 data['valor_neto'],
                 fechas_formatted)],
             marker=dict(
-                colors=data['dias_sin_venta'],  # Color by days without sales
-                # Red to Blue, reversed (red = more days)
+                colors=data['dias_sin_venta'],
                 colorscale='RdYlBu_r',
-                colorbar=dict(title="Días sin venta"),
                 line=dict(width=2, color='white'),
                 cmin=data['dias_sin_venta'].min(),
                 cmax=data['dias_sin_venta'].max()

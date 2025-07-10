@@ -17,7 +17,8 @@ analyzer = TransferenciasAnalyzer()
 try:
     df = analyzer.load_data_from_firebase()
 except Exception as e:
-    print(f"⚠️ [VentasPage] Carga inicial falló (se recargará on-demand): {e}")
+    print(
+        f"⚠️ [transferenciasPage] Carga inicial falló (se recargará on-demand): {e}")
     df = pd.DataFrame()
 
 
@@ -50,10 +51,8 @@ def get_selected_vendor(session_data, dropdown_value):
             return 'Todos'
 
         if can_see_all_vendors(session_data):
-            # Para administradores, usar el dropdown
             return dropdown_value if dropdown_value else 'Todos'
         else:
-            # Para usuarios normales, usar filtro automático
             return get_user_vendor_filter(session_data)
     except Exception as e:
         print(f"Error en get_selected_vendor: {e}")
@@ -196,7 +195,7 @@ layout = html.Div([
         html.Div([
             html.Div([
                 html.H3("Ventas Totales", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='transferencias-card-1-title'),
                 html.H2(id='transferencias-transferencias-totales', children="$0", style={'color': '#2ecc71',
                         'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -205,7 +204,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Ventas Netas", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='transferencias-card-2-title'),
                 html.H2(id='transferencias-transferencias-netas', children="$0", style={'color': '#2ecc71',
                         'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -214,7 +213,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Devoluciones", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='transferencias-card-3-title'),
                 html.H2(id='transferencias-total-devoluciones', children="$0", style={
                         'color': '#e74c3c', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -223,7 +222,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Descuentos", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='transferencias-card-4-title'),
                 html.H2(id='transferencias-total-descuentos', children="$0", style={
                         'color': '#f39c12', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -236,7 +235,7 @@ layout = html.Div([
         html.Div([
             html.Div([
                 html.H3("Valor Promedio", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='transferencias-card-5-title'),
                 html.H2(id='transferencias-valor-promedio', children="$0", style={
                         'color': '#9b59b6', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -245,7 +244,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("# Facturas", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='transferencias-card-6-title'),
                 html.H2(id='transferencias-num-facturas', children="0", style={'color': '#3498db',
                         'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -254,7 +253,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("# Devoluciones", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='transferencias-card-7-title'),
                 html.H2(id='transferencias-num-devoluciones', children="0", style={
                         'color': '#c0392b', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -263,7 +262,7 @@ layout = html.Div([
 
             html.Div([
                 html.H3("Clientes", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}),
+                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='transferencias-card-8-title'),
                 html.H2(id='transferencias-num-clientes', children="0", style={'color': '#e67e22',
                         'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
             ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
@@ -288,7 +287,7 @@ layout = html.Div([
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='transferencias-row1-container'),
 
-    # Fila 1.5: Evolución de Ventas por Cliente Específico
+    # Fila 1.5: Evolución de transferencias por Cliente Específico
     html.Div([
         html.H3("Evolución Diaria de Ventas por Cliente", style={
                 'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
@@ -324,7 +323,7 @@ layout = html.Div([
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='transferencias-row2-container'),
 
-    # Fila 2.5: Ventas Acumuladas por Cliente (Treemap solo)
+    # Fila 2.5: transferencias Acumuladas por Cliente (Treemap solo)
     html.Div([
         html.H3("Ventas Acumuladas por Cliente", style={
                 'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
@@ -334,11 +333,11 @@ layout = html.Div([
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='transferencias-row2-5-container'),
 
-    # Fila 3: Treemap de Ventas por Cliente del Período (Treemap solo)
+    # Fila 3: Treemap de transferencias por Cliente del Período (Treemap solo)
     html.Div([
         html.H3("Mapa de Ventas por Cliente (Período Seleccionado)", style={
                 'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-        dcc.Graph(id='transferencias-treemap-ventas')
+        dcc.Graph(id='transferencias-treemap-transferencias')
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='transferencias-row3-container'),
 
@@ -350,6 +349,13 @@ layout = html.Div([
         dcc.Graph(id='transferencias-treemap-dias-sin-venta')
     ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
               'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='transferencias-row-nueva-treemap'),
+
+    # Fila 4: Top Clientes y Clientes Impactados
+    html.Div([
+        html.H3("Top 10 - Clientes", style={'textAlign': 'center',
+                'marginBottom': '20px', 'fontFamily': 'Inter'}),
+        dcc.Graph(id='transferencias-top-clientes')
+    ], style={'width': '100%', 'display': 'inline-block', 'margin': '1%'}),
 
     # Botón actualizar MEJORADO
     html.Div([
@@ -380,7 +386,7 @@ layout = html.Div([
     [Input('transferencias-btn-actualizar', 'n_clicks')],
     prevent_initial_call=True
 )
-def update_ventas_data(n_clicks):
+def update_transferencias_data(n_clicks):
     """
     Callback central para recargar TODOS los datos cuando se presiona actualizar.
     """
@@ -406,7 +412,8 @@ def update_ventas_data(n_clicks):
             }
 
         except Exception as e:
-            print(f"❌ [VentasPage] Error en actualización #{n_clicks}: {e}")
+            print(
+                f"❌ [transferenciasPage] Error en actualización #{n_clicks}: {e}")
             return {
                 'last_update': n_clicks,
                 'timestamp': datetime.now().isoformat(),
@@ -481,7 +488,9 @@ def show_update_notification(data_store):
     prevent_initial_call=True
 )
 def update_button_state(data_store):
-    """Actualizar estado del botón durante y después de la carga."""
+    """
+    Actualizar estado del botón durante y después de la carga.
+    """
     if data_store and data_store.get('last_update', 0) > 0:
         if data_store.get('success', True):
             # Actualización exitosa - botón normal
@@ -503,7 +512,27 @@ def update_button_state(data_store):
     ], False
 
 
-# ========== CALLBACKS PRINCIPALES ACTUALIZADOS ==========
+@callback(
+    [Output('transferencias-card-1-title', 'style'),
+     Output('transferencias-card-2-title', 'style'),
+     Output('transferencias-card-3-title', 'style'),
+     Output('transferencias-card-4-title', 'style'),
+     Output('transferencias-card-5-title', 'style'),
+     Output('transferencias-card-6-title', 'style'),
+     Output('transferencias-card-7-title', 'style'),
+     Output('transferencias-card-8-title', 'style')],
+    [Input('transferencias-theme-store', 'data')]
+)
+def update_card_title_colors(theme):
+    title_color = '#ffffff' if theme == 'dark' else '#34495e'
+    title_style = {
+        'color': title_color,
+        'fontSize': '14px',
+        'margin': '0 0 10px 0',
+        'fontFamily': 'Inter'
+    }
+    return [title_style] * 8
+
 
 @callback(
     [Output('transferencias-transferencias-totales', 'children'),
@@ -525,11 +554,11 @@ def update_cards(session_data, dropdown_value, mes, data_store):
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
-        resumen = analyzer.get_resumen_ventas(vendedor, mes)
+        resumen = analyzer.get_resumen_transferencias(vendedor, mes)
 
         return (
-            format_currency_int(resumen['total_ventas']),
-            format_currency_int(resumen['ventas_netas']),
+            format_currency_int(resumen['total_transferencias']),
+            format_currency_int(resumen['transferencias_netas']),
             format_currency_int(resumen['total_devoluciones']),
             format_currency_int(resumen['total_descuentos']),
             format_currency_int(resumen['ticket_promedio']),
@@ -549,13 +578,13 @@ def update_cards(session_data, dropdown_value, mes, data_store):
      Input('transferencias-data-store', 'data'),  # ¡NUEVO!
      Input('transferencias-theme-store', 'data')]
 )
-def update_ventas_mes(session_data, dropdown_value, data_store, theme):
+def update_transferencias_mes(session_data, dropdown_value, data_store, theme):
     """
     Update monthly sales evolution chart with area fill and smooth lines.
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
-        data = analyzer.get_ventas_por_mes(vendedor)
+        data = analyzer.get_transferencias_por_mes(vendedor)
         theme_styles = get_theme_styles(theme)
 
         if data.empty:
@@ -581,7 +610,7 @@ def update_ventas_mes(session_data, dropdown_value, data_store, theme):
             x=data['mes_nombre'],
             y=data['valor_neto'],
             mode='lines+markers',
-            name='Ventas',
+            name='transferencias',
             line=dict(
                 color='rgba(74, 144, 226, 0.9)',  # Azul moderno
                 width=4,
@@ -596,7 +625,7 @@ def update_ventas_mes(session_data, dropdown_value, data_store, theme):
             ),
             fill='tozeroy',  # Rellenar hasta el eje Y (área)
             fillcolor='rgba(74, 144, 226, 0.2)',  # Azul claro transparente
-            hovertemplate="<b>%{x}</b><br>Ventas: %{customdata}<br>Facturas: %{text}<extra></extra>",
+            hovertemplate="<b>%{x}</b><br>transferencias: %{customdata}<br>Facturas: %{text}<extra></extra>",
             customdata=[format_currency_int(val)
                         for val in data['valor_neto']],
             text=data['documento_id']
@@ -620,7 +649,7 @@ def update_ventas_mes(session_data, dropdown_value, data_store, theme):
                 showgrid=True,
                 gridcolor=theme_styles['grid_color'],
                 tickformat='$,.0f',
-                title="Ventas ($)",
+                title="transferencias ($)",
                 tickfont=dict(color=theme_styles['text_color']),
                 linecolor=theme_styles['line_color']
             ),
@@ -631,7 +660,7 @@ def update_ventas_mes(session_data, dropdown_value, data_store, theme):
 
         return fig
     except Exception as e:
-        print(f"❌ [update_ventas_mes] Error: {e}")
+        print(f"❌ [update_transferencias_mes] Error: {e}")
         return go.Figure()
 
 
@@ -649,7 +678,7 @@ def update_estacionalidad(session_data, dropdown_value, mes, data_store, theme):
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
-        data = analyzer.get_ventas_por_dia_semana(vendedor, mes)
+        data = analyzer.get_transferencias_por_dia_semana(vendedor, mes)
         theme_styles = get_theme_styles(theme)
 
         if data.empty:
@@ -686,7 +715,7 @@ def update_estacionalidad(session_data, dropdown_value, mes, data_store, theme):
             textposition='outside',
             textfont=dict(size=10, color=theme_styles['text_color']),
             hovertemplate="<b>%{x}</b><br>" +
-                         "Ventas: %{customdata[0]}<br>" +
+                         "transferencias: %{customdata[0]}<br>" +
                          "Facturas: %{customdata[1]}<br>" +
                          "<extra></extra>",
             customdata=[[format_currency_int(val), facturas] for val, facturas in zip(
@@ -707,7 +736,7 @@ def update_estacionalidad(session_data, dropdown_value, mes, data_store, theme):
                 showgrid=True,
                 gridcolor=theme_styles['grid_color'],
                 tickformat='$,.0f',
-                title="Ventas ($)"
+                title="transferencias ($)"
             ),
             showlegend=False,
             margin=dict(t=20, b=60, l=80, r=20)
@@ -733,7 +762,7 @@ def update_zona(session_data, dropdown_value, mes, data_store, theme):
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
-        data = analyzer.get_ventas_por_zona(vendedor, mes)
+        data = analyzer.get_transferencias_por_zona(vendedor, mes)
         theme_styles = get_theme_styles(theme)
 
         if data.empty:
@@ -790,7 +819,7 @@ def update_zona(session_data, dropdown_value, mes, data_store, theme):
             text=[format_currency_int(val) for val in data['valor_neto']],
             textposition='outside',
             textfont=dict(size=10, color=theme_styles['text_color']),
-            hovertemplate="<b>%{x}</b><br>Ventas: %{customdata[0]}<br>Clientes: %{customdata[1]}<extra></extra>",
+            hovertemplate="<b>%{x}</b><br>transferencias: %{customdata[0]}<br>Clientes: %{customdata[1]}<extra></extra>",
             customdata=[[format_currency_int(val), clientes] for val, clientes in zip(
                 data['valor_neto'], data['cliente'])]
         ))
@@ -866,7 +895,7 @@ def update_forma_pago(session_data, dropdown_value, mes, data_store, theme):
             textinfo='percent',
             marker=dict(colors=['#3498DB', '#E74C3C', '#2ECC71', '#F39C12',
                         '#9B59B6'], line=dict(color='#FFFFFF', width=2)),
-            hovertemplate="<b>%{label}</b><br>Ventas: %{customdata}<br>Porcentaje: %{percent}<extra></extra>",
+            hovertemplate="<b>%{label}</b><br>transferencias: %{customdata}<br>Porcentaje: %{percent}<extra></extra>",
             customdata=[format_currency_int(val) for val in data['valor_neto']]
         )])
 
@@ -889,7 +918,7 @@ def update_forma_pago(session_data, dropdown_value, mes, data_store, theme):
 
 
 @callback(
-    Output('transferencias-treemap-ventas', 'figure'),
+    Output('transferencias-treemap-transferencias', 'figure'),
     [Input('session-store', 'data'),
      Input('transferencias-dropdown-vendedor', 'value'),
      Input('transferencias-dropdown-mes', 'value'),
@@ -918,11 +947,12 @@ def update_treemap(session_data, dropdown_value, mes, data_store, theme):
             values=data['valor_neto'],
             parents=[""] * len(data),
             texttemplate="<b>%{label}</b><br>%{customdata}",
-            hovertemplate="<b>%{label}</b><br>Ventas: %{customdata}<br><extra></extra>",
+            hovertemplate="<b>%{label}</b><br>transferencias: %{customdata}<br><extra></extra>",
             customdata=[format_currency_int(val)
                         for val in data['valor_neto']],
-            marker=dict(colorscale='Aggrnyl_r', colorbar=dict(
-                title="Ventas"), line=dict(width=2, color='white')),
+            marker=dict(
+                colorscale='Bluyl',
+                line=dict(width=2, color='white')),
             textfont=dict(size=12, color='white')
         ))
 
@@ -942,82 +972,6 @@ def update_treemap(session_data, dropdown_value, mes, data_store, theme):
 
 
 @callback(
-    Output('transferencias-top-clientes', 'figure'),
-    [Input('session-store', 'data'),
-     Input('transferencias-dropdown-vendedor', 'value'),
-     Input('transferencias-dropdown-mes', 'value'),
-     Input('transferencias-data-store', 'data'),  # ¡NUEVO!
-     Input('transferencias-theme-store', 'data')]
-)
-def update_top_clientes(session_data, dropdown_value, mes, data_store, theme):
-    """
-    Update top customers chart.
-    """
-    try:
-        vendedor = get_selected_vendor(session_data, dropdown_value)
-        data = analyzer.get_top_clientes(vendedor, mes)
-        theme_styles = get_theme_styles(theme)
-
-        if data.empty:
-            fig = go.Figure()
-            fig.add_annotation(
-                text="No hay datos disponibles",
-                xref="paper",
-                yref="paper",
-                x=0.5,
-                y=0.5,
-                showarrow=False,
-                font=dict(size=16, color=theme_styles['text_color'])
-            )
-            fig.update_layout(
-                height=400, paper_bgcolor=theme_styles['plot_bg'])
-            return fig
-
-        data_sorted = data.sort_values('valor_neto', ascending=True)
-        data_sorted['rank'] = sorted(
-            range(1, len(data_sorted) + 1), reverse=True)
-        data_sorted['short_label'] = [f"#{i}" for i in data_sorted['rank']]
-
-        fig = px.bar(
-            data_sorted,
-            x='valor_neto',
-            y='short_label',
-            orientation='h',
-            color='valor_neto',
-            color_continuous_scale='Blugrn'
-        )
-
-        fig.update_traces(
-            text=[
-                name[:50] + "..." if len(name) > 50 else name for name in data_sorted['cliente_completo']],
-            textposition='inside',
-            textfont=dict(color='white', size=10),
-            hovertemplate="<b>%{customdata[0]}</b><br>Ventas: %{customdata[1]}<br>Facturas: %{customdata[2]}<extra></extra>",
-            customdata=[[cliente, format_currency_int(ventas), facturas] for cliente, ventas, facturas in zip(
-                data_sorted['cliente_completo'], data_sorted['valor_neto'], data_sorted['documento_id'])]
-        )
-
-        fig.update_layout(
-            height=400,
-            plot_bgcolor=theme_styles['plot_bg'],
-            paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Inter", size=12,
-                      color=theme_styles['text_color']),
-            xaxis=dict(tickformat='$,.0f', showgrid=True,
-                       gridcolor=theme_styles['grid_color']),
-            yaxis=dict(title="Ranking", categoryorder='array',
-                       categoryarray=data_sorted['short_label']),
-            showlegend=False,
-            margin=dict(t=20, b=40, l=80, r=80)
-        )
-
-        return fig
-    except Exception as e:
-        print(f"❌ [update_top_clientes] Error: {e}")
-        return go.Figure()
-
-
-@callback(
     Output('transferencias-treemap-acumuladas', 'figure'),
     [Input('session-store', 'data'),
      Input('transferencias-dropdown-vendedor', 'value'),
@@ -1031,7 +985,7 @@ def update_treemap_acumuladas(session_data, dropdown_value, mes, data_store, the
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
-        data = analyzer.get_ventas_acumuladas_mes(mes, vendedor)
+        data = analyzer.get_transferencias_acumuladas_mes(mes, vendedor)
         theme_styles = get_theme_styles(theme)
 
         if data.empty:
@@ -1054,13 +1008,12 @@ def update_treemap_acumuladas(session_data, dropdown_value, mes, data_store, the
             values=data['valor_neto'],
             parents=[""] * len(data),
             texttemplate="<b>%{label}</b><br>%{customdata}",
-            hovertemplate="<b>%{label}</b><br>Ventas Acumuladas: %{customdata}<br>Facturas: %{text}<extra></extra>",
+            hovertemplate="<b>%{label}</b><br>transferencias Acumuladas: %{customdata}<br>Facturas: %{text}<extra></extra>",
             customdata=[format_currency_int(val)
                         for val in data['valor_neto']],
             text=data['documento_id'],
             marker=dict(
-                colorscale='Agsunset_r',
-                colorbar=dict(title="Ventas Acumuladas"),
+                colorscale='Bluyl',
                 line=dict(width=2, color='white')
             ),
             textfont=dict(size=12, color='white')
@@ -1100,7 +1053,7 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, them
         if data.empty:
             fig = go.Figure()
             fig.add_annotation(
-                text="No hay clientes sin ventas recientes",
+                text="No hay clientes sin transferencias recientes",
                 xref="paper", yref="paper",
                 x=0.5, y=0.5, xanchor='center', yanchor='middle',
                 showarrow=False,
@@ -1131,24 +1084,22 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, them
             labels=labels,
             values=data['dias_sin_venta'],  # Size by days without sales
             parents=[""] * len(data),
-            texttemplate="<b>%{label}</b><br>Ventas: %{customdata}",
+            texttemplate="<b>%{label}</b><br>transferencias: %{customdata}",
             hovertemplate="<b>%{text}</b><br>" +
                          # %{value} now shows days
                          "Días sin venta: %{value}<br>" +
-                         "Ventas históricas: %{customdata[0]}<br>" +
+                         "transferencias históricas: %{customdata[0]}<br>" +
                          "Última venta: %{customdata[1]}<br>" +
                          "<extra></extra>",
             text=[cliente[:80] + "..." if len(cliente) > 80 else cliente
                   for cliente in data['cliente_completo']],
-            customdata=[[format_currency_int(ventas), fecha_str]
-                        for ventas, fecha_str in zip(
+            customdata=[[format_currency_int(transferencias), fecha_str]
+                        for transferencias, fecha_str in zip(
                 data['valor_neto'],
                 fechas_formatted)],
             marker=dict(
                 colors=data['dias_sin_venta'],  # Color by days without sales
-                # Red to Blue, reversed (red = more days)
                 colorscale='RdYlBu_r',
-                colorbar=dict(title="Días sin venta"),
                 line=dict(width=2, color='white'),
                 cmin=data['dias_sin_venta'].min(),
                 cmax=data['dias_sin_venta'].max()
@@ -1191,7 +1142,7 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
         if cliente == 'Seleccione un cliente':
             fig = go.Figure()
             fig.add_annotation(
-                text="Seleccione un cliente para ver su evolución diaria de ventas",
+                text="Seleccione un cliente para ver su evolución diaria de transferencias",
                 xref="paper", yref="paper",
                 x=0.5, y=0.5, xanchor='center', yanchor='middle',
                 showarrow=False,
@@ -1244,7 +1195,7 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
             return fig
 
         # Calculate totals for title
-        total_ventas_periodo = data['valor_neto'].sum()
+        total_transferencias_periodo = data['valor_neto'].sum()
         num_dias = len(data)
 
         # Create bar chart
@@ -1272,7 +1223,7 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
             textposition='outside',
             textfont=dict(size=9, color=theme_styles['text_color']),
             hovertemplate="<b>%{x}</b><br>" +
-                         "Ventas: %{customdata[0]}<br>" +
+                         "transferencias: %{customdata[0]}<br>" +
                          "Facturas: %{customdata[1]}<br>" +
                          "<extra></extra>",
             customdata=[[format_currency_int(val), facturas] for val, facturas in zip(
@@ -1283,9 +1234,9 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
         cliente_corto = cliente[:80] + '...' if len(cliente) > 80 else cliente
 
         if mes != 'Todos':
-            titulo_completo = f"Total: {format_currency_int(total_ventas_periodo)} ({num_dias} días)<br><sub>{cliente_corto} - {mes}</sub>"
+            titulo_completo = f"Total: {format_currency_int(total_transferencias_periodo)} ({num_dias} días)<br><sub>{cliente_corto} - {mes}</sub>"
         else:
-            titulo_completo = f"Total: {format_currency_int(total_ventas_periodo)} ({num_dias} días)<br><sub>{cliente_corto}</sub>"
+            titulo_completo = f"Total: {format_currency_int(total_transferencias_periodo)} ({num_dias} días)<br><sub>{cliente_corto}</sub>"
 
         fig.update_layout(
             title=dict(
@@ -1308,7 +1259,7 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
                 tickfont=dict(color=theme_styles['text_color'])
             ),
             yaxis=dict(
-                title="Ventas ($)",
+                title="transferencias ($)",
                 showgrid=True,
                 gridcolor=theme_styles['grid_color'],
                 linecolor=theme_styles['line_color'],
@@ -1322,6 +1273,83 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
         return fig
     except Exception as e:
         print(f"❌ [update_evolucion_cliente] Error: {e}")
+        return go.Figure()
+
+
+@callback(
+    Output('transferencias-top-clientes', 'figure'),
+    [Input('session-store', 'data'),
+     Input('transferencias-dropdown-vendedor', 'value'),
+     Input('transferencias-dropdown-mes', 'value'),
+     Input('transferencias-data-store', 'data'),  # ¡NUEVO!
+     Input('transferencias-theme-store', 'data')]
+)
+def update_top_clientes(session_data, dropdown_value, mes, data_store, theme):
+    """
+    Update top customers chart.
+    """
+    try:
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        data = analyzer.get_top_clientes(vendedor, mes)
+        theme_styles = get_theme_styles(theme)
+
+        if data.empty:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No hay datos disponibles",
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=400, paper_bgcolor=theme_styles['plot_bg'])
+            return fig
+
+        data_sorted = data.sort_values('valor_neto', ascending=True)
+        data_sorted['rank'] = sorted(
+            range(1, len(data_sorted) + 1), reverse=True)
+        data_sorted['short_label'] = [f"#{i}" for i in data_sorted['rank']]
+
+        fig = px.bar(
+            data_sorted,
+            x='valor_neto',
+            y='short_label',
+            orientation='h',
+            color='valor_neto',
+            color_continuous_scale='Blugrn'
+        )
+
+        fig.update_traces(
+            text=[
+                name[:100] + "..." if len(name) > 100 else name for name in data_sorted['cliente_completo']],
+            textposition='inside',
+            textfont=dict(color='white', size=10),
+            hovertemplate="<b>%{customdata[0]}</b><br>transferencias: %{customdata[1]}<br>Facturas: %{customdata[2]}<extra></extra>",
+            customdata=[[cliente, format_currency_int(transferencias), facturas] for cliente, transferencias, facturas in zip(
+                data_sorted['cliente_completo'], data_sorted['valor_neto'], data_sorted['documento_id'])]
+        )
+
+        fig.update_layout(
+            height=400,
+            plot_bgcolor=theme_styles['plot_bg'],
+            paper_bgcolor=theme_styles['plot_bg'],
+            font=dict(family="Inter", size=12,
+                      color=theme_styles['text_color']),
+            xaxis=dict(tickformat='$,.0f', showgrid=True,
+                       gridcolor=theme_styles['grid_color']),
+            yaxis=dict(title="Ranking", categoryorder='array',
+                       categoryarray=data_sorted['short_label']),
+            xaxis_title="Ventas",
+            showlegend=False,
+            margin=dict(t=20, b=40, l=80, r=80)
+        )
+
+        return fig
+    except Exception as e:
+        print(f"❌ [update_top_clientes] Error: {e}")
         return go.Figure()
 
 
@@ -1579,7 +1607,9 @@ def update_dropdown_styles(theme, session_data):
     [Input('transferencias-theme-store', 'data')]
 )
 def update_card_styles(theme):
-    """Update styles for summary cards based on theme."""
+    """
+    Update styles for summary cards based on theme.
+    """
     theme_styles = get_theme_styles(theme)
 
     card_style = {

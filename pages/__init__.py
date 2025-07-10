@@ -3,3 +3,4 @@ from .ventas import *
 from .login import *
 from .dashboard_home import *
 from .transferencias import *
+from .proveedores import *
