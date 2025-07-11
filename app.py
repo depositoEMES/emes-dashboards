@@ -3,6 +3,8 @@ import dash
 from dash import html, dcc, Input, Output, State, callback
 
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
+app.title = "Depósito de Medicamentos Emes S.A.S"
+
 server = app.server
 
 # Importar paginas

@@ -834,6 +834,105 @@ def update_cliente_dropdown_options(session_data, dropdown_value, data_store):
         return []
 
 
+# @callback(
+#     Output('cartera-tabla-cliente-detalle', 'children'),
+#     [Input('cartera-dropdown-cliente', 'value'),
+#      Input('session-store', 'data'),
+#      Input('cartera-dropdown-vendedor', 'value'),
+#      Input('cartera-theme-store', 'data')]
+# )
+# def update_cliente_detalle_table(cliente_seleccionado, session_data, dropdown_value, theme):
+#     """
+#     Update client detail table with current and overdue portfolio sections.
+#     """
+#     try:
+#         if not cliente_seleccionado:
+#             return html.Div([
+#                 html.P("Seleccione un cliente para ver el detalle de su cartera.",
+#                        style={'textAlign': 'center', 'color': 'gray', 'fontSize': '16px', 'fontFamily': 'Inter'})
+#             ])
+
+#         vendedor = get_selected_vendor(session_data, dropdown_value)
+#         detalle = analyzer.get_cliente_detalle(cliente_seleccionado, vendedor)
+#         theme_styles = get_theme_styles(theme)
+
+#         if not detalle['sin_vencer'].empty or not detalle['vencida'].empty:
+#             # Header con forma de pago
+#             elementos = [
+#                 html.Div([
+#                     html.H4(f"Forma de Pago: {detalle['forma_pago']}", style={
+#                         'backgroundColor': '#17a2b8',
+#                         'color': 'white',
+#                         'padding': '12px 20px',
+#                         'margin': '0 0 20px 0',
+#                         'borderRadius': '8px',
+#                         'fontFamily': 'Inter',
+#                         'textAlign': 'center',
+#                         'fontSize': '16px',
+#                         'fontWeight': 'bold'
+#                     })
+#                 ])
+#             ]
+
+#             # Sección Cartera Vencida (Rojo)
+#             if not detalle['vencida'].empty:
+#                 elementos.append(
+#                     html.Div([
+#                         html.H4("📕 Cartera Vencida", style={
+#                             'backgroundColor': '#e74c3c',
+#                             'color': 'white',
+#                             'padding': '10px 15px',
+#                             'margin': '10px 0 15px 0',
+#                             'borderRadius': '6px',
+#                             'fontFamily': 'Inter',
+#                             'fontSize': '16px',
+#                             'fontWeight': 'bold'
+#                         }),
+#                         crear_tabla_documentos(
+#                             detalle['vencida'],
+#                             theme_styles,
+#                             'vencida',
+#                             theme
+#                         )
+#                     ])
+#                 )
+
+#             # Sección Cartera Sin Vencer (Verde)
+#             if not detalle['sin_vencer'].empty:
+#                 elementos.append(
+#                     html.Div([
+#                         html.H4("📗 Cartera Sin Vencer", style={
+#                             'backgroundColor': '#27ae60',
+#                             'color': 'white',
+#                             'padding': '10px 15px',
+#                             'margin': '10px 0 15px 0',
+#                             'borderRadius': '6px',
+#                             'fontFamily': 'Inter',
+#                             'fontSize': '16px',
+#                             'fontWeight': 'bold'
+#                         }),
+#                         crear_tabla_documentos(
+#                             detalle['sin_vencer'],
+#                             theme_styles,
+#                             'sin_vencer',
+#                             theme
+#                         )
+#                     ])
+#                 )
+
+#             return html.Div(elementos)
+#         else:
+#             return html.Div([
+#                 html.P("No se encontraron documentos para este cliente.",
+#                        style={'textAlign': 'center', 'color': 'gray', 'fontSize': '16px', 'fontFamily': 'Inter'})
+#             ])
+
+#     except Exception as e:
+#         print(f"Error en update_cliente_detalle_table: {e}")
+#         return html.Div([
+#             html.P("Error al cargar los datos del cliente.",
+#                    style={'textAlign': 'center', 'color': '#e74c3c', 'fontSize': '16px', 'fontFamily': 'Inter'})
+#         ])
 @callback(
     Output('cartera-tabla-cliente-detalle', 'children'),
     [Input('cartera-dropdown-cliente', 'value'),
@@ -843,7 +942,7 @@ def update_cliente_dropdown_options(session_data, dropdown_value, data_store):
 )
 def update_cliente_detalle_table(cliente_seleccionado, session_data, dropdown_value, theme):
     """
-    Update client detail table with current and overdue portfolio sections.
+    Update client detail table with unified current and overdue portfolio.
     """
     try:
         if not cliente_seleccionado:
@@ -856,7 +955,7 @@ def update_cliente_detalle_table(cliente_seleccionado, session_data, dropdown_va
         detalle = analyzer.get_cliente_detalle(cliente_seleccionado, vendedor)
         theme_styles = get_theme_styles(theme)
 
-        if not detalle['sin_vencer'].empty or not detalle['vencida'].empty:
+        if not detalle['documentos'].empty:
             # Header con forma de pago
             elementos = [
                 html.Div([
@@ -874,51 +973,11 @@ def update_cliente_detalle_table(cliente_seleccionado, session_data, dropdown_va
                 ])
             ]
 
-            # Sección Cartera Sin Vencer (Verde)
-            if not detalle['sin_vencer'].empty:
-                elementos.append(
-                    html.Div([
-                        html.H4("📗 Cartera Sin Vencer", style={
-                            'backgroundColor': '#27ae60',
-                            'color': 'white',
-                            'padding': '10px 15px',
-                            'margin': '10px 0 15px 0',
-                            'borderRadius': '6px',
-                            'fontFamily': 'Inter',
-                            'fontSize': '16px',
-                            'fontWeight': 'bold'
-                        }),
-                        crear_tabla_documentos(
-                            detalle['sin_vencer'],
-                            theme_styles,
-                            'sin_vencer',
-                            theme
-                        )
-                    ])
-                )
-
-            # Sección Cartera Vencida (Rojo)
-            if not detalle['vencida'].empty:
-                elementos.append(
-                    html.Div([
-                        html.H4("📕 Cartera Vencida", style={
-                            'backgroundColor': '#e74c3c',
-                            'color': 'white',
-                            'padding': '10px 15px',
-                            'margin': '10px 0 15px 0',
-                            'borderRadius': '6px',
-                            'fontFamily': 'Inter',
-                            'fontSize': '16px',
-                            'fontWeight': 'bold'
-                        }),
-                        crear_tabla_documentos(
-                            detalle['vencida'],
-                            theme_styles,
-                            'vencida',
-                            theme
-                        )
-                    ])
-                )
+            # Crear tabla unificada
+            elementos.append(
+                crear_tabla_unificada(
+                    detalle['documentos'], theme_styles, theme)
+            )
 
             return html.Div(elementos)
         else:
@@ -933,6 +992,400 @@ def update_cliente_detalle_table(cliente_seleccionado, session_data, dropdown_va
             html.P("Error al cargar los datos del cliente.",
                    style={'textAlign': 'center', 'color': '#e74c3c', 'fontSize': '16px', 'fontFamily': 'Inter'})
         ])
+
+
+def crear_tabla_unificada(df, theme_styles, theme):
+    """
+    Create a unified table for both overdue and current documents.
+    """
+    if df.empty:
+        return html.P("No hay documentos para este cliente.")
+
+    # Header row
+    header_style = {
+        'backgroundColor': '#2c3e50',
+        'color': 'white',
+        'padding': '12px 8px',
+        'fontWeight': 'bold',
+        'fontSize': '13px',
+        'fontFamily': 'Inter',
+        'textAlign': 'center',
+        'border': '1px solid #34495e',
+        'position': 'sticky',
+        'top': '0',
+        'zIndex': '10'
+    }
+
+    # Base cell style
+    cell_style_base = {
+        'padding': '10px 8px',
+        'fontSize': '12px',
+        'fontFamily': 'Inter',
+        'textAlign': 'center',
+        'border': '1px solid #dee2e6'
+    }
+
+    # Create table rows
+    table_rows = [
+        html.Tr([
+            html.Th("Estado", style={**header_style, 'width': '80px'}),
+            html.Th("Documento", style={**header_style, 'width': '80px'}),
+            html.Th("Valor", style={**header_style, 'width': '90px'}),
+            html.Th("Aplicado", style={**header_style, 'width': '90px'}),
+            html.Th("Saldo", style={**header_style, 'width': '90px'}),
+            html.Th("Fecha", style={**header_style, 'width': '90px'}),
+            html.Th("Vencimiento", style={**header_style, 'width': '90px'}),
+            html.Th("Días", style={**header_style, 'width': '100px'}),
+            html.Th("Notas", style={**header_style,
+                    'width': '190px', 'maxWidth': '190px'})
+        ])
+    ]
+
+    for i, (_, row) in enumerate(df.iterrows()):
+        # Determine document status based on dias_vencidos
+        dias_vencidos = int(row['dias_vencidos']) if pd.notna(
+            row['dias_vencidos']) else None
+
+        # Determine status and colors
+        if dias_vencidos is not None and dias_vencidos == 0:
+            estado_text = 'VENCE HOY'
+            estado_bg = '#FF8C42'
+
+            if theme == 'dark':
+                row_bg = '#4a3520' if i % 2 == 0 else '#5a4028'  # Dark orange
+            else:
+                row_bg = '#fff3e0' if i % 2 == 0 else '#ffe0b2'  # Light orange
+
+        elif row['tipo'] == 'vencida' or (dias_vencidos is not None and dias_vencidos > 0):
+            estado_text = 'VENCIDA'
+            estado_bg = '#e74c3c'
+
+            if theme == 'dark':
+                row_bg = '#4a2d2d' if i % 2 == 0 else '#5a3535'  # Dark red
+            else:
+                row_bg = '#f8e8e8' if i % 2 == 0 else '#f5c6cb'  # Light red
+
+        else:
+            if abs(dias_vencidos) >= 2:
+                estado_text = 'SIN VENCER'
+                estado_bg = '#27ae60'
+
+                if theme == 'dark':
+                    row_bg = '#2d4a35' if i % 2 == 0 else '#35553d'  # Dark green
+                else:
+                    row_bg = '#e8f5e8' if i % 2 == 0 else '#d4edda'  # Light green
+            else:
+                estado_text = 'PRÓXIMO A VENCER'
+                estado_bg = '#FFB74D'
+
+                if theme == 'dark':
+                    row_bg = '#4a3520' if i % 2 == 0 else '#5a4028'  # Dark orange
+                else:
+                    row_bg = '#fff3e0' if i % 2 == 0 else '#ffe0b2'  # Light orange
+
+        cell_style = cell_style_base.copy()
+        cell_style['backgroundColor'] = row_bg
+
+        # Estado cell with special styling
+        estado_style = {
+            **cell_style_base,
+            'backgroundColor': estado_bg,
+            'color': 'white',
+            'fontWeight': 'bold',
+            'fontSize': '10px',
+            'border': '1px solid #dee2e6',
+            'textAlign': 'center'
+        }
+
+        # Format dates
+        fecha_str = row['fecha'].strftime(
+            '%Y-%m-%d') if pd.notna(row['fecha']) else 'N/A'
+        vencimiento_str = row['vencimiento'].strftime(
+            '%Y-%m-%d') if pd.notna(row['vencimiento']) else 'N/A'
+
+        # Format days overdue with colors
+        if isinstance(dias_vencidos, int):
+            if dias_vencidos > 0:
+                dias_display = f"{dias_vencidos} días (vencidos)"
+                dias_color = '#e74c3c'
+            elif dias_vencidos < 0:
+                abs_dias_vencidos = abs(dias_vencidos)
+
+                if abs_dias_vencidos > 1:
+                    dias_display = f"{abs(dias_vencidos)} días (por vencer)"
+                    dias_color = '#27ae60'
+                else:
+                    dias_display = f"Vence mañana"
+                    dias_color = '#FFB74D'
+            else:
+                dias_display = "Vence hoy"
+                dias_color = '#FF8C42'  # Mismo color que VENCE HOY
+        else:
+            dias_display = 'N/A'
+            dias_color = '#95a5a6'
+
+        # Handle notas column intelligently
+        notas_text = str(row.get('notas', 'Sin notas'))
+        if len(notas_text) > 40:
+            notas_display = notas_text[:37] + "..."
+            notas_title = notas_text  # Full text in title for hover
+        else:
+            notas_display = notas_text
+            notas_title = notas_text
+
+        notas_style = {
+            **cell_style,
+            'maxWidth': '190px',
+            'overflow': 'hidden',
+            'textOverflow': 'ellipsis',
+            'whiteSpace': 'nowrap',
+            'textAlign': 'left',
+            'cursor': 'help' if len(notas_text) > 30 else 'default'
+        }
+
+        table_rows.append(
+            html.Tr([
+                html.Td(estado_text, style=estado_style),
+                html.Td(row['documento_id'], style=cell_style),
+                html.Td(format_currency_int(row['valor']), style=cell_style),
+                html.Td(format_currency_int(
+                    row['aplicado']), style=cell_style),
+                html.Td(format_currency_int(row['saldo']), style=cell_style),
+                html.Td(fecha_str, style=cell_style),
+                html.Td(vencimiento_str, style=cell_style),
+                html.Td(dias_display, style={
+                        **cell_style, 'color': dias_color, 'fontWeight': 'bold'}),
+                html.Td(notas_display, style=notas_style, title=notas_title)
+            ])
+        )
+
+    # Container with scroll
+    return html.Div([
+        html.Div([
+            html.Table(
+                table_rows,
+                style={
+                    'width': '100%',
+                    'borderCollapse': 'collapse',
+                    'fontSize': '12px',
+                    'fontFamily': 'Inter'
+                }
+            )
+        ], style={
+            'maxHeight': '600px',
+            'maxWidth': '100%',
+            'overflowY': 'auto',
+            'overflowX': 'auto',
+            'border': f'2px solid {theme_styles["line_color"]}',
+            'borderRadius': '8px',
+            'boxShadow': '0 4px 8px rgba(0,0,0,0.1)'
+        }),
+
+        # Updated Legend with three states
+        html.Div([
+            html.Div([
+                html.Span("●", style={'color': '#e74c3c',
+                          'marginRight': '5px', 'fontSize': '16px'}),
+                html.Span("Vencida", style={
+                          'marginRight': '15px', 'fontSize': '12px'}),
+                html.Span("●", style={'color': '#FF8C42',
+                          'marginRight': '5px', 'fontSize': '16px'}),
+                html.Span("Vence Hoy", style={
+                          'marginRight': '15px', 'fontSize': '12px'}),
+                html.Span("●", style={'color': '#FFB74D',
+                          'marginRight': '5px', 'fontSize': '16px'}),
+                html.Span("Vence mañana", style={
+                          'marginRight': '15px', 'fontSize': '12px'}),
+                html.Span("●", style={'color': '#27ae60',
+                          'marginRight': '5px', 'fontSize': '16px'}),
+                html.Span("Sin Vencer", style={'fontSize': '12px'})
+            ], style={
+                'textAlign': 'center',
+                'marginTop': '10px',
+                'fontFamily': 'Inter',
+                'color': theme_styles['text_color']
+            })
+        ])
+    ])
+# def crear_tabla_unificada(df, theme_styles, theme):
+#     """
+#     Create a unified table for both overdue and current documents.
+#     """
+#     if df.empty:
+#         return html.P("No hay documentos para este cliente.")
+
+#     # Header row
+#     header_style = {
+#         'backgroundColor': '#2c3e50',
+#         'color': 'white',
+#         'padding': '12px 8px',
+#         'fontWeight': 'bold',
+#         'fontSize': '13px',
+#         'fontFamily': 'Inter',
+#         'textAlign': 'center',
+#         'border': '1px solid #34495e',
+#         'position': 'sticky',
+#         'top': '0',
+#         'zIndex': '10'
+#     }
+
+#     # Base cell style
+#     cell_style_base = {
+#         'padding': '10px 8px',
+#         'fontSize': '12px',
+#         'fontFamily': 'Inter',
+#         'textAlign': 'center',
+#         'border': '1px solid #dee2e6'
+#     }
+
+#     # Create table rows
+#     table_rows = [
+#         html.Tr([
+#             html.Th("Estado", style={**header_style, 'width': '80px'}),
+#             html.Th("Documento", style={**header_style, 'width': '100px'}),
+#             html.Th("Valor", style={**header_style, 'width': '120px'}),
+#             html.Th("Aplicado", style={**header_style, 'width': '120px'}),
+#             html.Th("Saldo", style={**header_style, 'width': '120px'}),
+#             html.Th("Fecha", style={**header_style, 'width': '100px'}),
+#             html.Th("Vencimiento", style={**header_style, 'width': '100px'}),
+#             html.Th("Días", style={**header_style, 'width': '80px'}),
+#             html.Th("Notas", style={**header_style,
+#                     'width': '150px', 'maxWidth': '150px'})
+#         ])
+#     ]
+
+#     for i, (_, row) in enumerate(df.iterrows()):
+#         # Determine row colors based on type and theme
+#         if theme == 'dark':
+#             if row['tipo'] == 'vencida':
+#                 row_bg = '#4a2d2d' if i % 2 == 0 else '#5a3535'  # Dark red
+#                 estado_bg = '#e74c3c'
+#                 estado_text = 'VENCIDA'
+#             else:
+#                 row_bg = '#2d4a35' if i % 2 == 0 else '#35553d'  # Dark green
+#                 estado_bg = '#27ae60'
+#                 estado_text = 'AL DÍA'
+#         else:
+#             if row['tipo'] == 'vencida':
+#                 row_bg = '#f8e8e8' if i % 2 == 0 else '#f5c6cb'  # Light red
+#                 estado_bg = '#e74c3c'
+#                 estado_text = 'VENCIDA'
+#             else:
+#                 row_bg = '#e8f5e8' if i % 2 == 0 else '#d4edda'  # Light green
+#                 estado_bg = '#27ae60'
+#                 estado_text = 'AL DÍA'
+
+#         cell_style = cell_style_base.copy()
+#         cell_style['backgroundColor'] = row_bg
+
+#         # Estado cell with special styling
+#         estado_style = {
+#             **cell_style_base,
+#             'backgroundColor': estado_bg,
+#             'color': 'white',
+#             'fontWeight': 'bold',
+#             'fontSize': '10px',
+#             'border': '1px solid #dee2e6'
+#         }
+
+#         # Format dates
+#         fecha_str = row['fecha'].strftime(
+#             '%Y-%m-%d') if pd.notna(row['fecha']) else 'N/A'
+#         vencimiento_str = row['vencimiento'].strftime(
+#             '%Y-%m-%d') if pd.notna(row['vencimiento']) else 'N/A'
+
+#         # Format days overdue
+#         dias_vencidos = int(row['dias_vencidos']) if pd.notna(
+#             row['dias_vencidos']) else 'N/A'
+#         if isinstance(dias_vencidos, int):
+#             if dias_vencidos > 0:
+#                 dias_display = f"{dias_vencidos}"
+#                 dias_color = '#e74c3c'
+#             elif dias_vencidos < 0:
+#                 dias_display = f"{abs(dias_vencidos)}"
+#                 dias_color = '#f39c12'
+#             else:
+#                 dias_display = "0"
+#                 dias_color = '#e67e22'
+#         else:
+#             dias_display = 'N/A'
+#             dias_color = '#95a5a6'
+
+#         # Handle notas column intelligently
+#         notas_text = str(row.get('notas', 'Sin notas'))
+#         if len(notas_text) > 30:
+#             notas_display = notas_text[:27] + "..."
+#             notas_title = notas_text  # Full text in title for hover
+#         else:
+#             notas_display = notas_text
+#             notas_title = notas_text
+
+#         notas_style = {
+#             **cell_style,
+#             'maxWidth': '150px',
+#             'overflow': 'hidden',
+#             'textOverflow': 'ellipsis',
+#             'whiteSpace': 'nowrap',
+#             'textAlign': 'left',
+#             'cursor': 'help' if len(notas_text) > 30 else 'default'
+#         }
+
+#         table_rows.append(
+#             html.Tr([
+#                 html.Td(estado_text, style=estado_style),
+#                 html.Td(row['documento_id'], style=cell_style),
+#                 html.Td(format_currency_int(row['valor']), style=cell_style),
+#                 html.Td(format_currency_int(
+#                     row['aplicado']), style=cell_style),
+#                 html.Td(format_currency_int(row['saldo']), style=cell_style),
+#                 html.Td(fecha_str, style=cell_style),
+#                 html.Td(vencimiento_str, style=cell_style),
+#                 html.Td(dias_display, style={
+#                         **cell_style, 'color': dias_color, 'fontWeight': 'bold'}),
+#                 html.Td(notas_display, style=notas_style, title=notas_title)
+#             ])
+#         )
+
+#     # Container with scroll
+#     return html.Div([
+#         html.Div([
+#             html.Table(
+#                 table_rows,
+#                 style={
+#                     'width': '100%',
+#                     'borderCollapse': 'collapse',
+#                     'fontSize': '12px',
+#                     'fontFamily': 'Inter'
+#                 }
+#             )
+#         ], style={
+#             'maxHeight': '600px',
+#             'maxWidth': '100%',
+#             'overflowY': 'auto',
+#             'overflowX': 'auto',
+#             'border': f'2px solid {theme_styles["line_color"]}',
+#             'borderRadius': '8px',
+#             'boxShadow': '0 4px 8px rgba(0,0,0,0.1)'
+#         }),
+
+#         # Legend
+#         html.Div([
+#             html.Div([
+#                 html.Span("●", style={'color': '#e74c3c',
+#                           'marginRight': '5px', 'fontSize': '16px'}),
+#                 html.Span("Cartera Vencida", style={
+#                           'marginRight': '20px', 'fontSize': '12px'}),
+#                 html.Span("●", style={'color': '#27ae60',
+#                           'marginRight': '5px', 'fontSize': '16px'}),
+#                 html.Span("Cartera al Día", style={'fontSize': '12px'})
+#             ], style={
+#                 'textAlign': 'center',
+#                 'marginTop': '10px',
+#                 'fontFamily': 'Inter',
+#                 'color': theme_styles['text_color']
+#             })
+#         ])
+#     ])
 
 
 def crear_tabla_documentos(df, theme_styles, tipo, theme):
@@ -987,6 +1440,7 @@ def crear_tabla_documentos(df, theme_styles, tipo, theme):
             html.Th("Saldo", style=header_style),
             html.Th("Fecha", style=header_style),
             html.Th("Vencimiento", style=header_style),
+            html.Th("Notas", style=header_style),
             html.Th("Días Vencidos", style=header_style)
         ])
     ]
@@ -1027,6 +1481,7 @@ def crear_tabla_documentos(df, theme_styles, tipo, theme):
                 html.Td(format_currency_int(row['saldo']), style=cell_style),
                 html.Td(fecha_str, style=cell_style),
                 html.Td(vencimiento_str, style=cell_style),
+                html.Td(row['notas'], style=cell_style),
                 html.Td(dias_display, style={
                         **cell_style, 'color': dias_color, 'fontWeight': 'bold'})
             ])

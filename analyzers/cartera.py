@@ -118,6 +118,7 @@ class CarteraAnalyzer:
                     'vendedor': cliente_info.get('vendedor', 'Sin Asignar'),
                     'forma_pago': cliente_info.get('forma_pago', 'No Definida'),
                     'fecha': doc_info.get('fecha', ''),
+                    'notas': doc_info.get('notas', ''),
                     'vencimiento': doc_info.get('vencimiento', ''),
                     'saldo': float(doc_info.get('saldo', 0) or 0),
                     'valor': float(doc_info.get('valor', 0) or 0),
@@ -179,7 +180,9 @@ class CarteraAnalyzer:
         """
         if vendedor == 'Todos':
             return self.df_documentos
-        return self.df_documentos[self.df_documentos['vendedor'] == vendedor]
+
+        return \
+            self.df_documentos[self.df_documentos['vendedor'] == vendedor]
 
     def get_resumen(self, vendedor='Todos'):
         """
@@ -488,24 +491,79 @@ class CarteraAnalyzer:
         return \
             sorted([cliente for cliente in clientes if cliente and cliente.strip()])
 
+    # def get_cliente_detalle(self, cliente_completo, vendedor='Todos'):
+    #     """
+    #     Get detailed information for a specific client.
+
+    #     Args:
+    #         cliente_completo (str): Complete client name
+    #         vendedor (str): Salesperson name or 'Todos' for all
+
+    #     Returns:
+    #         dict: Dictionary with client details including documents and payment method
+    #     """
+    #     df = self.filter_by_vendedor(vendedor)
+
+    #     if df.empty or not cliente_completo:
+    #         return {
+    #             'forma_pago': 'No Definida',
+    #             'sin_vencer': pd.DataFrame(),
+    #             'vencida': pd.DataFrame()
+    #         }
+
+    #     # Filter by client
+    #     cliente_df = df[df['cliente_completo'] == cliente_completo].copy()
+
+    #     if cliente_df.empty:
+    #         return {
+    #             'forma_pago': 'No Definida',
+    #             'sin_vencer': pd.DataFrame(),
+    #             'vencida': pd.DataFrame()
+    #         }
+
+    #     # Get payment method (should be the same for all documents of this client)
+    #     forma_pago = cliente_df['forma_pago'].iloc[0]
+
+    #     # Separate documents into current and overdue
+    #     sin_vencer_docs = cliente_df[cliente_df['sin_vencer'] > 0].copy()
+    #     vencida_docs = cliente_df[cliente_df['vencida'] > 0].copy()
+
+    #     # Select relevant columns for the table
+    #     columns_tabla = ['documento_id', 'valor', 'aplicado',
+    #                      'saldo', 'fecha', 'vencimiento', 'notas', 'dias_vencidos']
+
+    #     # Prepare sin vencer dataframe
+    #     if not sin_vencer_docs.empty:
+    #         sin_vencer_tabla = sin_vencer_docs[columns_tabla].copy()
+    #         sin_vencer_tabla = sin_vencer_tabla.sort_values('vencimiento')
+    #     else:
+    #         sin_vencer_tabla = pd.DataFrame(columns=columns_tabla)
+
+    #     # Prepare vencida dataframe
+    #     if not vencida_docs.empty:
+    #         vencida_tabla = vencida_docs[columns_tabla].copy()
+    #         vencida_tabla = vencida_tabla.sort_values(
+    #             'dias_vencidos', ascending=False)
+    #     else:
+    #         vencida_tabla = pd.DataFrame(columns=columns_tabla)
+
+    #     return \
+    #         {
+    #             'forma_pago': forma_pago,
+    #             'sin_vencer': sin_vencer_tabla,
+    #             'vencida': vencida_tabla
+    #         }
+
     def get_cliente_detalle(self, cliente_completo, vendedor='Todos'):
         """
-        Get detailed information for a specific client.
-
-        Args:
-            cliente_completo (str): Complete client name
-            vendedor (str): Salesperson name or 'Todos' for all
-
-        Returns:
-            dict: Dictionary with client details including documents and payment method
+        Get detailed information for a specific client with combined data.
         """
         df = self.filter_by_vendedor(vendedor)
 
         if df.empty or not cliente_completo:
             return {
                 'forma_pago': 'No Definida',
-                'sin_vencer': pd.DataFrame(),
-                'vencida': pd.DataFrame()
+                'documentos': pd.DataFrame()
             }
 
         # Filter by client
@@ -514,39 +572,48 @@ class CarteraAnalyzer:
         if cliente_df.empty:
             return {
                 'forma_pago': 'No Definida',
-                'sin_vencer': pd.DataFrame(),
-                'vencida': pd.DataFrame()
+                'documentos': pd.DataFrame()
             }
 
-        # Get payment method (should be the same for all documents of this client)
+        # Get payment method
         forma_pago = cliente_df['forma_pago'].iloc[0]
 
-        # Separate documents into current and overdue
-        sin_vencer_docs = cliente_df[cliente_df['sin_vencer'] > 0].copy()
-        vencida_docs = cliente_df[cliente_df['vencida'] > 0].copy()
-
-        # Select relevant columns for the table
+        # Prepare combined dataframe
         columns_tabla = ['documento_id', 'valor', 'aplicado',
                          'saldo', 'fecha', 'vencimiento', 'dias_vencidos']
 
-        # Prepare sin vencer dataframe
-        if not sin_vencer_docs.empty:
-            sin_vencer_tabla = sin_vencer_docs[columns_tabla].copy()
-            sin_vencer_tabla = sin_vencer_tabla.sort_values('vencimiento')
-        else:
-            sin_vencer_tabla = pd.DataFrame(columns=columns_tabla)
+        # Add tipo column to distinguish between vencida and sin_vencer
+        documentos_combined = []
 
-        # Prepare vencida dataframe
+        # Add documents with overdue portfolio
+        vencida_docs = cliente_df[cliente_df['vencida'] > 0].copy()
         if not vencida_docs.empty:
-            vencida_tabla = vencida_docs[columns_tabla].copy()
-            vencida_tabla = vencida_tabla.sort_values(
-                'dias_vencidos', ascending=False)
-        else:
-            vencida_tabla = pd.DataFrame(columns=columns_tabla)
+            vencida_docs['tipo'] = 'vencida'
+            vencida_docs['notas'] = vencida_docs.get(
+                'notas', 'Sin notas')  # Handle missing notas
+            documentos_combined.append(
+                vencida_docs[columns_tabla + ['tipo', 'notas']])
 
-        return \
-            {
-                'forma_pago': forma_pago,
-                'sin_vencer': sin_vencer_tabla,
-                'vencida': vencida_tabla
-            }
+        # Add documents without overdue portfolio
+        sin_vencer_docs = cliente_df[cliente_df['sin_vencer'] > 0].copy()
+        if not sin_vencer_docs.empty:
+            sin_vencer_docs['tipo'] = 'sin_vencer'
+            sin_vencer_docs['notas'] = sin_vencer_docs.get(
+                'notas', 'Sin notas')  # Handle missing notas
+            documentos_combined.append(
+                sin_vencer_docs[columns_tabla + ['tipo', 'notas']])
+
+        # Combine all documents
+        if documentos_combined:
+            documentos_df = pd.concat(documentos_combined, ignore_index=True)
+            # Sort by tipo (vencida first) then by dias_vencidos
+            documentos_df = documentos_df.sort_values(
+                ['tipo', 'dias_vencidos'], ascending=[False, False])
+        else:
+            documentos_df = pd.DataFrame(
+                columns=columns_tabla + ['tipo', 'notas'])
+
+        return {
+            'forma_pago': forma_pago,
+            'documentos': documentos_df
+        }
