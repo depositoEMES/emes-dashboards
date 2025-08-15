@@ -21,7 +21,7 @@ def format_currency(value):
     return f"${formatted}"
 
 
-def format_currency_int(value):
+def format_currency_int(value) -> str:
     """
     Format integer numbers as currency.
 

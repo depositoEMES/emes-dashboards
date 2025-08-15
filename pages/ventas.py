@@ -10,9 +10,18 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 
+from components import (
+    create_metrics_grid, 
+    create_empty_metrics, 
+    METRIC_COLORS, 
+)
 from analyzers import VentasAnalyzer
-from utils import format_currency_int, get_theme_styles
-
+from utils import (
+    format_currency_int, 
+    get_theme_styles,
+    get_dropdown_style,
+    get_ultimos_3_meses
+)
 
 analyzer = VentasAnalyzer()
 
@@ -43,23 +52,24 @@ except Exception as e:
     df_num_clientes = pd.DataFrame()
 
 
-def get_dropdown_style(theme):
+def get_user_display_name(session_data):
     """
-    Get dropdown styles based on theme.
+    Obtener nombre del usuario para mostrar en el título
     """
-    if theme == 'dark':
-        return {
-            'backgroundColor': '#2d2d2d',
-            'color': '#ffffff',
-            'border': '1px solid #505050'
-        }
-    else:
-        return {
-            'backgroundColor': 'white',
-            'color': '#2c3e50',
-            'border': '1px solid #ddd'
-        }
-
+    try:
+        if not session_data:
+            return None
+        
+        from utils import can_see_all_vendors, get_user_vendor_filter
+        
+        if can_see_all_vendors(session_data):
+            return None  # Admin ve todos los vendedores
+        else:
+            vendor = get_user_vendor_filter(session_data)
+            return vendor if vendor != 'Todos' else None
+    except Exception as e:
+        print(f"Error en get_user_display_name: {e}")
+        return None
 
 def get_selected_vendor(session_data, dropdown_value):
     """
@@ -96,417 +106,633 @@ layout = html.Div([
         'maxWidth': '300px'
     }),
 
-    # Header
     html.Div([
-        # Fila del título - separada y llamativa
         html.Div([
-            html.H1(
-                id='ventas-titulo-dashboard',
-                children="Dashboard de Ventas",
-                style={
-                    'textAlign': 'center',
-                    'fontSize': '2.5rem',
-                    'fontWeight': '700',
-                    'fontFamily': 'Inter',
-                    'background': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    'webkitBackgroundClip': 'text',
-                    'webkitTextFillColor': 'transparent',
-                    'backgroundClip': 'text',
-                    'margin': '0 0 20px 0',
-                    'letterSpacing': '-0.02em',
-                    'textShadow': '0 2px 4px rgba(0,0,0,0.1)'
-                }
-            )
-        ], style={'width': '100%', 'marginBottom': '25px'}),
-
-        # Fila de controles - con mejor alineación
-        html.Div([
-            # Dropdown para vendedores
             html.Div([
-                html.Label("Vendedor:", style={
-                    'fontWeight': 'bold',
-                    'marginBottom': '8px',
-                    'fontFamily': 'Inter',
-                    'fontSize': '14px'
-                }, id='ventas-dropdown-vendedor-label'),
-                dcc.Dropdown(
-                    id='ventas-dropdown-vendedor',
-                    options=[{'label': v, 'value': v}
-                             for v in analyzer.vendedores_list],
-                    value='Todos',
-                    style={'fontFamily': 'Inter'},
-                    className='custom-dropdown'
+                html.Img(
+                    src='/assets/logo.png',
+                    className="top-left-logo",
+                    alt="Logo de la empresa",
+                    style={
+                        'maxWidth': '160px',
+                        'height': 'auto',
+                        'filter': 'drop-shadow(0 8px 16px rgba(30, 58, 138, 0.3))',
+                        'transition': 'all 0.3s ease'
+                    }
                 )
-            ], style={
-                'flex': '0 0 40%'
-            }, id='ventas-dropdown-vendedor-container'),
-
-            # Dropdown de mes
-            html.Div([
-                html.Label("Mes:", style={
-                    'fontWeight': 'bold',
-                    'marginBottom': '8px',
-                    'fontFamily': 'Inter',
-                    'fontSize': '14px'
-                }),
-                dcc.Dropdown(
-                    id='ventas-dropdown-mes',
-                    options=[{'label': m, 'value': m}
-                             for m in analyzer.meses_list],
-                    value='Todos',
-                    style={'fontFamily': 'Inter'},
-                    className='custom-dropdown'
-                )
-            ], style={
-                'flex': '0 0 25%',
-                'marginLeft': '2%'
+            ], className="logo-left-container", style={
+                'display': 'flex',
+                'alignItems': 'center'
             }),
 
-            # Espacio flexible para empujar el botón a la derecha
-            html.Div(style={'flex': '1'}),
+            html.Div([
+                html.H1(
+                    id='ventas-titulo-principal',
+                    className="main-title",
+                    children="Vendedores"
+                ),
+                html.P(
+                    id='ventas-subtitulo',
+                    className="main-subtitle",
+                    children="Análisis completo de ventas y performance"
+                )
+            ], className="center-title-section", style={
+                'flex': '1',
+                'display': 'flex',
+                'flexDirection': 'column',
+                'justifyContent': 'center',
+                'alignItems': 'center'
+            }),
 
-            # Botón de tema alineado correctamente
             html.Div([
                 html.Button(
-                    html.Div([
-                        html.Span('🌙', id='ventas-theme-icon',
-                                  style={'fontSize': '18px'}),
-                        html.Span('Oscuro', id='ventas-theme-text', style={
-                            'marginLeft': '8px',
-                            'fontSize': '13px',
-                            'fontWeight': '500'
-                        })
-                    ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}),
-                    id='ventas-theme-toggle',
+                    "🌙",
+                    id="ventas-theme-toggle",
+                    title="Cambiar tema",
                     n_clicks=0,
                     style={
-                        'backgroundColor': '#f8f9fa',
-                        'border': '2px solid #e9ecef',
-                        'borderRadius': '12px',
-                        'padding': '10px 16px',
+                        'background': 'transparent',
+                        'border': '2px solid rgba(255, 255, 255, 0.3)',
+                        'borderRadius': '50%',
+                        'width': '44px',
+                        'height': '44px',
+                        'fontSize': '18px',
                         'cursor': 'pointer',
-                        'fontFamily': 'Inter',
-                        'fontSize': '13px',
-                        'fontWeight': '500',
                         'transition': 'all 0.3s ease',
-                        'boxShadow': '0 2px 8px rgba(0,0,0,0.1)',
-                        'height': '40px',
                         'display': 'flex',
                         'alignItems': 'center',
-                        'justifyContent': 'center',
-                        'outline': 'none'
+                        'justifyContent': 'center'
+                    }
+                )
+            ], className="logout-right-container", style={
+                'display': 'flex',
+                'alignItems': 'center'
+            })
+        ], className="top-header", id='ventas-header-container', style={
+            'display': 'flex',
+            'alignItems': 'center',
+            'justifyContent': 'space-between',
+            'borderRadius': '20px',
+            'padding': '32px 40px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'position': 'relative',
+            'minHeight': '80px'
+        }),
+
+        html.Div([
+            html.Div([
+                html.Label("Vendedor:",
+                           id='ventas-dropdown-vendedor-label',
+                           style={
+                               'fontWeight': '600',
+                               'fontSize': '14px',
+                               'marginBottom': '8px',
+                               'display': 'block'
+                           }),
+                dcc.Dropdown(
+                    id='ventas-dropdown-vendedor',
+                    options=[{'label': v, 'value': v} for v in analyzer.vendedores_list],
+                    value='Todos',
+                    placeholder="Seleccionar vendedor...",
+                    clearable=True,
+                    style={
+                        'height': '44px',
+                        'borderRadius': '12px',
+                        'fontSize': '14px'
                     }
                 )
             ], style={
-                'flex': '0 0 140px',
                 'display': 'flex',
-                'alignItems': 'flex-end',
-                'height': '100%',
-                'paddingBottom': '0px'
+                'flexDirection': 'column',
+                'flex': '1',
+                'minWidth': '250px'
+            }, id='ventas-dropdown-vendedor-container'),
+
+            html.Div([
+                html.Label("Período:",
+                           style={
+                               'fontWeight': '600',
+                               'fontSize': '14px',
+                               'marginBottom': '8px',
+                               'display': 'block'
+                           }),
+                dcc.Dropdown(
+                    id='ventas-dropdown-mes',
+                    options=[{'label': m, 'value': m} for m in analyzer.meses_list],
+                    value=datetime.now().strftime("%Y-%m"),
+                    placeholder="Seleccionar período...",
+                    clearable=True,
+                    style={
+                        'height': '44px',
+                        'borderRadius': '12px',
+                        'fontSize': '14px'
+                    }
+                )
+            ], style={
+                'display': 'flex',
+                'flexDirection': 'column',
+                'flex': '1',
+                'minWidth': '200px'
+            }),
+
+            html.Div([
+                html.Button(
+                    "🔄 Actualizar Datos",
+                    id="ventas-btn-actualizar",
+                    n_clicks=0,
+                    style={
+                        'background': 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                        'color': '#ffffff',
+                        'border': 'none',
+                        'padding': '12px 24px',
+                        'borderRadius': '25px',
+                        'fontWeight': '600',
+                        'fontSize': '14px',
+                        'cursor': 'pointer',
+                        'boxShadow': '0 4px 12px rgba(59, 130, 246, 0.3)',
+                        'transition': 'all 0.3s ease',
+                        'height': '44px',
+                        'minWidth': '160px'
+                    }
+                )
+            ], style={
+                'display': 'flex',
+                'alignItems': 'flex-end'
             })
-        ], style={
-            'width': '100%',
+        ], id='ventas-controls-container', style={
             'display': 'flex',
-            'alignItems': 'flex-end',
-            'minHeight': '68px'
-        })
-    ], style={'marginBottom': '35px', 'padding': '25px'}, id='ventas-header-container'),
+            'gap': '24px',
+            'alignItems': 'stretch',
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'flexWrap': 'wrap'
+        }),
 
-    # Cards de resumen - 8 cards en 2 filas
-    html.Div([
-        # Primera fila de cards
+        html.Div(id="ventas-metrics-cards", children=[], style={'marginBottom': '24px'}),
+
         html.Div([
             html.Div([
-                html.H3("Ventas Totales", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-1-title'),
-                html.H2(id='ventas-ventas-totales', children="$0", style={'color': '#2ecc71',
-                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
-            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
-                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-1'),
+                html.H3("Evolución de Ventas por Mes", style={
+                        'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
+                dcc.Graph(id='ventas-grafico-ventas-mes')
+            ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'}),
 
             html.Div([
-                html.H3("Ventas Netas", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-2-title'),
-                html.H2(id='ventas-ventas-netas', children="$0", style={'color': '#2ecc71',
-                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
-            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
-                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-2'),
+                html.H3("Estacionalidad por Día de la Semana", style={
+                        'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
+                dcc.Graph(id='ventas-grafico-estacionalidad')
+            ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'})
+        ], id='ventas-row1-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
 
-            html.Div([
-                html.H3("Devoluciones", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-3-title'),
-                html.H2(id='ventas-total-devoluciones', children="$0", style={
-                        'color': '#e74c3c', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
-            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
-                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-3'),
-
-            html.Div([
-                html.H3("Descuentos", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-4-title'),
-                html.H2(id='ventas-total-descuentos', children="$0", style={
-                        'color': '#f39c12', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
-            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
-                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-4'),
-
-        ], style={'marginBottom': '15px'}),
-
-        # Segunda fila de cards
+        # Fila 1.2: Comparativa de Vendedores (Solo para Administradores)
         html.Div([
-            html.Div([
-                html.H3("Valor Promedio", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-5-title'),
-                html.H2(id='ventas-valor-promedio', children="$0", style={
-                        'color': '#9b59b6', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
-            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
-                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-5'),
-
-            html.Div([
-                html.H3("# Facturas", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-6-title'),
-                html.H2(id='ventas-num-facturas', children="0", style={'color': '#3498db',
-                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
-            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
-                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-6'),
-
-            html.Div([
-                html.H3("# Devoluciones", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-7-title'),
-                html.H2(id='ventas-num-devoluciones', children="0", style={
-                        'color': '#c0392b', 'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
-            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
-                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-7'),
-
-            html.Div([
-                html.H3("Clientes", style={
-                        'color': '#34495e', 'fontSize': '14px', 'margin': '0 0 10px 0', 'fontFamily': 'Inter'}, id='ventas-card-8-title'),
-                html.H2(id='ventas-num-clientes', children="0", style={'color': '#e67e22',
-                        'fontSize': '20px', 'margin': '0', 'fontFamily': 'Inter'})
-            ], style={'backgroundColor': 'white', 'padding': '15px', 'borderRadius': '8px',
-                      'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'textAlign': 'center',
-                      'width': '20%', 'display': 'inline-block', 'margin': '1.5%'}, id='ventas-card-8'),
-        ])
-    ], style={'marginBottom': '30px'}),
-
-    # Fila 1: Evolución Mensual y Análisis de Estacionalidad
-    html.Div([
-        html.Div([
-            html.H3("Evolución de Ventas por Mes", style={
+            html.H3("Comparativa de Ventas por Vendedor", style={
                     'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-            dcc.Graph(id='ventas-grafico-ventas-mes')
-        ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'}),
-
-        html.Div([
-            html.H3("Estacionalidad por Día de la Semana", style={
-                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-            dcc.Graph(id='ventas-grafico-estacionalidad')
-        ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'})
-    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
-              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row1-container'),
-
-    # Fila 1.2: Comparativa de Vendedores (Solo para Administradores)
-    html.Div([
-        html.H3("Comparativa de Ventas por Vendedor", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-        html.P("(Evolución mensual comparativa - Solo visible para administradores)", style={
-               'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
-        html.Div([
-            html.Label("Tipo de Gráfico:", style={
-                       'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'Inter'}),
-            dcc.Dropdown(
-                id='ventas-dropdown-tipo-grafico',
-                options=[
-                    {'label': 'Líneas (Tendencias)', 'value': 'lineas'},
-                    {'label': 'Barras Agrupadas (Comparación)',
-                     'value': 'barras'}
-                ],
-                value='lineas',
-                style={'width': '250px', 'fontFamily': 'Inter',
-                       'display': 'inline-block'},
-                clearable=False
-            )
-        ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'marginBottom': '20px'}),
-        dcc.Graph(id='ventas-grafico-comparativa-vendedores')
-    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
-              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row1-2-container'),
-
-    # Fila 1.3: Ventas por vendedor (subplots)
-    html.Div([
-        html.H3("Evolución Individual por Vendedor", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-        html.P("(Gráficos de área individuales - Solo visible para administradores)", style={
-            'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
-        dcc.Graph(id='ventas-graficos-area-individuales')
-    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
-              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'},
-        id='ventas-row1-3-container'),
-
-    # Fila 1.5: Evolución de Ventas por Cliente Específico
-    html.Div([
-        html.H3("Evolución Diaria de Ventas por Cliente", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-        html.Div([
-            html.Label("Seleccionar Cliente:", style={
-                       'fontWeight': 'bold', 'marginBottom': '10px', 'fontFamily': 'Inter'}),
-            dcc.Dropdown(
-                id='ventas-dropdown-cliente',
-                options=[{'label': 'Seleccione un cliente',
-                          'value': 'Seleccione un cliente'}],
-                value='Seleccione un cliente',
-                style={'fontFamily': 'Inter', 'marginBottom': '20px'},
-                className='custom-dropdown'
-            )
-        ]),
-        dcc.Graph(id='ventas-grafico-evolucion-cliente')
-    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
-              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row1-5-container'),
-
-    # Fila 2: Distribución por Zona y Forma de Pago
-    html.Div([
-        html.Div([
-            html.H3("Ventas por Zona", style={
-                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-            dcc.Graph(id='ventas-grafico-zona')
-        ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'}),
-
-        html.Div([
-            html.H3("Distribución por Forma de Pago", style={
-                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-            dcc.Graph(id='ventas-grafico-forma-pago')
-        ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'})
-    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
-              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row2-container'),
-
-    # Fila 2.5: Ventas Acumuladas por Cliente (Treemap solo)
-    html.Div([
-        html.H3("Ventas Acumuladas por Cliente", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-        html.P("(Acumulado hasta el mes seleccionado)", style={
-               'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
-        dcc.Graph(id='ventas-treemap-acumuladas')
-    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
-              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row2-5-container'),
-
-    # Fila 3: Treemap de Ventas por Cliente del Período (Treemap solo)
-    html.Div([
-        html.H3("Mapa de Ventas por Cliente (Período Seleccionado)", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-        dcc.Graph(id='ventas-treemap-ventas')
-    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
-              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row3-container'),
-
-    # Fila 3.5: Top Clientes y Clientes Impactados
-    html.Div([
-        html.H3("Clientes por Días Sin Venta", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-        html.P("(Clientes que no han comprado en 7+ días - Tamaño por total de ventas históricas)", style={
-               'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
-        dcc.Graph(id='ventas-treemap-dias-sin-venta')
-    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
-              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row-nueva-treemap'),
-
-    # Fila 4: Top Clientes y Clientes Impactados
-    html.Div([
-        html.Div([
-            html.H3("Top 10 - Clientes", style={'textAlign': 'center',
-                    'marginBottom': '20px', 'fontFamily': 'Inter'}),
-            dcc.Graph(id='ventas-top-clientes')
-        ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'}),
-
-        html.Div([
-            html.H3("Clientes Impactados por Mes", style={
-                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-            html.P("(Número de clientes únicos que compraron vs total disponible)", style={
+            html.P("(Evolución mensual comparativa - Solo visible para administradores)", style={
                    'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
-            dcc.Graph(id='ventas-grafico-clientes-impactados')
-        ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'})
-    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
-              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row4-container'),
-
-    # Fila 5: Análisis de Convenios
-    html.Div([
-        html.H3("Análisis de Cumplimiento de Convenios", style={
-                'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-        html.P("(Comparación entre metas vs. ventas reales y descuentos acordados vs. descuentos aplicados)", style={
-               'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
-        html.Div(id='ventas-tabla-convenios')
-    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
-              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row5-container'),
-
-    # Fila 6: Análisis de Recaudo
-    html.Div([
-        html.Div([
-            html.H3("Análisis de Recaudo", style={
-                    'textAlign': 'center', 'marginBottom': '10px', 'fontFamily': 'Inter'}),
-            html.H2(id='ventas-total-recaudo-titulo', style={'textAlign': 'center',
-                    'color': '#27ae60', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-
-            # DROPDOWN VISTA RECAUDO - Now always present in layout
             html.Div([
-                html.Label("Vista Temporal:", style={
+                html.Label("Tipo de Gráfico:", style={
                            'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'Inter'}),
                 dcc.Dropdown(
-                    id='ventas-dropdown-vista-recaudo',
+                    id='ventas-dropdown-tipo-grafico',
                     options=[
-                        {'label': 'Recaudo Diario', 'value': 'diario'},
-                        {'label': 'Recaudo Mensual', 'value': 'mensual'}
+                        {'label': 'Líneas (Tendencias)', 'value': 'lineas'},
+                        {'label': 'Barras Agrupadas (Comparación)',
+                         'value': 'barras'}
                     ],
-                    value='diario',
-                    style={'width': '200px', 'fontFamily': 'Inter',
+                    value='lineas',
+                    style={'width': '250px', 'fontFamily': 'Inter',
                            'display': 'inline-block'},
                     clearable=False
                 )
-            ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'marginBottom': '20px'}, id='ventas-vista-recaudo-container'),
+            ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'marginBottom': '20px'}),
+            dcc.Graph(id='ventas-grafico-comparativa-vendedores')
+        ], id='ventas-row1-2-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
 
-            # GRAFICOS DE RECAUDO - Now always present in layout
+        # Fila 1.3: Ventas por vendedor (subplots)
+        html.Div([
+            html.H3("Evolución Individual por Vendedor", style={
+                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
+            html.P("(Gráficos de área individuales - Solo visible para administradores)", style={
+                'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
+            dcc.Graph(id='ventas-graficos-area-individuales')
+        ], id='ventas-row1-3-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
+        # Fila 1.5: Evolución de Ventas por Cliente Específico
+        html.Div([
+            html.H3("Evolución Ventas por Cliente", style={
+                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
             html.Div([
-                # Gráfico por vendedor (solo se muestra cuando vendedor = 'Todos')
+                # Dropdown de cliente
                 html.Div([
-                    html.H4("Resumen por Vendedor", style={
-                            'textAlign': 'center', 'marginBottom': '15px', 'fontFamily': 'Inter'}),
-                    dcc.Graph(id='ventas-grafico-recaudo-vendedor')
-                ], style={'width': '100%', 'marginBottom': '20px'}, id='ventas-container-vendedor'),
-
-                # Gráfico temporal (siempre se muestra)
+                    html.Label("Cliente:", style={
+                            'fontWeight': 'bold', 'marginBottom': '8px', 'fontFamily': 'Inter', 'fontSize': '14px'}),
+                    dcc.Dropdown(
+                        id='ventas-dropdown-cliente',
+                        options=[{'label': 'Seleccione un cliente',
+                                'value': 'Seleccione un cliente'}],
+                        value='Seleccione un cliente',
+                        style={'fontFamily': 'Inter', 'height': '44px'},
+                        className='custom-dropdown'
+                    )
+                ], style={
+                    'width': '70%',
+                    'display': 'inline-block',
+                    'marginRight': '3%',
+                    'verticalAlign': 'top'
+                }),
+                
+                # Dropdown de tipo de evolución
                 html.Div([
-                    html.H4(id='ventas-titulo-recaudo-temporal', style={
-                            'textAlign': 'center', 'marginBottom': '15px', 'fontFamily': 'Inter'}),
-                    dcc.Graph(id='ventas-grafico-recaudo-temporal')
-                ], style={'width': '100%'}, id='ventas-container-temporal')
-            ], id='ventas-container-graficos-recaudo')
-        ])
-    ], style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '8px',
-              'boxShadow': '0 2px 4px rgba(0,0,0,0.1)', 'margin': '10px 0'}, id='ventas-row6-container'),
+                    html.Label("Tipo:", style={
+                            'fontWeight': 'bold', 'marginBottom': '8px', 'fontFamily': 'Inter', 'fontSize': '14px'}),
+                    dcc.Dropdown(
+                        id='ventas-dropdown-tipo-evolucion',
+                        options=[
+                            {'label': 'Diario', 'value': 'diario'},
+                            {'label': 'Mensual', 'value': 'mensual'}
+                        ],
+                        value='diario',
+                        style={'fontFamily': 'Inter', 'height': '44px'},
+                        className='custom-dropdown'
+                    )
+                ], style={
+                    'width': '25%',
+                    'display': 'inline-block',
+                    'verticalAlign': 'top'
+                })
+            ], style={'marginBottom': '20px'}),
+            
+            dcc.Graph(id='ventas-grafico-evolucion-cliente')
+        ], id='ventas-row1-5-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
 
-    # Botón actualizar MEJORADO
-    html.Div([
-        html.Button([
-            html.Span("🔄", style={'marginRight': '8px'}),
-            'Actualizar Datos'
-        ], id='ventas-btn-actualizar', n_clicks=0,
-            style={
-            'backgroundColor': '#3498db',
-            'color': 'white',
-            'border': 'none',
-            'padding': '12px 24px',
-            'borderRadius': '6px',
-            'cursor': 'pointer',
-            'fontFamily': 'Inter',
-            'fontSize': '14px',
-            'fontWeight': 'bold',
-            'transition': 'all 0.3s ease',
-            'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
-        })
-    ], style={'textAlign': 'center', 'margin': '20px 0'})
+        # Fila 2: Distribución por Zona y Forma de Pago
+        html.Div([
+            html.Div([
+                html.H3("Ventas por Zona", style={
+                        'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
+                dcc.Graph(id='ventas-grafico-zona')
+            ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'}),
 
-], style={'fontFamily': 'Inter', 'backgroundColor': '#f5f5f5', 'padding': '20px'}, id='ventas-main-container')
+            html.Div([
+                html.H3("Distribución por Forma de Pago", style={
+                        'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
+                dcc.Graph(id='ventas-grafico-forma-pago')
+            ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'})
+        ], id='ventas-row2-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
 
+        # Fila 2.5: Ventas Acumuladas por Cliente (Treemap solo)
+        html.Div([
+            # Header con selector de fechas
+            html.H3("Ventas por Cliente - Análisis Temporal", style={
+                'textAlign': 'center', 
+                'marginBottom': '25px', 
+                'fontFamily': 'Inter'
+            }),
+            
+            html.Div([
+                # Filtro de meses (izquierda)
+                html.Div([
+                    html.Label("Filtrar por Meses:", style={
+                        'fontWeight': 'bold',
+                        'marginBottom': '10px',
+                        'fontFamily': 'Inter',
+                        'fontSize': '14px'
+                    }),
+                    dcc.RangeSlider(
+                        id='ventas-filtro-meses',
+                        min=1,
+                        max=datetime.now().month,
+                        step=1,
+                        value=get_ultimos_3_meses(),  # Por defecto últimos 3 meses
+                        marks={
+                            1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr',
+                            5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Ago',
+                            9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic'
+                        },
+                        tooltip={"placement": "bottom", "always_visible": True},
+                        allowCross=False
+                    )
+                ], style={
+                    'width': '48%',
+                    'display': 'inline-block',
+                    'marginRight': '4%'
+                }),
+                
+                # Filtro de monto de ventas (derecha)
+                html.Div([
+                    html.Label("Filtrar por Monto de Ventas:", style={
+                        'fontWeight': 'bold',
+                        'marginBottom': '10px',
+                        'fontFamily': 'Inter',
+                        'fontSize': '14px'
+                    }),
+                    dcc.RangeSlider(
+                        id='ventas-filtro-monto-ventas',
+                        min=0,
+                        max=1000000,  # Valor inicial, se actualizará
+                        step=50000,
+                        value=[0, 1000000],  # Por defecto muestra todos
+                        marks={},  # Se configurará dinámicamente
+                        allowCross=False,
+                        tooltip={
+                            "placement": "bottom", 
+                            "always_visible": True,
+                            "style": {"color": "white", "fontSize": "12px"},
+                            "transform": "formatCurrency"
+                        },
+                    )
+                ], style={
+                    'width': '48%',
+                    'display': 'inline-block'
+                })
+            ], style={
+                'marginBottom': '20px',
+                'padding': '15px',
+                'borderRadius': '8px',
+                'border': '1px solid #e5e7eb'
+            }),
+            
+            # Treemap unificado
+            dcc.Graph(id='ventas-treemap-unificado', style={'height': '650px'})
+            
+        ], id='ventas-row2-5-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
+        # Fila 3.5: Top Clientes y Clientes Impactados
+        html.Div([
+            html.H3("Clientes por Días Sin Venta", style={
+                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
+            html.P("(Clientes que no han comprado en 7+ días - Tamaño por total de ventas históricas)", style={
+                   'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
+            dcc.Graph(id='ventas-treemap-dias-sin-venta')
+        ], id='ventas-row-top', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
+        # Fila 4: Top Clientes y Clientes Impactados
+        html.Div([
+            html.Div([
+                html.H3("Top 10 - Clientes por Ventas ($)", style={'textAlign': 'center',
+                        'marginBottom': '20px', 'fontFamily': 'Inter'}),
+                dcc.Graph(id='ventas-top-clientes')
+            ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'}),
+
+            html.Div([
+                html.H3("Clientes Impactados por Mes", style={
+                        'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
+                html.P("(Número de clientes únicos que compraron vs total disponible)", style={
+                       'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
+                dcc.Graph(id='ventas-grafico-clientes-impactados')
+            ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'})
+        ], id='ventas-row4-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
+        # Fila 5: Análisis de Convenios
+        html.Div([
+            html.H3("Análisis de Cumplimiento de Convenios", style={
+                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
+            html.P("(Comparación entre metas vs. ventas reales y descuentos acordados vs. descuentos aplicados)", style={
+                   'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
+            html.Div(id='ventas-tabla-convenios')
+        ], id='ventas-row5-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
+        # Fila 6: Análisis de Recaudo
+        html.Div([
+            html.Div([
+                html.H3("Análisis de Recaudo", style={
+                        'textAlign': 'center', 'marginBottom': '10px', 'fontFamily': 'Inter'}),
+                html.H2(id='ventas-total-recaudo-titulo', style={'textAlign': 'center',
+                        'color': '#27ae60', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
+
+                # DROPDOWN VISTA RECAUDO - Now always present in layout
+                html.Div([
+                    html.Label("Vista Temporal:", style={
+                               'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'Inter'}),
+                    dcc.Dropdown(
+                        id='ventas-dropdown-vista-recaudo',
+                        options=[
+                            {'label': 'Recaudo Diario', 'value': 'diario'},
+                            {'label': 'Recaudo Mensual', 'value': 'mensual'}
+                        ],
+                        value='diario',
+                        style={'width': '200px', 'fontFamily': 'Inter',
+                               'display': 'inline-block'},
+                        clearable=False
+                    )
+                ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'marginBottom': '20px'}, id='ventas-vista-recaudo-container'),
+
+                # GRAFICOS DE RECAUDO - Now always present in layout
+                html.Div([
+                    # Gráfico por vendedor (solo se muestra cuando vendedor = 'Todos')
+                    html.Div([
+                        html.H4("Resumen por Vendedor", style={
+                                'textAlign': 'center', 'marginBottom': '15px', 'fontFamily': 'Inter'}),
+                        dcc.Graph(id='ventas-grafico-recaudo-vendedor')
+                    ], style={'width': '100%', 'marginBottom': '20px'}, id='ventas-container-vendedor'),
+
+                    # Gráfico temporal (siempre se muestra)
+                    html.Div([
+                        html.H4(id='ventas-titulo-recaudo-temporal', style={
+                                'textAlign': 'center', 'marginBottom': '15px', 'fontFamily': 'Inter'}),
+                        dcc.Graph(id='ventas-grafico-recaudo-temporal')
+                    ], style={'width': '100%'}, id='ventas-container-temporal')
+                ], id='ventas-container-graficos-recaudo')
+            ])
+        ], id='ventas-row6-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+        
+        # NUEVA FILA: Heatmap de Variaciones Mensuales
+        html.Div([
+            html.H3("Variaciones Mensuales de Clientes", style={
+                'textAlign': 'center', 
+                'marginBottom': '25px', 
+                'fontFamily': 'Inter'
+            }),
+            
+            # Contenedor de filtros del heatmap
+            html.Div([
+                html.Div([
+                    html.Label("Período de Análisis:", style={
+                        'fontWeight': 'bold',
+                        'marginBottom': '10px',
+                        'fontFamily': 'Inter',
+                        'fontSize': '14px'
+                    }),
+                    dcc.RangeSlider(
+                        id='ventas-heatmap-rango-meses',
+                        min=1,
+                        max=datetime.now().month,
+                        step=1,
+                        value=[1, datetime.now().month],
+                        marks={
+                            1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr',
+                            5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Ago',
+                            9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic'
+                        },
+                        tooltip={"placement": "bottom", "always_visible": True},
+                        allowCross=False
+                    )
+                ], style={
+                    'marginBottom': '20px',
+                    'width': '100%'
+                }),
+                
+                # Fila 2: Filtros de selección
+                html.Div([
+                    # Botones de ranking
+                    html.Div([
+                        html.Label("Ranking:", style={
+                            'fontWeight': 'bold',
+                            'marginBottom': '10px',
+                            'fontFamily': 'Inter',
+                            'fontSize': '14px',
+                            'display': 'block'
+                        }),
+                        html.Div([
+                            html.Button("📈 Primeros 10", id="ventas-heatmap-top10", 
+                                    className="heatmap-filter-btn active", n_clicks=0,
+                                    style={'marginRight': '10px'}),
+                            html.Button("📉 Últimos 10", id="ventas-heatmap-bottom10", 
+                                    className="heatmap-filter-btn", n_clicks=0)
+                        ])
+                    ], style={
+                        'width': '48%',
+                        'display': 'inline-block',
+                        'verticalAlign': 'top',
+                        'paddingRight': '2%'
+                    }),
+                    
+                    # Selector de clientes específicos
+                    html.Div([
+                        html.Label("Comparar Clientes Específicos:", style={
+                            'fontWeight': 'bold',
+                            'marginBottom': '10px',
+                            'fontFamily': 'Inter',
+                            'fontSize': '14px',
+                            'display': 'block'
+                        }),
+                        dcc.Dropdown(
+                            id='ventas-heatmap-clientes',
+                            options=[],
+                            value=[],
+                            multi=True,
+                            placeholder="Seleccionar hasta 10 clientes...",
+                            style={
+                                'fontFamily': 'Inter', 
+                                'fontSize': '12px',
+                                'height': 'auto',
+                                'minHeight': '38px'
+                            },
+                            maxHeight=150
+                        )
+                    ], style={
+                        'width': '50%',
+                        'display': 'inline-block',
+                        'verticalAlign': 'top'
+                    })
+                ], style={
+                    'width': '100%',
+                    'display': 'flex',
+                    'alignItems': 'flex-start'
+                })
+            ], style={
+                'marginBottom': '20px',
+                'padding': '20px',
+                'borderRadius': '8px',
+                'border': '1px solid #e5e7eb'
+            }),
+            
+            dcc.Graph(
+                id='ventas-heatmap-variaciones', 
+                style={
+                    'height': '600px',
+                    'overflowY': 'auto',  # Scroll vertical
+                    'overflowX': 'auto'   # Scroll horizontal si es necesario
+                }
+            )
+            
+        ], id='ventas-row-heatmap', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
+    ], style={
+        'margin': '0 auto',          
+        'padding': '0 40px',        
+    }),
+    
+], id='ventas-main-container', style={
+    'width': '100%',
+    'minHeight': '100vh',
+    'fontFamily': 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+    'transition': 'all 0.3s ease',
+    'padding': '20px 0',
+    'background': 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 25%, #f8fafc 50%, #f1f5f9 100%)',
+    'backgroundSize': '400% 400%',
+    'animation': 'gradientShift 15s ease infinite'
+})
 
 @callback(
     Output('ventas-data-store', 'data'),
@@ -659,49 +885,86 @@ def update_card_title_colors(theme):
     }
     return [title_style] * 8
 
-
 @callback(
-    [Output('ventas-ventas-totales', 'children'),
-     Output('ventas-ventas-netas', 'children'),
-     Output('ventas-total-devoluciones', 'children'),
-     Output('ventas-total-descuentos', 'children'),
-     Output('ventas-valor-promedio', 'children'),
-     Output('ventas-num-facturas', 'children'),
-     Output('ventas-num-devoluciones', 'children'),
-     Output('ventas-num-clientes', 'children')],
+    [Output('ventas-filtro-monto-ventas', 'min'),
+     Output('ventas-filtro-monto-ventas', 'max'),
+     Output('ventas-filtro-monto-ventas', 'value'),
+     Output('ventas-filtro-monto-ventas', 'marks'),
+     Output('ventas-filtro-monto-ventas', 'step')],
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data')]  # ¡NUEVO!
+     Input('ventas-data-store', 'data')]
 )
-def update_cards(session_data, dropdown_value, mes, data_store):
+def update_monto_slider_config(session_data, dropdown_value, data_store):
     """
-    Update summary cards with sales statistics.
+    Configurar dinámicamente el slider de montos según los datos de ventas disponibles
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
-        resumen = analyzer.get_resumen_ventas(vendedor, mes)
-
-        return (
-            format_currency_int(resumen['total_ventas']),
-            format_currency_int(resumen['ventas_netas']),
-            format_currency_int(resumen['total_devoluciones']),
-            format_currency_int(resumen['total_descuentos']),
-            format_currency_int(resumen['ticket_promedio']),
-            f"{resumen['num_facturas']:,}",
-            f"{resumen['num_devoluciones']:,}",
-            f"{resumen['num_clientes']:,}",
-        )
+        
+        # Obtener datos de ventas para calcular rangos
+        df = analyzer.filter_data(vendedor, 'Todos')
+        
+        # Filtrar solo ventas reales
+        ventas_reales = df[df['tipo'].str.contains(
+            'Remision|Factura', case=False, na=False)]
+        
+        if ventas_reales.empty:
+            return 0, 1000000, [0, 1000000], {0: '$0', 1000000: '$1M'}, 50000
+        
+        # Calcular totales por cliente
+        resultado = ventas_reales.groupby('cliente_completo').agg({
+            'valor_neto': 'sum'
+        }).reset_index()
+        
+        resultado = resultado[resultado['valor_neto'] > 0]
+        
+        if resultado.empty:
+            return 0, 1000000, [0, 1000000], {0: '$0', 1000000: '$1M'}, 50000
+        
+        # Calcular min y max
+        min_monto = 0
+        max_monto = int(resultado['valor_neto'].max())
+        
+        # Redondear max_monto hacia arriba para mejor UX
+        if max_monto < 100000:
+            max_monto = ((max_monto // 10000) + 1) * 10000  # Redondear a 10k
+            step = 5000
+        elif max_monto < 1000000:
+            max_monto = ((max_monto // 100000) + 1) * 100000  # Redondear a 100k
+            step = 25000
+        else:
+            max_monto = ((max_monto // 1000000) + 1) * 1000000  # Redondear a 1M
+            step = 100000
+        
+        # Crear marcas dinámicas
+        num_marks = 5
+        mark_step = max_monto // num_marks
+        marks = {}
+        
+        for i in range(num_marks + 1):
+            value = i * mark_step
+            if value >= 1000000:
+                marks[value] = f'${value/1000000:.1f}M'
+            elif value >= 1000:
+                marks[value] = f'${value/1000:.0f}K'
+            else:
+                marks[value] = f'${value:,.0f}'
+        
+        # Valor por defecto: todo el rango
+        default_value = [min_monto, max_monto]
+        
+        return min_monto, max_monto, default_value, marks, step
+        
     except Exception as e:
-        print(f"❌ [update_cards] Error: {e}")
-        return "$0", "$0", "$0", "$0", "$0", "0", "0", "0"
-
+        print(f"❌ Error configurando slider de montos en ventas: {e}")
+        return 0, 1000000, [0, 1000000], {0: '$0', 1000000: '$1M'}, 50000
 
 @callback(
     Output('ventas-grafico-ventas-mes', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),  # 
      Input('ventas-theme-store', 'data')]
 )
 def update_ventas_mes(session_data, dropdown_value, data_store, theme):
@@ -795,7 +1058,7 @@ def update_ventas_mes(session_data, dropdown_value, data_store, theme):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),  # 
      Input('ventas-theme-store', 'data')]
 )
 def update_estacionalidad(session_data, dropdown_value, mes, data_store, theme):
@@ -816,15 +1079,28 @@ def update_estacionalidad(session_data, dropdown_value, mes, data_store, theme):
             return fig
 
         # Colores pasteles con transparencia
-        pastel_colors = [
-            'rgba(173, 216, 230, 0.6)',  # Light Blue
-            'rgba(255, 182, 193, 0.6)',  # Light Pink
-            'rgba(144, 238, 144, 0.6)',  # Light Green
-            'rgba(255, 218, 185, 0.6)',  # Peach
-            'rgba(221, 160, 221, 0.6)',  # Plum
-            'rgba(175, 238, 238, 0.6)',  # Pale Turquoise
-            'rgba(211, 211, 211, 0.6)'   # Light Gray
-        ]
+        pastel_colors_with_borders = \
+            [
+                {'fill': 'rgba(0, 119, 182, 0.2)', 'border': 'rgb(0, 119, 182)'}, 
+                {'fill': 'rgba(0, 180, 216, 0.2)', 'border': 'rgb(0, 180, 216)'},  
+                {'fill': 'rgba(144, 224, 239, 0.2)', 'border': 'rgb(144, 224, 239)'},    
+                {'fill': 'rgba(202, 240, 248, 0.2)', 'border': 'rgb(202, 240, 248)'},   
+                {'fill': 'rgba(2, 62, 138, 0.2)', 'border': 'rgb(2, 62, 138)'},  
+                {'fill': 'rgba(3, 4, 94, 0.2)', 'border': 'rgb(3, 4, 94)'},   
+                {'fill': 'rgba(211, 211, 211, 0.2)', 'border': 'rgb(211, 211, 211)'}   
+            ]
+
+        fill_colors = \
+            [
+                pastel_colors_with_borders[i % len(pastel_colors_with_borders)]['fill'] 
+                for i in range(len(data))
+            ]
+            
+        border_colors = \
+            [
+                pastel_colors_with_borders[i % len(pastel_colors_with_borders)]['border'] 
+                for i in range(len(data))
+            ]
 
         fig = go.Figure()
 
@@ -832,9 +1108,8 @@ def update_estacionalidad(session_data, dropdown_value, mes, data_store, theme):
             x=data['dia_semana_es'],
             y=data['valor_neto'],
             marker=dict(
-                color=[pastel_colors[i % len(pastel_colors)]
-                       for i in range(len(data))],
-                line=dict(color='white', width=2),
+                color=fill_colors,
+                line=dict(color=border_colors, width=1),
                 opacity=0.8  # Transparencia adicional
             ),
             text=[format_currency_int(val) for val in data['valor_neto']],
@@ -879,7 +1154,7 @@ def update_estacionalidad(session_data, dropdown_value, mes, data_store, theme):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),  # 
      Input('ventas-theme-store', 'data')]
 )
 def update_zona(session_data, dropdown_value, mes, data_store, theme):
@@ -907,7 +1182,8 @@ def update_zona(session_data, dropdown_value, mes, data_store, theme):
         max_val = data['valor_neto'].max()
 
         # Crear colores basados en escala rojo-verde con transparencia
-        colors_red_to_green = []
+        bg_colors = []
+        border_colors = []
 
         for val in data['valor_neto']:
             if max_val == min_val:
@@ -915,22 +1191,18 @@ def update_zona(session_data, dropdown_value, mes, data_store, theme):
             else:
                 normalized = (val - min_val) / (max_val - min_val)
 
-            # Escala de rojo (0) a verde (1)
             if normalized <= 0.5:
-                # De rojo a amarillo
                 red = 255
                 green = int(255 * (normalized * 2))
                 blue = 0
             else:
-                # De amarillo a verde
                 red = int(255 * (2 - normalized * 2))
                 green = 255
                 blue = 0
 
-            # Agregar transparencia
-            alpha = 0.8
-            colors_red_to_green.append(
-                f'rgba({red}, {green}, {blue}, {alpha})')
+            # Add transparency
+            bg_colors.append(f'rgba({red}, {green}, {blue}, 0.4)')
+            border_colors.append(f'rgba({red}, {green}, {blue}, 0.9)')
 
         fig = go.Figure()
 
@@ -938,9 +1210,9 @@ def update_zona(session_data, dropdown_value, mes, data_store, theme):
             x=data['zona'],
             y=data['valor_neto'],
             marker=dict(
-                color=colors_red_to_green,
-                line=dict(color='white', width=1),
-                opacity=0.4
+                color=bg_colors,
+                line=dict(color=border_colors, width=1),
+                opacity=0.6
             ),
             text=[format_currency_int(val) for val in data['valor_neto']],
             textposition='outside',
@@ -951,7 +1223,7 @@ def update_zona(session_data, dropdown_value, mes, data_store, theme):
         ))
 
         fig.update_layout(
-            height=350,
+            height=400,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
             font=dict(family="Inter", size=12,
@@ -960,7 +1232,7 @@ def update_zona(session_data, dropdown_value, mes, data_store, theme):
                 tickangle=-45,
                 showgrid=False,
                 tickfont=dict(color=theme_styles['text_color']),
-                linecolor=theme_styles['line_color']
+                linecolor=theme_styles['line_color']        
             ),
             yaxis=dict(
                 showgrid=True,
@@ -984,7 +1256,7 @@ def update_zona(session_data, dropdown_value, mes, data_store, theme):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),  # 
      Input('ventas-theme-store', 'data')]
 )
 def update_forma_pago(session_data, dropdown_value, mes, data_store, theme):
@@ -1013,14 +1285,53 @@ def update_forma_pago(session_data, dropdown_value, mes, data_store, theme):
             )
             return fig
 
+        bg_colors = [
+			"#0077B680",
+            "#00B4D880",
+            "#90E0EF80",
+            "#CAF0F880",
+            "#023E8A80",
+            "#03045E80",
+            "#0096C780",
+            "#48CAE480",
+            "#ADE8F480",
+            "#61A5C280",
+            "#014F8680",
+            "#007EA780",
+            "#05668D80",
+            "#5FA8D380",
+            "#89C2D980",
+		]
+        
+        border_colors = [
+			"#0077B6",  # Azul medio
+            "#00B4D8",  # Cian brillante
+            "#90E0EF",  # Celeste pastel
+            "#CAF0F8",  # Azul muy claro
+            "#023E8A",  # Azul oscuro intenso
+            "#03045E",  # Azul profundo
+            "#0096C7",  # Azul cielo saturado
+            "#48CAE4",  # Celeste vívido
+            "#ADE8F4",  # Azul cielo suave
+            "#61A5C2",  # Azul acero claro
+            "#014F86",  # Azul marino medio
+            "#007EA7",  # Azul con un toque más verdoso
+            "#05668D",  # Azul petróleo apagado
+            "#5FA8D3",  # Azul claro más saturado
+            "#89C2D9",  # Celeste desaturado
+		]
+
         fig = go.Figure(data=[go.Pie(
             labels=data['forma_pago'],
             values=data['valor_neto'],
-            hole=.4,
-            opacity=0.6,
+            hole=.5,
+            opacity=0.8,
             textinfo='percent',
-            marker=dict(colors=['#3498DB', '#E74C3C', '#2ECC71', '#F39C12',
-                        '#9B59B6'], line=dict(color='#FFFFFF', width=2)),
+            textfont=dict(color=theme_styles['text_color'], size=10),
+            marker=dict(
+                colors=bg_colors, 
+                line=dict(color=border_colors, width=1.5)
+            ),
             hovertemplate="<b>%{label}</b><br>Ventas: %{customdata}<br>Porcentaje: %{percent}<extra></extra>",
             customdata=[format_currency_int(val) for val in data['valor_neto']]
         )])
@@ -1042,72 +1353,21 @@ def update_forma_pago(session_data, dropdown_value, mes, data_store, theme):
         print(f"❌ [update_forma_pago] Error: {e}")
         return go.Figure()
 
-
-@callback(
-    Output('ventas-treemap-ventas', 'figure'),
-    [Input('session-store', 'data'),
-     Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
-     Input('ventas-theme-store', 'data')]
-)
-def update_treemap(session_data, dropdown_value, mes, data_store, theme):
+def hex_to_rgba(hex_color, alpha=0.5):
     """
-    Update sales treemap.
+    Convert hex color to rgba format.
     """
-    try:
-        vendedor = get_selected_vendor(session_data, dropdown_value)
-        data = analyzer.get_treemap_data(vendedor, mes)
-        theme_styles = get_theme_styles(theme)
-
-        if data.empty:
-            fig = go.Figure()
-            fig.add_annotation(text="No hay datos disponibles", xref="paper", yref="paper",
-                               x=0.5, y=0.5, showarrow=False, font=dict(size=16, color=theme_styles['text_color']))
-            fig.update_layout(
-                height=500, paper_bgcolor=theme_styles['plot_bg'])
-            return fig
-
-        custom_data = \
-            [
-                format_currency_int(val)
-                for val in data['valor_neto']
-            ]
-
-        fig = go.Figure(go.Treemap(
-            labels=data['cliente_completo'],
-            values=data['valor_neto'],
-            parents=[""] * len(data),
-            texttemplate="<b>%{label}</b><br>%{customdata}",
-            hovertemplate="<b>%{label}</b><br>Ventas: %{customdata}<br><extra></extra>",
-            customdata=custom_data,
-            marker=dict(
-                colorscale='Bluyl',
-                line=dict(width=2, color='white')),
-            textfont=dict(size=12, color='white')
-        ))
-
-        fig.update_layout(
-            height=500,
-            font=dict(family="Inter", size=12,
-                      color=theme_styles['text_color']),
-            plot_bgcolor=theme_styles['plot_bg'],
-            paper_bgcolor=theme_styles['plot_bg'],
-            margin=dict(t=0, b=0, l=0, r=0)
-        )
-
-        return fig
-    except Exception as e:
-        print(f"❌ [update_treemap] Error: {e}")
-        return go.Figure()
-
+    hex_color = hex_color.lstrip('#')
+    r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    
+    return f'rgba({r},{g},{b},{alpha})'
 
 @callback(
     Output('ventas-top-clientes', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),  # 
      Input('ventas-theme-store', 'data')]
 )
 def update_top_clientes(session_data, dropdown_value, mes, data_store, theme):
@@ -1134,71 +1394,118 @@ def update_top_clientes(session_data, dropdown_value, mes, data_store, theme):
                 height=400, paper_bgcolor=theme_styles['plot_bg'])
             return fig
 
+        # Define color palettes
+        base_colors = [
+            "#0077B6", "#00B4D8", "#90E0EF", "#CAF0F8", "#023E8A",
+            "#03045E", "#0096C7", "#48CAE4", "#ADE8F4", "#61A5C2"
+        ]
+        fill_colors = [hex_to_rgba(c, 0.2) for c in base_colors]
+        border_colors = base_colors
+
+        # Prepare data
         data_sorted = data.sort_values('valor_neto', ascending=True)
-        data_sorted['rank'] = sorted(
-            range(1, len(data_sorted) + 1), reverse=True)
+        data_sorted['rank'] = sorted(range(1, len(data_sorted) + 1), reverse=True)
         data_sorted['short_label'] = [f"#{i}" for i in data_sorted['rank']]
 
-        fig = px.bar(
-            data_sorted,
-            x='valor_neto',
-            y='short_label',
-            orientation='h',
-            color='valor_neto',
-            color_continuous_scale='Blugrn'
-        )
+        # Build figure
+        fig = go.Figure()
+        for i, row in data_sorted.iterrows():
+            fig.add_trace(go.Bar(
+                x=[row['valor_neto']],
+                y=[row['short_label']],
+                orientation='h',
+                marker=dict(
+                    color=fill_colors[i % len(fill_colors)],
+                    line=dict(color=border_colors[i % len(border_colors)], width=1.5)
+                ),
+                text=[row['cliente_completo'][:100] + "..." if len(row['cliente_completo']) > 100 else row['cliente_completo']],
+                textposition='inside',
+                textfont=dict(color=theme_styles['text_color'], size=10),
+                hovertemplate=(
+                    f"<b>{row['cliente_completo']}</b><br>"
+                    f"Ventas: {format_currency_int(row['valor_neto'])}<br>"
+                    f"Facturas: {row['documento_id']}<extra></extra>"
+                ),
+                showlegend=False
+            ))
 
-        fig.update_traces(
-            text=[
-                name[:50] + "..." if len(name) > 50 else name for name in data_sorted['cliente_completo']],
-            textposition='inside',
-            textfont=dict(color='white', size=10),
-            hovertemplate="<b>%{customdata[0]}</b><br>Ventas: %{customdata[1]}<br>Facturas: %{customdata[2]}<extra></extra>",
-            customdata=[[cliente, format_currency_int(ventas), facturas] for cliente, ventas, facturas in zip(
-                data_sorted['cliente_completo'], data_sorted['valor_neto'], data_sorted['documento_id'])]
-        )
-
+        # Layout
         fig.update_layout(
             height=400,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Inter", size=12,
-                      color=theme_styles['text_color']),
-            xaxis=dict(tickformat='$,.0f', showgrid=True,
-                       gridcolor=theme_styles['grid_color']),
-            yaxis=dict(title="Ranking", categoryorder='array',
-                       categoryarray=data_sorted['short_label']),
-            showlegend=False,
+            font=dict(family="Inter", size=12, color=theme_styles['text_color']),
+            xaxis=dict(
+                tickformat='$,.0f',
+                showgrid=True,
+                gridcolor=theme_styles['grid_color'],
+                title="Ventas"
+            ),
+            yaxis=dict(
+                title="Ranking",
+                categoryorder='array',
+                categoryarray=data_sorted['short_label']
+            ),
             margin=dict(t=20, b=40, l=80, r=80)
         )
 
         return fig
+
     except Exception as e:
         print(f"❌ [update_top_clientes] Error: {e}")
         return go.Figure()
 
 
 @callback(
-    Output('ventas-treemap-acumuladas', 'figure'),
+    Output('ventas-treemap-unificado', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-filtro-meses', 'value'),
+     Input('ventas-filtro-monto-ventas', 'value'),
+     Input('ventas-data-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_treemap_acumuladas(session_data, dropdown_value, mes, data_store, theme):
+def update_treemap_unificado(
+        session_data, 
+        dropdown_value, 
+        filtro_meses, 
+        filtro_monto, 
+        data_store, 
+        theme):
     """
-    Update accumulated sales treemap.
+    Treemap unificado con ventas por cliente - Verde-Rojo sin jerarquía, categorizado por tendencia
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
-        data = analyzer.get_ventas_acumuladas_mes(mes, vendedor)
         theme_styles = get_theme_styles(theme)
+        
+        # Convert month filter
+        if filtro_meses and len(filtro_meses) == 2:
+            mes_inicio, mes_fin = filtro_meses
+        else:
+            mes_inicio, mes_fin = 1, 12  # Por defecto todos los meses
 
-        if data.empty:
+        # Get data filtered by months
+        data = analyzer.get_ventas_por_rango_meses(
+            vendedor, 
+            mes_inicio, 
+            mes_fin, 
+            filtro_monto[0] if filtro_monto and len(filtro_monto) == 2 else None,
+            filtro_monto[1] if filtro_monto and len(filtro_monto) == 2 else None
+        )
+        
+        if not data or data.get('total', pd.DataFrame()).empty:
+            # Mensaje específico cuando no hay meses seleccionados
+            if mes_inicio == mes_fin:
+                meses_esp = {1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio',
+                            7: 'Julio', 8: 'Agosto', 9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'}
+                mensaje = f"No hay datos disponibles para {meses_esp[mes_inicio]}"
+            else:
+                meses_esp = {1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr', 5: 'May', 6: 'Jun',
+                            7: 'Jul', 8: 'Ago', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic'}
+                mensaje = f"No hay datos disponibles para {meses_esp[mes_inicio]} - {meses_esp[mes_fin]}"
+                
             fig = go.Figure()
-            mensaje = f"No hay datos acumulados" + \
-                (f" hasta {mes}" if mes != 'Todos' else "")
             fig.add_annotation(
                 text=mensaje,
                 xref="paper", yref="paper",
@@ -1207,45 +1514,201 @@ def update_treemap_acumuladas(session_data, dropdown_value, mes, data_store, the
                 font=dict(size=16, color=theme_styles['text_color'])
             )
             fig.update_layout(
-                height=400, paper_bgcolor=theme_styles['plot_bg'])
+                height=600,
+                paper_bgcolor=theme_styles['plot_bg'],
+                plot_bgcolor=theme_styles['plot_bg']
+            )
             return fig
+        
+        resultado_total = data['total']
+        resultado_mensual = data['mensual']
+        
+        # Función para generar colores verde-rojo modernos
+        def get_green_red_color(growth_trend=0, alpha=0.8):
+            """Generate modern green-red colors based on growth trend"""
+            # growth_trend: 1=positive, 0=neutral, -1=negative
+            
+            if growth_trend > 0:
+                # Verde para crecimiento positivo
+                return f'rgba(16, 185, 129, {alpha})'   # emerald-500
+            elif growth_trend < 0:
+                # Rojo para decrecimiento
+                return f'rgba(239, 68, 68, {alpha})'    # red-500
+            else:
+                # Amarillo/naranja para estable
+                return f'rgba(245, 158, 11, {alpha})'   # amber-500
+        
+        # Structure for treemap - SIN JERARQUÍA
+        ids = []
+        labels = []
+        parents = []
+        values = []
+        colors = []
+        border_colors = []
+        
+        # Format currency helper
+        def format_with_dots(val):
+            try:
+                return f"${val:,.0f}".replace(',', '.')
+            except:
+                return f"${val}"
+        
+        # Build treemap structure - SOLO CLIENTES, SIN SEGUNDO NIVEL
+        for idx, (_, row) in enumerate(resultado_total.iterrows()):
+            cliente = str(row['cliente_completo'])[:80]
+            if len(cliente) < len(str(row['cliente_completo'])):
+                cliente += "..."
+            
+            total_ventas = float(row['valor_neto'])
+            total_facturas = int(row['documento_id'])
+            
+            if total_ventas <= 0:
+                continue
 
+            cliente_id = f"C{idx}"
+            
+            # Determinar tendencia de crecimiento basada en datos mensuales
+            cliente_mensual = resultado_mensual[
+                resultado_mensual['cliente_completo'] == row['cliente_completo']
+            ].sort_values('mes_año')
+            
+            # Calcular tendencia simple
+            growth_trend = 0  # Default neutral
+            if len(cliente_mensual) >= 2:
+                first_month = cliente_mensual.iloc[0]['valor_neto']
+                last_month = cliente_mensual.iloc[-1]['valor_neto']
+                if last_month > first_month * 1.1:  # 10% más
+                    growth_trend = 1  # Positivo
+                elif last_month < first_month * 0.9:  # 10% menos
+                    growth_trend = -1  # Negativo
+            
+            # Emoji según tendencia
+            trend_emoji = "🟢" if growth_trend > 0 else "🔴" if growth_trend < 0 else "🟡"
+            
+            # SOLO CLIENTE - SIN HIJOS
+            ids.append(cliente_id)
+            labels.append(f"{trend_emoji} {cliente}")
+            parents.append("")  # Todos son raíz, sin jerarquía
+            values.append(total_ventas)
+            colors.append(get_green_red_color(growth_trend, alpha=0.4))
+            border_colors.append(get_green_red_color(growth_trend, alpha=0.9))
+        
+        if not ids:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No hay datos procesables",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=600,
+                paper_bgcolor=theme_styles['plot_bg']
+            )
+            return fig
+        
+        # Create custom text labels - SOLO PARA CLIENTES
+        text_labels = []
+        
+        for i, (id_item, label, value) in enumerate(zip(ids, labels, values)):
+            # Obtener datos del cliente
+            row = resultado_total.iloc[i]
+            facturas = int(row['documento_id'])
+            
+            text_labels.append(
+                f"<b>{label}</b><br>{format_with_dots(value)}<br>{facturas} facturas"
+            )
+        
+        # Create treemap - PLANO, SIN JERARQUÍA
         fig = go.Figure(go.Treemap(
-            labels=data['cliente_completo'],
-            values=data['valor_neto'],
-            parents=[""] * len(data),
-            texttemplate="<b>%{label}</b><br>%{customdata}",
-            hovertemplate="<b>%{label}</b><br>Ventas Acumuladas: %{customdata}<br>Facturas: %{text}<extra></extra>",
-            customdata=[format_currency_int(val)
-                        for val in data['valor_neto']],
-            text=data['documento_id'],
+            ids=ids,
+            labels=labels,
+            parents=parents,
+            values=values,
+            text=text_labels,
+            texttemplate="%{text}",
+            textposition="middle center",
+            textfont=dict(size=11, color=theme_styles['text_color'], family='Inter'),
             marker=dict(
-                colorscale='Bluyl',
-                line=dict(width=2, color='white')
+                colors=colors,
+                line=dict(width=1.5, color=border_colors)
             ),
-            textfont=dict(size=12, color='white')
+            hovertemplate="<br>%{text}<br><extra></extra>",
+            branchvalues="total",
+            sort=True,
+            tiling=dict(
+                packing="squarify",  
+                pad=3
+            )
         ))
-
+        
+        # Add period info to title in Spanish
+        period_text = ""
+        
+        if mes_inicio and mes_fin:
+            try:
+                meses_esp = {
+                    1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr',
+                    5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Ago',
+                    9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic'
+                }
+                
+                if mes_inicio == mes_fin:
+                    period_text = f" ({meses_esp[mes_inicio]})"
+                else:
+                    period_text = f" ({meses_esp[mes_inicio]} - {meses_esp[mes_fin]})"
+            except:
+                pass
+        
         fig.update_layout(
-            height=500,  # Increased height since it's now alone in its row
-            font=dict(family="Inter", size=12,
-                      color=theme_styles['text_color']),
+            height=650,
+            margin=dict(t=80, b=20, l=10, r=10),
+            font=dict(family="Inter", color=theme_styles['text_color']),
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            margin=dict(t=0, b=0, l=0, r=0)
+            title=dict(
+                text=f"Ventas por Cliente - Análisis Temporal{period_text}<br><sub>🟢 Crecimiento positivo | 🟡 Estable | 🔴 Decrecimiento</sub>",
+                x=0.5,
+                y=0.98,
+                xanchor='center',
+                yanchor='top',
+                font=dict(
+                    size=16,
+                    color=theme_styles['text_color'],
+                    family="Inter"
+                )
+            )
         )
-
+        
         return fig
+        
     except Exception as e:
-        print(f"❌ [update_treemap_acumuladas] Error: {e}")
-        return go.Figure()
+        print(f"❌ Error en treemap_unificado: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Error figure
+        fig = go.Figure()
+        fig.add_annotation(
+            text=f"Error cargando treemap:<br>{str(e)[:80]}",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False,
+            font=dict(size=14, color='red')
+        )
+        fig.update_layout(
+            height=600,
+            paper_bgcolor=theme_styles.get('plot_bg', 'white') if 'theme_styles' in locals() else 'white'
+        )
+        return fig
 
 
 @callback(
     Output('ventas-grafico-clientes-impactados', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),  # 
      Input('ventas-theme-store', 'data')]
 )
 def update_clientes_impactados(session_data, dropdown_value, data_store, theme):
@@ -1278,6 +1741,7 @@ def update_clientes_impactados(session_data, dropdown_value, data_store, theme):
             x=[total_clientes] * len(data),
             y=data['mes_nombre'],
             orientation='h',
+            opacity=0.6,
             name='Total Clientes',
             marker=dict(color='#ecf0f1', opacity=0.7),
             hovertemplate="<b>%{y}</b><br>Total Clientes: %{x}<extra></extra>"
@@ -1293,7 +1757,7 @@ def update_clientes_impactados(session_data, dropdown_value, data_store, theme):
             y=data['mes_nombre'],
             orientation='h',
             name='Clientes Impactados',
-            marker=dict(color='#3498db', opacity=0.9),
+            marker=dict(color='#3498db', opacity=0.7),
             text=[f"{pct:.1f}%" for pct in percentages],
             textposition='inside',
             textfont=dict(color='white', size=10, family='Inter'),
@@ -1348,7 +1812,7 @@ def update_clientes_impactados(session_data, dropdown_value, data_store, theme):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),  # 
      Input('ventas-theme-store', 'data')]
 )
 def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme):
@@ -1357,7 +1821,7 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
-        data = analyzer.get_analisis_convenios(vendedor, mes)
+        data = analyzer.get_analisis_convenios(vendedor, mes="Todos") # Don't apply month filter
         theme_styles = get_theme_styles(theme)
 
         if data.empty:
@@ -1407,19 +1871,26 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
         # Header
         header = html.Tr([
             html.Th("Cliente", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'left'}),
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
+                    'position': 'sticky', 'top': '0', 'zIndex': '10'}),
             html.Th("Vendedor", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center'}),
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
+                    'position': 'sticky', 'top': '0', 'zIndex': '10'}),
             html.Th("Ventas", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center'}),
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
+                    'position': 'sticky', 'top': '0', 'zIndex': '10'}),
             html.Th("Ventas Esperadas", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center'}),
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
+                    'position': 'sticky', 'top': '0', 'zIndex': '10'}),
             html.Th("Meta", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center'}),
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
+                    'position': 'sticky', 'top': '0', 'zIndex': '10'}),
             html.Th("% Cumplimiento", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center'}),
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
+                    'position': 'sticky', 'top': '0', 'zIndex': '10'}),
             html.Th("Estado", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center'})
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
+                    'position': 'sticky', 'top': '0', 'zIndex': '10'}),
         ])
 
         # Data rows
@@ -1501,8 +1972,6 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
 
         summary = html.Div([
             html.Div([
-                html.H4("📊 Resumen Ejecutivo de Convenios",
-                        style={'color': theme_styles['text_color'], 'fontFamily': 'Inter', 'margin': '0 0 15px 0', 'textAlign': 'center'}),
 
                 html.Div([
                     html.Div([
@@ -1574,7 +2043,7 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-vista-recaudo', 'value'),
      Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),  # 
      Input('ventas-theme-store', 'data')]
 )
 def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo, mes, data_store, theme):
@@ -1637,30 +2106,33 @@ def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo,
             # Bar chart for daily with ascending/descending colors
             valores = data['valor_recibo'].tolist()
             bar_colors = []
+            border_colors = []
 
             # Color para la primera barra (neutro)
-            bar_colors.append('rgba(173, 216, 230, 0.8)')  # Light blue
+            bar_colors.append('rgba(173, 216, 230, 0.4)')  # Light blue
+            border_colors.append('rgba(173, 216, 230, 0.9)')  # Light blue
 
             # Determinar colores basado en tendencia
             for i in range(1, len(valores)):
                 if valores[i] > valores[i-1]:
                     # Ascendente - Verde pastel
-                    bar_colors.append(
-                        'rgba(144, 238, 144, 0.8)')  # Light green
+                    bar_colors.append('rgba(144, 238, 144, 0.4)')  # Light green
+                    border_colors.append('rgba(144, 238, 144, 0.9)')  # Light green
                 elif valores[i] < valores[i-1]:
                     # Descendente - Rosa pastel
-                    bar_colors.append('rgba(255, 182, 193, 0.8)')  # Light pink
+                    bar_colors.append('rgba(255, 182, 193, 0.4)')  # Light pink
+                    border_colors.append('rgba(255, 182, 193, 0.9)')  # Light pink
                 else:
-                    # Igual - Azul pastel
-                    bar_colors.append('rgba(173, 216, 230, 0.8)')  # Light blue
+                    bar_colors.append('rgba(173, 216, 230, 0.4)')  # Light blue
+                    border_colors.append('rgba(173, 216, 230, 0.9)')  # Light blue
 
             fig.add_trace(go.Bar(
                 x=data[x_field],
                 y=data['valor_recibo'],
                 marker=dict(
                     color=bar_colors,
-                    line=dict(color='white', width=1),
-                    opacity=0.8
+                    line=dict(color=border_colors, width=1),
+                    opacity=0.9
                 ),
                 text=[format_currency_int(
                     val) if val > 0 else '' for val in data['valor_recibo']],
@@ -1677,10 +2149,18 @@ def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo,
             paper_bgcolor=theme_styles['plot_bg'],
             font=dict(family="Inter", size=11,
                       color=theme_styles['text_color']),
-            xaxis=dict(showgrid=True, gridcolor=theme_styles['grid_color'],
-                       title=x_title, tickangle=-45 if chart_type == 'bar' else 0),
+            xaxis=dict(
+                showgrid=True, 
+                gridcolor=theme_styles['grid_color'],
+                gridwidth=0.5,
+                title=x_title, 
+                tickangle=-45 if chart_type == 'bar' else 0),
             yaxis=dict(
-                showgrid=True, gridcolor=theme_styles['grid_color'], tickformat='$,.0f', title="Recaudo ($)"),
+                showgrid=True, 
+                gridcolor=theme_styles['grid_color'], 
+                gridwidth=0.5,
+                tickformat='$,.0f', 
+                title="Recaudo ($)"),
             showlegend=False,
             margin=dict(t=40, b=80, l=60, r=20)
         )
@@ -1694,7 +2174,7 @@ def update_grafico_recaudo_temporal(session_data, dropdown_value, vista_recaudo,
 @callback(
     Output('ventas-grafico-recaudo-vendedor', 'figure'),
     [Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),  # 
      Input('ventas-theme-store', 'data')]
 )
 def update_grafico_recaudo_vendedor(mes, data_store, theme):
@@ -1792,7 +2272,7 @@ def update_grafico_recaudo_vendedor(mes, data_store, theme):
     Output('ventas-treemap-dias-sin-venta', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),  # 
      Input('ventas-theme-store', 'data')]
 )
 def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, theme):
@@ -1823,6 +2303,7 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, them
 
         # Format dates safely
         fechas_formatted = []
+        
         for fecha in data['fecha']:
             try:
                 if pd.isna(fecha):
@@ -1857,7 +2338,7 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, them
                 cmin=data['dias_sin_venta'].min(),
                 cmax=data['dias_sin_venta'].max()
             ),
-            textfont=dict(size=10, color='white')
+            textfont=dict(size=10)
         ))
 
         fig.update_layout(
@@ -1878,13 +2359,21 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, them
 @callback(
     Output('ventas-grafico-evolucion-cliente', 'figure'),
     [Input('ventas-dropdown-cliente', 'value'),
+     Input('ventas-dropdown-tipo-evolucion', 'value'),  # NUEVO INPUT
      Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_store, theme):
+def update_evolucion_cliente(
+    cliente, 
+    tipo_evolucion, 
+    session_data, 
+    dropdown_value, 
+    mes, 
+    data_store, 
+    theme):
     """
     Update client evolution chart - filtered by month using main DataFrame.
     """
@@ -1894,10 +2383,15 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
 
         if cliente == 'Seleccione un cliente':
             fig = go.Figure()
+            tipo_text = "diaria" if tipo_evolucion == 'diario' else "mensual"
             fig.add_annotation(
-                text="Seleccione un cliente para ver su evolución diaria de ventas",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                text=f"Seleccione un cliente para ver su evolución {tipo_text} de ventas",
+                xref="paper", 
+                yref="paper",
+                x=0.5, 
+                y=0.5, 
+                xanchor='center', 
+                yanchor='middle',
                 showarrow=False,
                 font=dict(size=16, color=theme_styles['text_color'])
             )
@@ -1905,25 +2399,64 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
                 height=400,
                 plot_bgcolor=theme_styles['plot_bg'],
                 paper_bgcolor=theme_styles['plot_bg'],
-                font=dict(family="Inter", size=12,
-                          color=theme_styles['text_color'])
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    gridwidth=1,
+                    linecolor=theme_styles['grid_color'],
+                    zeroline=False
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    gridwidth=1,
+                    linecolor=theme_styles['grid_color'],
+                    zeroline=False
+                ),
+                font=dict(
+                    family="Inter", 
+                    size=12,
+                    color=theme_styles['text_color']
+                )
             )
             return fig
 
-        # Get client evolution data using analyzer method
-        data = analyzer.get_evolucion_cliente(cliente, vendedor)
-
-        # Apply month filter if specified
-        if mes and mes != 'Todos' and not data.empty:
-            try:
-                # Assuming data has 'fecha_str' in YYYY-MM-DD format
-                data = data[data['fecha_str'].str.startswith(mes)]
-            except:
-                pass  # If filtering fails, use all data
+        # NUEVO: Obtener datos según tipo de evolución
+        if tipo_evolucion == 'mensual':
+            # Usar datos mensuales del analyzer
+            data = analyzer.get_ventas_por_rango_meses(vendedor, 1, 12)  # Todo el año
+            if data and not data.get('mensual', pd.DataFrame()).empty:
+                data_mensual = data['mensual']
+                data_cliente = data_mensual[
+                    data_mensual['cliente_completo'] == cliente
+                ].sort_values('mes_año')
+                
+                if not data_cliente.empty:
+                    # Convertir a formato compatible
+                    data = pd.DataFrame({
+                        'fecha_str': data_cliente['mes_año'],
+                        'valor_neto': data_cliente['valor_neto'],
+                        'documento_id': data_cliente['documento_id']
+                    })
+                else:
+                    data = pd.DataFrame()
+            else:
+                data = pd.DataFrame()
+        else:
+            # Usar método original para datos diarios
+            data = analyzer.get_evolucion_cliente(cliente, vendedor)
+            
+            # Apply month filter if specified
+            if mes and mes != 'Todos' and not data.empty:
+                try:
+                    data = data[data['fecha_str'].str.startswith(mes)]
+                except:
+                    pass
 
         if data.empty:
-            mensaje = f"No hay datos para {cliente}"
-            if mes != 'Todos':
+            tipo_text = "diarios" if tipo_evolucion == 'diario' else "mensuales"
+            mensaje = f"No hay datos {tipo_text} para {cliente}"
+            if mes != 'Todos' and tipo_evolucion == 'diario':
                 mensaje += f" en {mes}"
 
             fig = go.Figure()
@@ -1940,6 +2473,20 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
             )
             fig.update_layout(
                 height=400,
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    gridwidth=1,
+                    linecolor=theme_styles['grid_color'],
+                    zeroline=False
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor=theme_styles['grid_color'],
+                    gridwidth=1,
+                    linecolor=theme_styles['grid_color'],
+                    zeroline=False
+                ),
                 plot_bgcolor=theme_styles['plot_bg'],
                 paper_bgcolor=theme_styles['plot_bg'],
                 font=dict(family="Inter", size=12,
@@ -1949,30 +2496,49 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
 
         # Calculate totals for title
         total_ventas_periodo = data['valor_neto'].sum()
-        num_dias = len(data)
+        num_periodos = len(data)
 
-        # Create bar chart
+        # Create chart
         fig = go.Figure()
+        
+        # Colores según tipo
+        if tipo_evolucion == 'mensual':
+            # Colores más intensos para mensual
+            colors = [
+                'rgba(59, 130, 246, 0.4)', 'rgba(16, 185, 129, 0.4)',
+                'rgba(245, 158, 11, 0.4)', 'rgba(239, 68, 68, 0.4)',
+                'rgba(139, 92, 246, 0.4)', 'rgba(236, 72, 153, 0.4)'
+            ]
+            border_colors = [
+                'rgba(59, 130, 246, 0.9)', 'rgba(16, 185, 129, 0.9)',
+                'rgba(245, 158, 11, 0.9)', 'rgba(239, 68, 68, 0.9)',
+                'rgba(139, 92, 246, 0.9)', 'rgba(236, 72, 153, 0.9)'
+            ]
+        else:
+            # Colores pastel para diario
+            colors = [
+                'rgba(144, 238, 144, 0.4)', 'rgba(173, 216, 230, 0.4)',
+                'rgba(255, 218, 185, 0.4)', 'rgba(221, 160, 221, 0.4)',
+                'rgba(175, 238, 238, 0.4)', 'rgba(255, 182, 193, 0.4)'
+            ]
+            border_colors = [
+                'rgba(144, 238, 144, 0.9)', 'rgba(173, 216, 230, 0.9)',
+                'rgba(255, 218, 185, 0.9)', 'rgba(221, 160, 221, 0.9)',
+                'rgba(175, 238, 238, 0.9)', 'rgba(255, 182, 193, 0.9)'
+            ]
 
-        pastel_colors = [
-            'rgba(144, 238, 144, 0.8)', 'rgba(173, 216, 230, 0.8)',
-            'rgba(255, 218, 185, 0.8)', 'rgba(221, 160, 221, 0.8)',
-            'rgba(175, 238, 238, 0.8)', 'rgba(255, 182, 193, 0.8)'
-        ]
-
-        bar_colors = [
-            pastel_colors[i % len(pastel_colors)] for i in range(len(data))
-        ]
+        bar_colors = [colors[i % len(colors)] for i in range(len(data))]
+        border_colors_list = [border_colors[i % len(border_colors)] for i in range(len(data))]
 
         fig.add_trace(go.Bar(
             x=data['fecha_str'],
             y=data['valor_neto'],
             marker=dict(
                 color=bar_colors,
-                line=dict(color='white', width=1)
+                line=dict(color=border_colors_list, width=1),
+                opacity=0.9
             ),
-            text=[format_currency_int(
-                val) if val > 50000 else '' for val in data['valor_neto']],
+            text=[format_currency_int(val) if val > 50000 else '' for val in data['valor_neto']],
             textposition='outside',
             textfont=dict(size=9, color=theme_styles['text_color']),
             hovertemplate="<b>%{x}</b><br>" +
@@ -1983,44 +2549,59 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
                 data['valor_neto'], data['documento_id'])]
         ))
 
-        # Título con información específica del período
+        # Título dinámico
         cliente_corto = cliente[:80] + '...' if len(cliente) > 80 else cliente
+        total_ventas_str = format_currency_int(total_ventas_periodo)
+        
+        periodo_text = "días" if tipo_evolucion == 'diario' else "meses"
+        promedio_text = "diario" if tipo_evolucion == 'diario' else "mensual"
+        
+        ticket_promedio = format_currency_int(
+            total_ventas_periodo / num_periodos) if num_periodos != 0 else 0
 
-        if mes != 'Todos':
-            titulo_completo = f"Total: {format_currency_int(total_ventas_periodo)} ({num_dias} días)<br><sub>{cliente_corto} - {mes}</sub>"
-        else:
-            titulo_completo = f"Total: {format_currency_int(total_ventas_periodo)} ({num_dias} días)<br><sub>{cliente_corto}</sub>"
+        titulo_completo = (
+            f"<span style='font-size:16px; font-weight:bold;'>"
+            f"Total: {total_ventas_str} ({num_periodos} {periodo_text})</span>"
+            f"<br><span style='font-size:13px; margin-top:10px; display:inline-block;'>"
+            f"Promedio {promedio_text}: {ticket_promedio}</span>"
+            f"<br><span style='font-size:10px; margin-top:10px; display:inline-block;'>"
+            f"{cliente_corto} - {tipo_evolucion.title()}</span>"
+        )
 
         fig.update_layout(
             title=dict(
                 text=titulo_completo,
                 x=0.5,
-                font=dict(size=14, color=theme_styles['text_color'])
+                font=dict(color=theme_styles['text_color']),
+                pad=dict(t=40)  
             ),
-            height=450,
+            height=480,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Inter", size=12,
-                      color=theme_styles['text_color']),
+            font=dict(family="Inter", size=12, color=theme_styles['text_color']),
             xaxis=dict(
-                title="Fecha",
+                title="Fecha" if tipo_evolucion == 'diario' else "Mes",
                 showgrid=True,
                 gridcolor=theme_styles['grid_color'],
-                linecolor=theme_styles['line_color'],
+                linecolor=theme_styles['grid_color'],
+                linewidth=0.5,
                 tickangle=-45,
                 type='category',
-                tickfont=dict(color=theme_styles['text_color'])
+                tickfont=dict(color=theme_styles['text_color']),
+                zeroline=False
             ),
             yaxis=dict(
                 title="Ventas ($)",
                 showgrid=True,
                 gridcolor=theme_styles['grid_color'],
-                linecolor=theme_styles['line_color'],
+                linecolor=theme_styles['grid_color'],
+                linewidth=0.5,
                 tickformat='$,.0f',
-                tickfont=dict(color=theme_styles['text_color'])
+                tickfont=dict(color=theme_styles['text_color']),
+                zeroline=False
             ),
             showlegend=False,
-            margin=dict(t=80, b=80, l=80, r=40)
+            margin=dict(t=110, b=80, l=80, r=40)
         )
 
         return fig
@@ -2029,11 +2610,12 @@ def update_evolucion_cliente(cliente, session_data, dropdown_value, mes, data_st
         return go.Figure()
 
 
+
 @callback(
     Output('ventas-grafico-comparativa-vendedores', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-tipo-grafico', 'value'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),  # 
      Input('ventas-theme-store', 'data')]
 )
 def update_comparativa_vendedores(session_data, tipo_grafico, data_store, theme):
@@ -2045,15 +2627,15 @@ def update_comparativa_vendedores(session_data, tipo_grafico, data_store, theme)
     try:
         # Solo mostrar si es administrador
         if not session_data or not can_see_all_vendors(session_data):
-            fig = go.Figure()
-            fig.add_annotation(
-                text="Gráfico disponible solo para administradores",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, showarrow=False,
-                font=dict(size=16, color='#7f8c8d')
+            return go.Figure().update_layout(
+                height=10,  # Altura mínima permitida
+                margin={'t': 0, 'b': 0, 'l': 0, 'r': 0},
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                xaxis={'visible': False, 'showgrid': False},
+                yaxis={'visible': False, 'showgrid': False},
+                showlegend=False
             )
-            fig.update_layout(height=400)
-            return fig
 
         theme_styles = get_theme_styles(theme)
 
@@ -2356,7 +2938,7 @@ def update_comparativa_vendedores(session_data, tipo_grafico, data_store, theme)
 @callback(
     Output('ventas-graficos-area-individuales', 'figure'),
     [Input('session-store', 'data'),
-     Input('ventas-data-store', 'data'),  # ¡NUEVO!
+     Input('ventas-data-store', 'data'),  # 
      Input('ventas-theme-store', 'data')]
 )
 def update_area_charts_individuales(session_data, data_store, theme):
@@ -2370,20 +2952,15 @@ def update_area_charts_individuales(session_data, data_store, theme):
 
         # Solo mostrar si es administrador
         if not session_data or not can_see_all_vendors(session_data):
-            fig = go.Figure()
-            fig.add_annotation(
-                text="Gráficos disponibles solo para administradores",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, showarrow=False,
-                font=dict(size=16, color=theme_styles['text_color'])
+            return go.Figure().update_layout(
+                height=10,  # Altura mínima permitida
+                margin={'t': 0, 'b': 0, 'l': 0, 'r': 0},
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                xaxis={'visible': False, 'showgrid': False},
+                yaxis={'visible': False, 'showgrid': False},
+                showlegend=False
             )
-            fig.update_layout(
-                height=300,
-                paper_bgcolor=theme_styles['plot_bg'],
-                plot_bgcolor=theme_styles['plot_bg']
-            )
-            return fig
-
         # Obtener datos para TODOS los vendedores (sin límite)
         # Excluir 'Todos'
         vendedores_disponibles = analyzer.vendedores_list[1:]
@@ -2534,7 +3111,7 @@ def update_area_charts_individuales(session_data, data_store, theme):
     Output('ventas-dropdown-cliente', 'options'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-data-store', 'data')]  # ¡NUEVO!
+     Input('ventas-data-store', 'data')]  # 
 )
 def update_clientes_dropdown(session_data, dropdown_value, data_store):
     """
@@ -2563,7 +3140,7 @@ def reset_cliente_selection(vendedor):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data')]  # ¡NUEVO!
+     Input('ventas-data-store', 'data')]  # 
 )
 def update_titulo_recaudo(session_data, dropdown_value, mes, data_store):
     """
@@ -2612,37 +3189,7 @@ def update_recaudo_visibility(session_data, dropdown_value, vista_recaudo):
 
 
 @callback(
-    Output('ventas-row1-2-container', 'style'),
-    [Input('session-store', 'data'),
-     Input('ventas-theme-store', 'data')]
-)
-def update_comparativa_visibility(session_data, theme):
-    """Mostrar/ocultar sección de comparativa según permisos del usuario."""
-    from utils import can_see_all_vendors
-
-    theme_styles = get_theme_styles(theme)
-
-    try:
-        if not session_data or not can_see_all_vendors(session_data):
-            # Ocultar para usuarios normales
-            return {'display': 'none'}
-        else:
-            # Mostrar para administradores
-            return {
-                'backgroundColor': theme_styles['paper_color'],
-                'padding': '20px',
-                'borderRadius': '8px',
-                'boxShadow': theme_styles['card_shadow'],
-                'margin': '10px 0',
-                'color': theme_styles['text_color']
-            }
-    except Exception as e:
-        print(f"❌ [update_comparativa_visibility] Error: {e}")
-        return {'display': 'none'}
-
-
-@callback(
-    Output('ventas-titulo-dashboard', 'children'),
+    Output('ventas-titulo-principal', 'children'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value')]
@@ -2655,144 +3202,172 @@ def update_title(session_data, dropdown_value, mes):
 
     try:
         if not session_data:
-            return "Dashboard de Ventas"
+            return "Vendedores"
 
         if can_see_all_vendors(session_data):
             vendedor = dropdown_value if dropdown_value else 'Todos'
-            title = "Dashboard de Ventas"
-            if vendedor != 'Todos' and mes != 'Todos':
-                title += f" - {vendedor} - {mes}"
-            elif vendedor != 'Todos':
-                title += f" - {vendedor}"
-            elif mes != 'Todos':
-                title += f" - {mes}"
-            else:
-                title += " - Todos los Vendedores"
+            title = "Vendedores"
             return title
         else:
             vendor = get_user_vendor_filter(session_data)
-            title = f"Dashboard de Ventas - {vendor}"
-            if mes != 'Todos':
-                title += f" - {mes}"
+            title = f"Vendedores"
             return title
     except Exception as e:
         print(f"❌ [update_title] Error: {e}")
-        return "Dashboard de Ventas"
+        return "Vendedores"
+
+@callback(
+    Output('ventas-subtitulo', 'children'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-dropdown-mes', 'value')]
+)
+def update_subtitle(session_data, dropdown_value, mes):
+    """
+    Update dynamic subtitle based on filters.
+    """
+    from utils import can_see_all_vendors, get_user_vendor_filter
+
+    try:
+        if not session_data:
+            return "Selecciona filtros para comenzar"
+
+        if can_see_all_vendors(session_data):
+            vendedor = dropdown_value if dropdown_value else 'Todos'
+        else:
+            vendedor = get_user_vendor_filter(session_data)
+
+        # Construir subtítulo
+        parts = []
+        
+        if vendedor and vendedor != 'Todos':
+            parts.append(f"{vendedor.title()}")
+        else:
+            parts.append("Todos los Vendedores")
+            
+        if mes and mes != 'Todos':
+            parts.append(f"{mes}")
+        else:
+            parts.append("Todos los períodos")
+            
+        return " • ".join(parts)
+        
+    except Exception as e:
+        print(f"❌ [update_subtitle] Error: {e}")
+        return "Análisis completo de ventas y performance"
 
 
 @callback(
     [Output('ventas-theme-store', 'data'),
-     Output('ventas-theme-icon', 'children'),
-     Output('ventas-theme-text', 'children'),
-     Output('ventas-theme-toggle', 'style'),
-     Output('ventas-main-container', 'style'),
-     Output('ventas-header-container', 'style'),
-     Output('ventas-titulo-dashboard', 'style')],
+     Output('ventas-theme-toggle', 'children'),
+     Output('ventas-main-container', 'style')],
     [Input('ventas-theme-toggle', 'n_clicks')],
     [State('ventas-theme-store', 'data')]
 )
 def toggle_theme(n_clicks, current_theme):
     """
-    Toggle between light and dark themes with improved styling.
+    Toggle between light and dark theme.
     """
-    if n_clicks % 2 == 1:
-        new_theme = 'dark'
-        icon = '☀️'
-        text = 'Claro'
-        button_style = {
-            'backgroundColor': '#495057',
-            'border': '2px solid #6c757d',
-            'borderRadius': '12px',
-            'padding': '10px 16px',
-            'cursor': 'pointer',
-            'fontFamily': 'Inter',
-            'fontSize': '13px',
-            'fontWeight': '500',
-            'transition': 'all 0.3s ease',
-            'boxShadow': '0 2px 8px rgba(0,0,0,0.3)',
-            'height': '40px',
-            'display': 'flex',
-            'alignItems': 'center',
-            'justifyContent': 'center',
-            'color': '#ffffff',
-            'outline': 'none'
-        }
-        title_style = {
-            'textAlign': 'center',
-            'fontSize': '2.5rem',
-            'fontWeight': '700',
-            'fontFamily': 'Inter',
-            'webkitBackgroundClip': 'text',
-            'backgroundClip': 'text',
-            'margin': '0 0 20px 0',
-            'letterSpacing': '-0.02em',
-            'textShadow': '0 2px 4px rgba(255,255,255,0.1)'
-        }
+    if not n_clicks:
+        # Tema claro por defecto
+        return (
+            "light",
+            "🌙",
+            {
+                'width': '100%', 'minHeight': '100vh',
+                'fontFamily': 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+                'transition': 'all 0.3s ease', 'padding': '20px 0',
+                'background': 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 25%, #f8fafc 50%, #f1f5f9 100%)',
+                'backgroundSize': '400% 400%',
+                'animation': 'gradientShift 15s ease infinite',
+                'color': '#111827'
+            }
+        )
+    
+    is_dark = current_theme != 'dark'
+    icon = "☀️" if is_dark else "🌙"
+    new_theme = 'dark' if is_dark else 'light'
+    
+    if is_dark:
+        # Estilos dark theme
+        return (
+            new_theme,
+            icon,
+            {
+                'width': '100%', 'minHeight': '100vh',
+                'fontFamily': 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+                'transition': 'all 0.3s ease', 'padding': '20px 0',
+                'background': 'linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #334155 50%, #475569 100%)',
+                'backgroundSize': '400% 400%',
+                'animation': 'gradientShift 15s ease infinite',
+                'color': '#f8fafc'
+            }
+        )
     else:
-        new_theme = 'light'
-        icon = '🌙'
-        text = 'Oscuro'
-        button_style = {
-            'backgroundColor': '#f8f9fa',
-            'border': '2px solid #e9ecef',
-            'borderRadius': '12px',
-            'padding': '10px 16px',
-            'cursor': 'pointer',
-            'fontFamily': 'Inter',
-            'fontSize': '13px',
-            'fontWeight': '500',
-            'transition': 'all 0.3s ease',
-            'boxShadow': '0 2px 8px rgba(0,0,0,0.1)',
-            'height': '40px',
-            'display': 'flex',
-            'alignItems': 'center',
-            'justifyContent': 'center',
-            'color': '#212529',
-            'outline': 'none'
-        }
-        title_style = {
-            'textAlign': 'center',
-            'fontSize': '2.5rem',
-            'fontWeight': '700',
-            'fontFamily': 'Inter',
-            'webkitBackgroundClip': 'text',
-            'backgroundClip': 'text',
-            'margin': '0 0 20px 0',
-            'letterSpacing': '-0.02em',
-            'textShadow': '0 2px 4px rgba(0,0,0,0.1)'
-        }
+        # Estilos light theme
+        return (
+            new_theme,
+            icon,
+            {
+                'width': '100%', 'minHeight': '100vh',
+                'fontFamily': 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+                'transition': 'all 0.3s ease', 'padding': '20px 0',
+                'background': 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 25%, #f8fafc 50%, #f1f5f9 100%)',
+                'backgroundSize': '400% 400%',
+                'animation': 'gradientShift 15s ease infinite',
+                'color': '#111827'
+            }
+        )
 
-    theme_styles = get_theme_styles(new_theme)
+@callback(
+    [Output('ventas-dropdown-vendedor-container', 'style'),
+     Output('ventas-dropdown-vendedor-label', 'style')],
+    [Input('session-store', 'data')]
+)
+def update_dropdown_visibility(session_data):
+    """
+    Mostrar/ocultar dropdown de vendedores según permisos del usuario.
+    """
+    from utils import can_see_all_vendors
 
-    main_style = {
-        'fontFamily': 'Inter',
-        'backgroundColor': theme_styles['bg_color'],
-        'padding': '20px',
-        'color': theme_styles['text_color']
-    }
-
-    header_style = {
-        'marginBottom': '35px',
-        'padding': '25px',
-        'backgroundColor': theme_styles['paper_color'],
-        'borderRadius': '16px',
-        'boxShadow': theme_styles['card_shadow']
-    }
-
-    return new_theme, icon, text, button_style, main_style, header_style, title_style
-
+    try:
+        if not session_data or not can_see_all_vendors(session_data):
+            # Ocultar para usuarios normales o sin sesión
+            return {'display': 'none'}, {'display': 'none'}
+        else:
+            # Mostrar para administradores con más ancho
+            base_style = {
+                'display': 'flex',
+                'flexDirection': 'column',
+                'flex': '1',
+                'minWidth': '250px'
+            }
+            label_style = {
+                'fontWeight': '600',
+                'fontSize': '14px',
+                'marginBottom': '8px',
+                'display': 'block'
+            }
+            return base_style, label_style
+    except Exception as e:
+        print(f"❌ [update_dropdown_visibility] Error: {e}")
+        return {'display': 'none'}, {'display': 'none'}
 
 @callback(
     [Output('ventas-dropdown-vendedor', 'style'),
      Output('ventas-dropdown-mes', 'style'),
      Output('ventas-dropdown-cliente', 'style'),
+     Output('ventas-dropdown-tipo-evolucion', 'style'),
      Output('ventas-dropdown-vista-recaudo', 'style'),
      Output('ventas-dropdown-tipo-grafico', 'style'),
+     Output('ventas-heatmap-clientes', 'style'),
      Output('ventas-dropdown-vendedor', 'className'),
      Output('ventas-dropdown-mes', 'className'),
      Output('ventas-dropdown-cliente', 'className'),
+     Output('ventas-dropdown-tipo-evolucion', 'className'),
      Output('ventas-dropdown-vista-recaudo', 'className'),
-     Output('ventas-dropdown-tipo-grafico', 'className')],
+     Output('ventas-dropdown-tipo-grafico', 'className'),
+     Output('ventas-heatmap-clientes', 'className')], 
     [Input('ventas-theme-store', 'data'),
      Input('session-store', 'data')]
 )
@@ -2817,11 +3392,32 @@ def update_dropdown_styles(theme, session_data):
 
     vista_style = dropdown_style.copy()
     vista_style.update({'width': '200px', 'display': 'inline-block'})
+    
+    # Estilo específico para dropdown del heatmap (letra más pequeña)
+    heatmap_dropdown_style = get_dropdown_style(theme).copy()
+    heatmap_dropdown_style.update({
+        'fontFamily': 'Inter',
+        'fontSize': '12px',  # Mantener tamaño específico
+        'height': 'auto',    # Altura automática para multi-select
+        'minHeight': '38px'  # Altura mínima
+    })
 
     # CSS class for dark theme
     css_class = 'dash-dropdown dark-theme' if theme == 'dark' else 'dash-dropdown'
+    
+    # Clase específica para el dropdown del heatmap
+    heatmap_css_class = f'{css_class} heatmap-dropdown'
 
-    return vendedor_style, dropdown_style, dropdown_style, vista_style, tipo_grafico_style, css_class, css_class, css_class, css_class, css_class
+    return \
+        (
+            # Styles
+            vendedor_style, dropdown_style, dropdown_style,
+            dropdown_style, vista_style, tipo_grafico_style, 
+            heatmap_dropdown_style,
+            # Classes
+            css_class, css_class, css_class, css_class,
+            css_class, css_class, heatmap_css_class
+        )
 
 
 @callback(
@@ -2853,33 +3449,409 @@ def update_card_styles(theme):
 
     return [card_style] * 8
 
-
 @callback(
     [Output('ventas-row1-container', 'style'),
-     Output('ventas-row1-3-container', 'style'),
+     Output('ventas-row1-2-container', 'style'),      # <- COMPARATIVA
+     Output('ventas-row1-3-container', 'style'),      # <- ÁREA INDIVIDUAL  
      Output('ventas-row1-5-container', 'style'),
-     Output('ventas-row-nueva-treemap', 'style'),
+     Output('ventas-row-top', 'style'),
      Output('ventas-row2-container', 'style'),
      Output('ventas-row2-5-container', 'style'),
-     Output('ventas-row3-container', 'style'),
      Output('ventas-row4-container', 'style'),
      Output('ventas-row5-container', 'style'),
-     Output('ventas-row6-container', 'style')],
-    [Input('ventas-theme-store', 'data')]
+     Output('ventas-row6-container', 'style'),
+     Output('ventas-row-heatmap', 'style'),
+     Output('ventas-heatmap-top10', 'style'),     
+     Output('ventas-heatmap-bottom10', 'style')], 
+    [Input('ventas-theme-store', 'data'),
+     Input('session-store', 'data')]  # <- CLAVE: Reacciona a cambios de sesión
 )
-def update_container_styles(theme):
+def update_container_styles(theme, session_data):
     """
-    Update styles for chart containers based on theme.
+    Update styles for chart containers based on theme AND handle admin visibility.
     """
+    from utils import can_see_all_vendors
+    
     theme_styles = get_theme_styles(theme)
 
-    chart_style = {
+    # Estilo base para contenedores normales
+    base_style = {
         'backgroundColor': theme_styles['paper_color'],
-        'padding': '20px',
-        'borderRadius': '8px',
+        'padding': '24px',
+        'borderRadius': '16px',
         'boxShadow': theme_styles['card_shadow'],
-        'margin': '10px 0',
-        'color': theme_styles['text_color']
+        'marginBottom': '24px',
+        'color': theme_styles['text_color'],
+        'transition': 'all 0.3s ease',
+        'width': '100%'
     }
+    
+    # Estilo para COMPLETAMENTE OCULTO (como si no existiera)
+    hidden_completely = {
+        'display': 'none',           # No se renderiza
+        'height': '0px',             # Sin altura
+        'padding': '0px',            # Sin padding
+        'margin': '0px',             # Sin margin
+        'border': 'none',            # Sin bordes
+        'overflow': 'hidden',        # Oculta cualquier overflow
+        'visibility': 'hidden',      # Invisible incluso si se muestra
+        'position': 'absolute',      # Fuera del flujo de documento
+        'top': '-9999px',           # Muy lejos de la vista
+        'opacity': '0'              # Transparente
+    }
+    
+    # Estilo especial para treemap
+    treemap_style = base_style.copy()
+    treemap_style.update({
+        'background': 'linear-gradient(135deg, #ffffff, #f9fafb)' if theme == 'light' else theme_styles['paper_color']
+    })
+    
+    # Determinar si mostrar secciones de admin
+    try:
+        is_admin = session_data and can_see_all_vendors(session_data)
+    except:
+        is_admin = False
+    
+    # Asignar estilos según permisos
+    comparativa_style = base_style if is_admin else hidden_completely
+    area_individual_style = base_style if is_admin else hidden_completely
+    
+    # Estilo para botones del heatmap según tema
+    if theme == 'dark':
+        button_style = {
+            'padding': '8px 16px',
+            'border': '2px solid #4b5563',
+            'borderRadius': '20px',
+            'background': '#374151',
+            'color': '#f9fafb',
+            'fontFamily': 'Inter',
+            'fontWeight': '500',
+            'fontSize': '12px',
+            'cursor': 'pointer',
+            'transition': 'all 0.3s ease',
+            'minWidth': '120px',
+            'textAlign': 'center',
+            'marginRight': '10px'
+        }
+    else:
+        button_style = {
+            'padding': '8px 16px',
+            'border': '2px solid #e5e7eb',
+            'borderRadius': '20px',
+            'background': 'white',
+            'color': '#6b7280',
+            'fontFamily': 'Inter',
+            'fontWeight': '500',
+            'fontSize': '12px',
+            'cursor': 'pointer',
+            'transition': 'all 0.3s ease',
+            'minWidth': '120px',
+            'textAlign': 'center',
+            'marginRight': '10px'
+        }
 
-    return [chart_style] * 10  # 10 containers
+    return [
+        base_style,                    # ventas-row1-container (siempre visible)
+        comparativa_style,             # ventas-row1-2-container (solo admin)
+        area_individual_style,         # ventas-row1-3-container (solo admin)  
+        base_style,                    # ventas-row1-5-container (siempre visible)
+        base_style,                    # ventas-row-top (siempre visible)
+        base_style,                    # ventas-row2-container (siempre visible)
+        treemap_style,                 # ventas-row2-5-container (siempre visible)
+        base_style,                    # ventas-row4-container (siempre visible)
+        base_style,                    # ventas-row5-container (siempre visible)
+        base_style,                    # ventas-row6-container (siempre visible)
+        base_style,
+        button_style, 
+        button_style
+    ]
+
+
+@callback(
+    Output('ventas-metrics-cards', 'children'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),
+     Input('ventas-theme-store', 'data')]
+)
+def update_metric_cards(session_data, dropdown_value, mes, data_store, theme):
+    """
+    Actualizar las metric cards con los datos de ventas
+    """
+    try:
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        is_dark = theme == 'dark'
+        
+        # Obtener resumen de datos
+        resumen = analyzer.get_resumen_ventas(vendedor, mes)
+        
+        # Preparar datos para las cards
+        metrics_data = [
+            {
+                'title': 'Ventas Totales',
+                'value': format_currency_int(resumen['total_ventas']),
+                'color': METRIC_COLORS['success'],
+                'card_id': 'ventas-card-ventas-totales'
+            },
+            {
+                'title': 'Ventas Netas',
+                'value': format_currency_int(resumen['ventas_netas']),
+                'color': METRIC_COLORS['primary'],
+                'card_id': 'ventas-card-ventas-netas'
+            },
+            {
+                'title': 'Devoluciones',
+                'value': format_currency_int(resumen['total_devoluciones']),
+                'color': METRIC_COLORS['danger'],
+                'card_id': 'ventas-card-devoluciones'
+            },
+            {
+                'title': 'Descuentos',
+                'value': format_currency_int(resumen['total_descuentos']),
+                'color': METRIC_COLORS['warning'],
+                'card_id': 'ventas-card-descuentos'
+            },
+            {
+                'title': 'Valor Promedio',
+                'value': format_currency_int(resumen['ticket_promedio']),
+                'color': METRIC_COLORS['purple'],
+                'card_id': 'ventas-card-valor-promedio'
+            },
+            {
+                'title': '# Facturas',
+                'value': f"{resumen['num_facturas']:,}",
+                'color': METRIC_COLORS['indigo'],
+                'card_id': 'ventas-card-num-facturas'
+            },
+            {
+                'title': '# Devoluciones',
+                'value': f"{resumen['num_devoluciones']:,}",
+                'color': METRIC_COLORS['orange'],
+                'card_id': 'ventas-card-num-devoluciones'
+            },
+            {
+                'title': 'Clientes',
+                'value': f"{resumen['num_clientes']:,}",
+                'color': METRIC_COLORS['teal'],
+                'card_id': 'ventas-card-clientes'
+            }
+        ]
+        
+        # Crear grid de métricas con 4 columnas
+        return create_metrics_grid(
+            metrics=metrics_data,
+            is_dark=is_dark,
+            columns=4,
+            gap="20px"
+        )
+        
+    except Exception as e:
+        print(f"❌ Error actualizando metric cards: {e}")
+        # Retornar cards vacías en caso de error
+        return create_empty_metrics(is_dark=theme == 'dark', count=8)
+
+@callback(
+    Output('ventas-heatmap-variaciones', 'figure'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-heatmap-rango-meses', 'value'),
+     Input('ventas-heatmap-top10', 'n_clicks'),
+     Input('ventas-heatmap-bottom10', 'n_clicks'),
+     Input('ventas-heatmap-clientes', 'value'),
+     Input('ventas-data-store', 'data'),
+     Input('ventas-theme-store', 'data')],
+    [State('ventas-heatmap-top10', 'className'),
+     State('ventas-heatmap-bottom10', 'className')]
+)
+def update_heatmap_variaciones(session_data, dropdown_value, rango_meses, top10_clicks, 
+                              bottom10_clicks, clientes_seleccionados, data_store, theme,
+                              top10_class, bottom10_class):
+    """Actualizar heatmap con 3 tipos de filtros - CORREGIDO"""
+    try:
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        theme_styles = get_theme_styles(theme)
+        
+        # Obtener rango de meses
+        if rango_meses and len(rango_meses) == 2:
+            mes_inicio, mes_fin = rango_meses
+        else:
+            mes_inicio, mes_fin = get_ultimos_3_meses()
+        
+        # Determinar tipo de filtro y título
+        data = pd.DataFrame()
+        titulo_filtro = "Primeros 10"
+        
+        # CORRECCIÓN 1: Prioridad: clientes específicos > botones activos
+        if clientes_seleccionados and len(clientes_seleccionados) > 0:
+            data = analyzer.get_variaciones_clientes_especificos(
+                vendedor, mes_inicio, mes_fin, clientes_seleccionados
+            )
+            titulo_filtro = f"Comparación de {len(clientes_seleccionados)} clientes"
+        else:
+            # CORRECCIÓN: Usar las clases CSS para determinar cuál botón está activo
+            if 'active' in (bottom10_class or ''):
+                filtro_tipo = 'bottom10'
+                titulo_filtro = "Últimos 10"
+            else:
+                filtro_tipo = 'top10'
+                titulo_filtro = "Primeros 10"
+            
+            data = analyzer.get_variaciones_mensuales_clientes(
+                vendedor, mes_inicio, mes_fin, filtro_tipo
+            )
+        
+        if data.empty:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No hay suficientes datos para el período seleccionado",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=500,  # CORRECCIÓN 2: Altura fija para evitar cambios
+                paper_bgcolor=theme_styles['plot_bg'],
+                plot_bgcolor=theme_styles['plot_bg']
+            )
+            return fig
+        
+        # Preparar datos
+        z_values = data.values
+        text_values = [[f"{val:+.1f}%" if not pd.isna(val) and val != 0 else "" 
+                       for val in row] for row in z_values]
+        
+        # Crear heatmap
+        fig = go.Figure(data=go.Heatmap(
+            z=z_values,
+            x=data.columns,
+            y=[url[:40] + "..." if len(url) > 40 else url for url in data.index],
+            text=text_values,
+            texttemplate="%{text}",
+            textfont={"family": "Inter", "size": 10, "color": "white"},
+            colorscale=[
+                [0.0, "#b91c1c"], [0.15, "#dc2626"], [0.3, "#ef4444"],
+                [0.4, "#f87171"], [0.45, "#fbbf24"], [0.5, "#e5e7eb"],
+                [0.55, "#84cc16"], [0.6, "#22c55e"], [0.7, "#16a34a"],
+                [0.85, "#15803d"], [1.0, "#166534"]
+            ],
+            showscale=False,
+            hoverongaps=False,
+            hovertemplate="<b>%{y}</b><br>%{x}<br>Variación: %{z:+.1f}%<extra></extra>",
+            xgap=1,
+            ygap=1,
+            zmin=-100,
+            zmax=100
+        ))
+        
+        # Layout con altura estable
+        fig.update_layout(
+            height=550,  # Usar altura calculada de forma estable
+            margin=dict(t=50, b=60, l=220, r=20),
+            font=dict(family="Inter", color=theme_styles['text_color']),
+            plot_bgcolor=theme_styles['plot_bg'],
+            paper_bgcolor=theme_styles['plot_bg'],
+            title=dict(
+                text=titulo_filtro,
+                x=0.5,
+                font=dict(size=14, color=theme_styles['text_color'])
+            ),
+            xaxis=dict(
+                tickangle=-45,
+                tickfont=dict(color=theme_styles['text_color'], size=9),
+                title_font=dict(color=theme_styles['text_color']),
+                showgrid=False
+            ),
+            yaxis=dict(
+                tickfont=dict(color=theme_styles['text_color'], size=9),
+                title_font=dict(color=theme_styles['text_color']),
+                showgrid=False
+            )
+        )
+        
+        return fig
+        
+    except Exception as e:
+        print(f"❌ Error en heatmap: {e}")
+        fig = go.Figure()
+        fig.update_layout(height=500)  # Altura fija en caso de error
+        return fig
+
+@callback(
+    Output('ventas-heatmap-clientes', 'options'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-heatmap-rango-meses', 'value'),
+     Input('ventas-data-store', 'data')]
+)
+def update_clientes_heatmap_options(session_data, dropdown_value, rango_meses, data_store):
+    """Actualizar opciones de clientes para heatmap"""
+    try:
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        
+        # Obtener rango de meses
+        if rango_meses and len(rango_meses) == 2:
+            mes_inicio, mes_fin = rango_meses
+        else:
+            mes_inicio, mes_fin = get_ultimos_3_meses()
+        
+        # Obtener lista de clientes con datos en el período
+        clientes = analyzer.get_clientes_con_variaciones(vendedor, mes_inicio, mes_fin)
+        
+        if clientes:
+            options = [
+                {
+                    'label': f"{cliente[:40]}{'...' if len(cliente) > 40 else ''}", 
+                    'value': cliente
+                } 
+                for cliente in sorted(clientes)
+            ]
+            return options
+        
+        return []
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo clientes para heatmap: {e}")
+        return []
+
+@callback(
+    Output('ventas-heatmap-clientes', 'value'),
+    [Input('ventas-heatmap-clientes', 'value')],
+    prevent_initial_call=True
+)
+def limit_cliente_selection(selected_clientes):
+    """Limitar selección a máximo 5 clientes"""
+    if selected_clientes and len(selected_clientes) > 10:
+        return selected_clientes[:10]
+    return selected_clientes
+
+@callback(
+    [Output('ventas-heatmap-top10', 'className'),
+     Output('ventas-heatmap-bottom10', 'className'),
+     Output('ventas-heatmap-clientes', 'value', allow_duplicate=True)],
+    [Input('ventas-heatmap-top10', 'n_clicks'),
+     Input('ventas-heatmap-bottom10', 'n_clicks'),
+     Input('ventas-heatmap-clientes', 'value')],
+    prevent_initial_call=True
+)
+def update_heatmap_button_styles(top10_clicks, bottom10_clicks, clientes_seleccionados):
+    """Actualizar estilos de botones y limpiar selección cuando se usa ranking"""
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return 'heatmap-filter-btn active', 'heatmap-filter-btn', dash.no_update
+    
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    # Si se seleccionaron clientes, desactivar botones
+    if clientes_seleccionados and len(clientes_seleccionados) > 0:
+        return 'heatmap-filter-btn', 'heatmap-filter-btn', dash.no_update
+    
+    # Si se presionó un botón, limpiar selección de clientes y activar botón
+    if 'top10' in trigger_id:
+        return 'heatmap-filter-btn active', 'heatmap-filter-btn', []
+    elif 'bottom10' in trigger_id:
+        return 'heatmap-filter-btn', 'heatmap-filter-btn active', []
+    
+    # Default
+    return 'heatmap-filter-btn active', 'heatmap-filter-btn', dash.no_update

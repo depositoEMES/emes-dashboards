@@ -1,0 +1,70 @@
+C:\Users\juane\AppData\Local\Programs\Python\Python311\Scripts\pyrcc5 logo_emes.qrc -o logo_emes.py
+C:\Users\juane\AppData\Local\Programs\Python\Python311\Scripts\pyinstaller.exe --onefile --noconsole --icon=icons/logo_icon.ico src/main.py --add-data "icons/*.png:icons/" --add-data "icons/*.svg:icons/" --add-data "config/*.json:config/"
+E:\Python\Emes\digital\env\Scripts\auto-py-to-exe.exe
+
+Create repository
+
+git init
+git add -A
+git commit -m 'first commit'
+git remote add origin https://github.com/depositoEMES/digital.git
+git push -u -f origin main
+
+Update repository
+
+# for changes checking 
+git status 
+git add .
+git commit -m "Ej. includes paths"
+git push
+
+# Open setting .json
+Ctrl + Shift + P -> Open User Settings (UI)
+
+# Regla por añadir a Firebase DB
+{
+  "rules": {
+    "empaques": {
+      ".indexOn": ["factura"]
+    },
+    ".read": "auth != null",
+    ".write": "auth != null",
+  }
+}
+
+# Entorno virtual
+py -m venv <name>
+.\<name>\Scripts\activate
+
+py -m venv env
+.\env\Scripts\activate
+Ctrl+Shift+P => Python: Select Interpreter => .\env\Scripts\python.exe
+
+1.) Actualizar pip: py -m pip install --upgrade pip
+2.) pip install PyQt6 PyQt6-Fluent-Widgets pyqt6-tools firebase-admin pandas openpyxl sms-python-client plotly
+
+deactivate
+
+Recomendación:
+1.) Instalar los paquetes de forma conjunta para que pip encuentre posibles incompatibilidades (como node)
+
+Recordar:
+1.) Para ver el entorno virtual activos, simplemente se da un Enter vacío.
+
+.\env_pyqt6_642\Scripts\activate
+
+env:
+pip install firebase-admin pandas openpyxl plotly dash dash_bootstrap_components dash_bootstrap_templates dash_daq
+pip install PyQt6 PyQt6-Fluent-Widgets firebase-admin pandas openpyxl sms-python-client plotly
+pip install PyQt6 PyQt6-Fluent-Widgets firebase-admin pandas openpyxl sms-python-client plotly dash dash_bootstrap_components dash_bootstrap_templates dash_daq pyarrow
+
+env_pyqt6_642:
+pip install PyQt6==6.4.2 PyQt6-Fluent-Widgets pyqt6-tools firebase-admin pandas openpyxl sms-python-client plotly
+
+env_fluent_143:
+pip install PyQt6==6.4.2 PyQt6-Fluent-Widgets==1.4.3 pyqt6-tools firebase-admin pandas openpyxl sms-python-client plotly dash dash_bootstrap_components dash_bootstrap_templates dash_daq
+pip install dash dash_bootstrap_components dash_bootstrap_templates dash_daq
+
+For generate stubs (pyi files)
+
+stubgen -o stubs src

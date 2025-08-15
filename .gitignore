@@ -4,6 +4,8 @@ __pycache__/
 *.pyd
 .env
 .copias
+.tests
 emes-digital.json
 .DS_Store
 *.log
+*.json

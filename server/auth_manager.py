@@ -35,7 +35,7 @@ class AuthManager:
                                     'user_id': user_id,
                                     'username': username,
                                     'role': user_data.get('role', 'user'),
-                                    'permissions': ['cartera', 'ventas'],
+                                    'permissions': user_data.get('permissions', {}),
                                     'full_name': user_data.get('full_name', username),
                                     'seller': user_data.get('seller', 'Todos')
                                 }
