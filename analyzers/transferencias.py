@@ -4,87 +4,88 @@ from datetime import datetime
 
 from utils import format_currency_int
 
+
 class TransferenciasAnalyzer:
-    
+
     def __init__(self):
         from . import get_unified_analyzer
         self._unified_analyzer = get_unified_analyzer()
-        
+
     @property
     def df_ventas(self):
         """
         Compatibilidad: retorna el DataFrame de transferencias por transferencista.
         """
         return self._unified_analyzer.df_transferencias
-    
+
     @property
     def vendedores_list(self):
         """
         Compatibilidad: retorna la lista de transferencistas como 'vendedores'.
         """
         return self._unified_analyzer.transferencistas_list
-    
+
     @property
     def meses_list(self):
         """
         Compatibilidad: retorna la lista de meses.
         """
         return self._unified_analyzer.meses_list
-        
+
     def reload_data(self):
         """
         Force reload of ALL data from Firebase.
         """
         return self._unified_analyzer.reload_data()
-    
+
     def load_data_from_firebase(self, force_reload=False):
         """
         Load sales data from Firebase database with caching and retry logic.
         """
         return self._unified_analyzer.load_data_from_firebase(force_reload)
-    
+
     def clear_all_cache(self):
         """
         Clean cache to force reload.
         """
         return self._unified_analyzer.clear_all_cache()
-    
+
     def get_cache_status(self):
         """
         Get current cache status for debugging.
         """
         status = self._unified_analyzer.get_cache_status()
-        
+
         return \
             {
-                'ventas': status['transferencias'],  
+                'ventas': status['transferencias'],
                 'convenios': status['convenios'],
                 'recibos': status.get('recibos', {'records': 0, 'last_update': None}),
                 'num_clientes': status.get('num_clientes', {'records': 0, 'last_update': None}),
                 'clientes': status.get('clientes', {'records': 0, 'last_update': None})
             }
-    
+
     def filter_data(self, vendedor='Todos', mes='Todos'):
         """
         Filter data by transfer agent and month.
         """
         return \
             self._unified_analyzer.filter_transferencias_data(vendedor, mes)
-    
+
     def get_resumen_transferencias(self, vendedor='Todos', mes='Todos'):
         """
         Get transfer summary statistics.
         """
         return \
             self._unified_analyzer.get_resumen_transferencias(vendedor, mes)
-    
+
     def get_transferencias_por_mes(self, vendedor='Todos'):
         """
         Get transfers evolution by month.
         """
         return \
             self._unified_analyzer.get_transferencias_por_mes(vendedor)
-    
+
     def get_transferencias_por_dia_semana(self, vendedor='Todos', mes='Todos'):
         """
         Get transfers distribution by day of week for seasonality analysis.
@@ -93,15 +94,15 @@ class TransferenciasAnalyzer:
             self._unified_analyzer.get_ventas_por_dia_semana(
                 vendedor, mes, person_type='transferencista'
             )
-        
+
     def get_transferencias_por_zona(self, vendedor='Todos', mes='Todos'):
         """
         Get transfers distribution by zone.
         """
         df = self.filter_data(vendedor, mes)
-        
+
         ventas_reales = \
-            df[df['tipo'].str.contains('Remision|Factura', case=False, na=False)]
+            df[df['tipo'].str.contains('Remision', case=False, na=False)]
 
         if ventas_reales.empty:
             return pd.DataFrame()
@@ -112,14 +113,14 @@ class TransferenciasAnalyzer:
         }).reset_index()
 
         return resultado[resultado['valor_neto'] > 0]
-    
+
     def get_top_clientes(self, vendedor='Todos', mes='Todos', top_n=10):
         """
         Get top customers by transfers.
         """
         df = self.filter_data(vendedor, mes)
         ventas_reales = \
-            df[df['tipo'].str.contains('Remision|Factura', case=False, na=False)]
+            df[df['tipo'].str.contains('Remision', case=False, na=False)]
 
         if ventas_reales.empty:
             return pd.DataFrame()
@@ -130,15 +131,15 @@ class TransferenciasAnalyzer:
         }).reset_index()
 
         return resultado.nlargest(top_n, 'valor_neto')
-    
+
     def get_forma_pago_distribution(self, vendedor='Todos', mes='Todos'):
         """
         Get payment method distribution.
         """
         df = self.filter_data(vendedor, mes)
-        
+
         ventas_reales = \
-            df[df['tipo'].str.contains('Remision|Factura', case=False, na=False)]
+            df[df['tipo'].str.contains('Remision', case=False, na=False)]
 
         if ventas_reales.empty:
             return pd.DataFrame()
@@ -150,15 +151,15 @@ class TransferenciasAnalyzer:
 
         return \
             resultado[resultado['valor_neto'] > 0]
-    
+
     def get_treemap_data(self, vendedor='Todos', mes='Todos'):
         """
         Get data for treemap visualization.
         """
         df = self.filter_data(vendedor, mes)
-        
+
         ventas_reales = \
-            df[df['tipo'].str.contains('Remision|Factura', case=False, na=False)]
+            df[df['tipo'].str.contains('Remision', case=False, na=False)]
 
         if ventas_reales.empty:
             return pd.DataFrame()
@@ -174,30 +175,30 @@ class TransferenciasAnalyzer:
         ]
 
         return resultado
-    
+
     def get_clientes_list(self, vendedor='Todos'):
         """
         Get list of clients for dropdown.
         """
         df = self.filter_data(vendedor, 'Todos')
         ventas_reales = \
-            df[df['tipo'].str.contains('Remision|Factura', case=False, na=False)]
+            df[df['tipo'].str.contains('Remision', case=False, na=False)]
 
         if ventas_reales.empty:
             return ['Seleccione un cliente']
 
         clientes = ventas_reales['cliente_completo'].unique()
-        
+
         return ['Seleccione un cliente'] + sorted(clientes)
-    
+
     def get_evolucion_cliente(self, cliente, vendedor='Todos'):
         """
         Get client's transfers evolution by day.
         """
         df = self.filter_data(vendedor, 'Todos')
-        
+
         ventas_reales = \
-            df[df['tipo'].str.contains('Remision|Factura', case=False, na=False)]
+            df[df['tipo'].str.contains('Remision', case=False, na=False)]
 
         if ventas_reales.empty or cliente == 'Seleccione un cliente':
             return pd.DataFrame()
@@ -209,7 +210,8 @@ class TransferenciasAnalyzer:
             return pd.DataFrame()
 
         # Group by date instead of month
-        cliente_data['fecha_str'] = cliente_data['fecha'].dt.strftime('%Y-%m-%d')
+        cliente_data['fecha_str'] = cliente_data['fecha'].dt.strftime(
+            '%Y-%m-%d')
 
         resultado = cliente_data.groupby('fecha_str').agg({
             'valor_neto': 'sum',
@@ -217,15 +219,15 @@ class TransferenciasAnalyzer:
         }).reset_index()
 
         return resultado.sort_values('fecha_str')
-    
+
     def get_transferencias_acumuladas_mes(self, mes='Todos', vendedor='Todos'):
         """
         Get accumulated transfers up to selected month for all clients.
         """
         df = self.filter_data(vendedor, 'Todos')
-        
+
         ventas_reales = \
-            df[df['tipo'].str.contains('Remision|Factura', case=False, na=False)]
+            df[df['tipo'].str.contains('Remision', case=False, na=False)]
 
         if ventas_reales.empty:
             return pd.DataFrame()
@@ -235,7 +237,8 @@ class TransferenciasAnalyzer:
             try:
                 mes_limite = pd.to_datetime(mes + '-01')
                 ventas_reales = ventas_reales[
-                    ventas_reales['fecha'] <= mes_limite + pd.offsets.MonthEnd(0)
+                    ventas_reales['fecha'] <= mes_limite +
+                    pd.offsets.MonthEnd(0)
                 ]
             except:
                 pass
@@ -253,15 +256,15 @@ class TransferenciasAnalyzer:
         ]
 
         return resultado
-    
+
     def get_clientes_impactados_por_periodo(self, vendedor='Todos'):
         """
         Get number of unique clients impacted per month with percentage calculation.
         """
         df = self.filter_data(vendedor, 'Todos')
-        
+
         ventas_reales = \
-            df[df['tipo'].str.contains('Remision|Factura', case=False, na=False)]
+            df[df['tipo'].str.contains('Remision', case=False, na=False)]
 
         if ventas_reales.empty:
             return pd.DataFrame(), 0, 0
@@ -276,28 +279,32 @@ class TransferenciasAnalyzer:
             'documento_id': 'count'
         }).reset_index()
 
-        resultado.rename(columns={'cliente_completo': 'clientes_impactados'}, inplace=True)
+        resultado.rename(
+            columns={'cliente_completo': 'clientes_impactados'}, inplace=True)
         resultado = resultado.sort_values('mes_nombre')
 
         # Calculate percentages
         if not df_total_clientes.empty:
             if vendedor == 'Todos':
-                total_clientes_disponibles = df_total_clientes['total_clientes'].sum()
+                total_clientes_disponibles = df_total_clientes['total_clientes'].sum(
+                )
             else:
                 vendor_data = df_total_clientes[df_total_clientes['vendedor'] == vendedor]
-                total_clientes_disponibles = vendor_data['total_clientes'].sum() if not vendor_data.empty else 0
+                total_clientes_disponibles = vendor_data['total_clientes'].sum(
+                ) if not vendor_data.empty else 0
         else:
             total_clientes_disponibles = 0
 
         # Calculate average percentage of impacted clients
         if total_clientes_disponibles > 0 and not resultado.empty:
             promedio_impactados = resultado['clientes_impactados'].mean()
-            porcentaje_promedio = (promedio_impactados / total_clientes_disponibles * 100)
+            porcentaje_promedio = (
+                promedio_impactados / total_clientes_disponibles * 100)
         else:
             porcentaje_promedio = 0
 
         return resultado, porcentaje_promedio, total_clientes_disponibles
-    
+
     def get_dias_sin_venta_por_cliente(self, vendedor='Todos'):
         """
         Get days without transfers for each client.
@@ -305,12 +312,12 @@ class TransferenciasAnalyzer:
         """
         data = \
             self._unified_analyzer.get_dias_sin_venta_por_cliente(
-                mode="transferencista", 
+                mode="transferencista",
                 vendedor=vendedor
             )
-        
+
         return data
-    
+
     def get_ventas_por_rango_meses(self, vendedor='Todos', mes_inicio=1, mes_fin=12, min_monto=None, max_monto=None):
         """
         Get sales data filtered by month range (1-12) and optionally by amount range
@@ -318,78 +325,81 @@ class TransferenciasAnalyzer:
         try:
             # Filter by vendor
             df = self.filter_data(vendedor, 'Todos')
-            
+
             # Filter only sales
             ventas_reales = df[df['tipo'].str.contains(
-                'Remision|Factura', case=False, na=False)]
-            
+                'Remision', case=False, na=False)]
+
             if ventas_reales.empty:
                 return {'total': pd.DataFrame(), 'mensual': pd.DataFrame()}
-            
+
             # Apply month range filter
             ventas_reales = ventas_reales[
-                (ventas_reales['fecha'].dt.month >= mes_inicio) & 
+                (ventas_reales['fecha'].dt.month >= mes_inicio) &
                 (ventas_reales['fecha'].dt.month <= mes_fin)
             ]
-            
+
             if ventas_reales.empty:
                 return {'total': pd.DataFrame(), 'mensual': pd.DataFrame()}
-            
+
             # Create month-year column for grouping
-            ventas_reales['mes_año'] = ventas_reales['fecha'].dt.strftime('%Y-%m')
-            
+            ventas_reales['mes_año'] = ventas_reales['fecha'].dt.strftime(
+                '%Y-%m')
+
             # Group by client for totals FIRST
             resultado_total = ventas_reales.groupby('cliente_completo').agg({
                 'valor_neto': 'sum',
                 'documento_id': 'count'
             }).reset_index()
-            
+
             # Apply amount filter if specified
             if min_monto is not None and max_monto is not None:
                 resultado_total = resultado_total[
-                    (resultado_total['valor_neto'] >= min_monto) & 
+                    (resultado_total['valor_neto'] >= min_monto) &
                     (resultado_total['valor_neto'] <= max_monto)
                 ]
-            
+
             # Filter the original data to match the clients that passed the amount filter
             if not resultado_total.empty:
-                clientes_filtrados = resultado_total['cliente_completo'].tolist()
-                ventas_reales = ventas_reales[ventas_reales['cliente_completo'].isin(clientes_filtrados)]
-            
+                clientes_filtrados = resultado_total['cliente_completo'].tolist(
+                )
+                ventas_reales = ventas_reales[ventas_reales['cliente_completo'].isin(
+                    clientes_filtrados)]
+
             # Group by client and month for monthly breakdown
             resultado_mensual = ventas_reales.groupby(['cliente_completo', 'mes_año']).agg({
                 'valor_neto': 'sum',
                 'documento_id': 'count'
             }).reset_index()
-            
+
             # Filter positive values only
             resultado_total = resultado_total[
                 (resultado_total['valor_neto'] > 0) &
                 (resultado_total['cliente_completo'].notna()) &
                 (resultado_total['cliente_completo'] != '')
             ]
-            
+
             resultado_mensual = resultado_mensual[
                 (resultado_mensual['valor_neto'] > 0) &
                 (resultado_mensual['cliente_completo'].notna()) &
                 (resultado_mensual['cliente_completo'] != '')
             ]
-            
+
             return {
                 'total': resultado_total,
                 'mensual': resultado_mensual
             }
-            
+
         except Exception as e:
             print(f"❌ Error en get_ventas_por_rango_meses: {e}")
             return {'total': pd.DataFrame(), 'mensual': pd.DataFrame()}
-    
+
     def load_convenios_from_firebase(self, force_reload=False):
         """
         Load convenios data from Firebase database with caching.
         """
         return self._unified_analyzer.load_convenios_from_firebase(force_reload)
-    
+
     def get_analisis_convenios(self, vendedor='Todos', mes='Todos'):
         """
         Analyze compliance with agreements using correct field names.
@@ -402,7 +412,8 @@ class TransferenciasAnalyzer:
 
         # Get sales data
         df_ventas = self.filter_data(vendedor, mes)
-        ventas_reales = df_ventas[df_ventas['tipo'].str.contains('Remision|Factura', case=False, na=False)]
+        ventas_reales = df_ventas[df_ventas['tipo'].str.contains(
+            'Remision', case=False, na=False)]
 
         if ventas_reales.empty:
             return pd.DataFrame()
@@ -417,7 +428,8 @@ class TransferenciasAnalyzer:
         }).reset_index()
 
         # Calculate net value (valor_bruto - descuento) for target comparison
-        ventas_por_nit['valor_neto'] = ventas_por_nit['valor_bruto'] - ventas_por_nit['descuento']
+        ventas_por_nit['valor_neto'] = ventas_por_nit['valor_bruto'] - \
+            ventas_por_nit['descuento']
 
         # Calculate actual discount percentage (still using valor_bruto as denominator)
         ventas_por_nit['descuento_real_pct'] = (
@@ -465,182 +477,189 @@ class TransferenciasAnalyzer:
         resultado['dias_transcurridos'] = days_elapsed
         resultado['ventas_esperadas'] = (
             resultado['target_value'] / days_in_year * days_elapsed).round(0)
-        resultado['progreso_esperado_pct'] = round(days_elapsed / days_in_year * 100, 2)
+        resultado['progreso_esperado_pct'] = round(
+            days_elapsed / days_in_year * 100, 2)
 
         return resultado
-    
+
     def load_recibos_from_firebase(self, force_reload=False):
         """
         Delegación al analyzer unificado.
         """
         return pd.DataFrame()
-    
+
     def load_num_clientes_from_firebase(self, force_reload=False):
         """
         Delegación al analyzer unificado.
         """
         return pd.DataFrame()
-    
+
     def get_recaudo_por_dia(self, vendedor='Todos', mes='Todos'):
         return pd.DataFrame(), 0
-    
+
     def get_recaudo_por_mes(self, vendedor='Todos'):
         return pd.DataFrame(), 0
-    
+
     def get_recaudo_por_vendedor(self, mes=None):
         return pd.DataFrame(), 0
-    
+
     def get_resumen_recaudo(self, vendedor='Todos', mes='Todos'):
         return 0
-    
+
     def get_ventas_con_coordenadas(self, vendedor='Todos', mes='Todos'):
         return pd.DataFrame()
-    
+
     def get_mapa_ventas_data(self, vendedor='Todos', mes='Todos', region_filter='Colombia'):
         return pd.DataFrame()
-    
+
     def get_variaciones_mensuales_clientes(self, vendedor='Todos', mes_inicio=1, mes_fin=12, filtro_tipo='todos'):
         """
         Obtener variaciones porcentuales mensuales de ventas por URL para heatmap
         """
         try:
             df = self.filter_data(vendedor, 'Todos')
-            ventas_reales = df[df['tipo'].str.contains('Remision|Factura', case=False, na=False)]
-            
+            ventas_reales = df[df['tipo'].str.contains(
+                'Remision', case=False, na=False)]
+
             if ventas_reales.empty:
                 return pd.DataFrame()
-            
+
             # Filtrar por rango de meses
             ventas_reales = ventas_reales[
-                (ventas_reales['fecha'].dt.month >= mes_inicio) & 
+                (ventas_reales['fecha'].dt.month >= mes_inicio) &
                 (ventas_reales['fecha'].dt.month <= mes_fin)
             ]
-            
+
             if ventas_reales.empty:
                 return pd.DataFrame()
-            
+
             # Crear mes_año para agrupación
-            ventas_reales['mes_año'] = ventas_reales['fecha'].dt.strftime('%Y-%m')
-            
+            ventas_reales['mes_año'] = ventas_reales['fecha'].dt.strftime(
+                '%Y-%m')
+
             # Agrupar por URL y mes
             resultado = ventas_reales.groupby(['url', 'mes_año']).agg({
                 'valor_neto': 'sum'
             }).reset_index()
-            
+
             # Crear tabla pivote con ventas por URL y mes
             pivot_table = resultado.pivot(
-                index='url', 
-                columns='mes_año', 
+                index='url',
+                columns='mes_año',
                 values='valor_neto'
             ).fillna(0)
-            
+
             if pivot_table.empty or pivot_table.shape[1] < 2:
                 return pd.DataFrame()
-            
+
             # Ordenar columnas cronológicamente
             meses_ordenados = sorted(pivot_table.columns)
             pivot_table = pivot_table[meses_ordenados]
-            
+
             # Calcular variaciones porcentuales mes a mes
             variaciones = pd.DataFrame(index=pivot_table.index)
-            
+
             for i in range(1, len(meses_ordenados)):
                 mes_anterior = meses_ordenados[i-1]
                 mes_actual = meses_ordenados[i]
-                
+
                 # Calcular variación porcentual correctamente
                 ventas_anterior = pivot_table[mes_anterior]
                 ventas_actual = pivot_table[mes_actual]
-                
+
                 # Solo calcular variación si hay ventas en el mes anterior
                 variacion = pd.Series(index=pivot_table.index, dtype=float)
-                
+
                 for url in pivot_table.index:
                     anterior = ventas_anterior[url]
                     actual = ventas_actual[url]
-                    
+
                     if anterior > 0:  # Solo si hay ventas en mes anterior
                         variacion[url] = ((actual - anterior) / anterior) * 100
-                    elif actual > 0 and anterior == 0:  # Nueva venta (antes no había)
+                    # Nueva venta (antes no había)
+                    elif actual > 0 and anterior == 0:
                         variacion[url] = 100.0  # 100% de crecimiento desde 0
                     else:
                         variacion[url] = 0.0  # Sin cambios o ambos en 0
-                
+
                 # Crear nombre de columna más legible
                 try:
                     fecha_ant = pd.to_datetime(mes_anterior + '-01')
                     fecha_act = pd.to_datetime(mes_actual + '-01')
-                    
+
                     meses_esp = {
                         1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr',
                         5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Ago',
                         9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic'
                     }
-                    
+
                     nombre_col = f"{meses_esp[fecha_ant.month]} → {meses_esp[fecha_act.month]}"
                 except:
                     nombre_col = f"{mes_anterior} → {mes_actual}"
-                
+
                 variaciones[nombre_col] = variacion
-            
+
             if variaciones.empty:
                 return pd.DataFrame()
-            
+
             # Filtrar URLs que tengan al menos una variación significativa
             mask_activos = (variaciones.abs() > 0.1).any(axis=1)
             variaciones = variaciones[mask_activos]
-            
+
             if variaciones.empty:
                 return pd.DataFrame()
-            
+
             # CORRECCIÓN: Calcular suma de variaciones porcentuales para ranking
             variaciones['suma_variaciones'] = variaciones.sum(axis=1)
-            
+
             # Aplicar filtros CORRECTAMENTE por suma de variaciones
             if filtro_tipo == 'top10':
                 variaciones = variaciones.nlargest(10, 'suma_variaciones')
             elif filtro_tipo == 'bottom10':
                 variaciones = variaciones.nsmallest(10, 'suma_variaciones')
             #     variaciones = variaciones #.nlargest(, 'suma_variaciones')
-            
+
             # Remover columna auxiliar antes de retornar
             variaciones = variaciones.drop('suma_variaciones', axis=1)
-            
+
             return variaciones
-            
+
         except Exception as e:
             print(f"❌ Error en get_variaciones_mensuales_clientes: {e}")
             import traceback
             traceback.print_exc()
             return pd.DataFrame()
-        
+
     def get_clientes_con_variaciones(self, vendedor='Todos', mes_inicio=1, mes_fin=12):
         """Obtener lista de clientes (URLs) que tienen variaciones en el período"""
         try:
             df = self.filter_data(vendedor, 'Todos')
-            ventas_reales = df[df['tipo'].str.contains('Remision|Factura', case=False, na=False)]
-            
+            ventas_reales = df[df['tipo'].str.contains(
+                'Remision', case=False, na=False)]
+
             if ventas_reales.empty:
                 return []
-            
+
             # Filtrar por rango de meses
             ventas_reales = ventas_reales[
-                (ventas_reales['fecha'].dt.month >= mes_inicio) & 
+                (ventas_reales['fecha'].dt.month >= mes_inicio) &
                 (ventas_reales['fecha'].dt.month <= mes_fin)
             ]
-            
+
             if ventas_reales.empty:
                 return []
-            
+
             # Crear mes_año para agrupación
-            ventas_reales['mes_año'] = ventas_reales['fecha'].dt.strftime('%Y-%m')
-            
+            ventas_reales['mes_año'] = ventas_reales['fecha'].dt.strftime(
+                '%Y-%m')
+
             # Obtener URLs que tienen ventas en al menos 2 meses diferentes
             urls_por_mes = ventas_reales.groupby('url')['mes_año'].nunique()
-            urls_con_variaciones = urls_por_mes[urls_por_mes >= 2].index.tolist()
-            
+            urls_con_variaciones = urls_por_mes[urls_por_mes >= 2].index.tolist(
+            )
+
             return urls_con_variaciones
-            
+
         except Exception as e:
             print(f"❌ Error obteniendo clientes con variaciones: {e}")
             return []
@@ -650,90 +669,93 @@ class TransferenciasAnalyzer:
         try:
             if not clientes_seleccionados:
                 return pd.DataFrame()
-            
+
             # Obtener datos base
             df = self.filter_data(vendedor, 'Todos')
-            ventas_reales = df[df['tipo'].str.contains('Remision|Factura', case=False, na=False)]
-            
+            ventas_reales = df[df['tipo'].str.contains(
+                'Remision', case=False, na=False)]
+
             if ventas_reales.empty:
                 return pd.DataFrame()
-            
+
             # Filtrar por clientes seleccionados
-            ventas_reales = ventas_reales[ventas_reales['url'].isin(clientes_seleccionados)]
-            
+            ventas_reales = ventas_reales[ventas_reales['url'].isin(
+                clientes_seleccionados)]
+
             # Filtrar por rango de meses
             ventas_reales = ventas_reales[
-                (ventas_reales['fecha'].dt.month >= mes_inicio) & 
+                (ventas_reales['fecha'].dt.month >= mes_inicio) &
                 (ventas_reales['fecha'].dt.month <= mes_fin)
             ]
-            
+
             if ventas_reales.empty:
                 return pd.DataFrame()
-            
+
             # Crear mes_año para agrupación
-            ventas_reales['mes_año'] = ventas_reales['fecha'].dt.strftime('%Y-%m')
-            
+            ventas_reales['mes_año'] = ventas_reales['fecha'].dt.strftime(
+                '%Y-%m')
+
             # Agrupar por URL y mes
             resultado = ventas_reales.groupby(['url', 'mes_año']).agg({
                 'valor_neto': 'sum'
             }).reset_index()
-            
+
             # Crear tabla pivote
             pivot_table = resultado.pivot(
-                index='url', 
-                columns='mes_año', 
+                index='url',
+                columns='mes_año',
                 values='valor_neto'
             ).fillna(0)
-            
+
             if pivot_table.empty or pivot_table.shape[1] < 2:
                 return pd.DataFrame()
-            
+
             # Ordenar columnas cronológicamente
             meses_ordenados = sorted(pivot_table.columns)
             pivot_table = pivot_table[meses_ordenados]
-            
+
             # Calcular variaciones porcentuales mes a mes
             variaciones = pd.DataFrame(index=pivot_table.index)
-            
+
             for i in range(1, len(meses_ordenados)):
                 mes_anterior = meses_ordenados[i-1]
                 mes_actual = meses_ordenados[i]
-                
+
                 ventas_anterior = pivot_table[mes_anterior]
                 ventas_actual = pivot_table[mes_actual]
-                
+
                 variacion = pd.Series(index=pivot_table.index, dtype=float)
-                
+
                 for url in pivot_table.index:
                     anterior = ventas_anterior[url]
                     actual = ventas_actual[url]
-                    
+
                     if anterior > 0:
                         variacion[url] = ((actual - anterior) / anterior) * 100
                     elif actual > 0 and anterior == 0:
                         variacion[url] = 100.0
                     else:
                         variacion[url] = 0.0
-                
+
                 # Crear nombre de columna
                 try:
                     fecha_ant = pd.to_datetime(mes_anterior + '-01')
                     fecha_act = pd.to_datetime(mes_actual + '-01')
-                    
+
                     meses_esp = {
                         1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr',
                         5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Ago',
                         9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic'
                     }
-                    
+
                     nombre_col = f"{meses_esp[fecha_ant.month]} → {meses_esp[fecha_act.month]}"
                 except:
                     nombre_col = f"{mes_anterior} → {mes_actual}"
-                
+
                 variaciones[nombre_col] = variacion
-            
+
             return variaciones
-            
+
         except Exception as e:
             print(f"❌ Error en variaciones clientes específicos: {e}")
             return pd.DataFrame()
