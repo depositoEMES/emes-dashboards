@@ -8,7 +8,8 @@ external_stylesheets = [
     'https://cdnjs.cloudflare.com/ajax/libs/react-datepicker/4.8.0/react-datepicker.min.css'
 ]
 
-app = dash.Dash(__name__, suppress_callback_exceptions=True, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__, suppress_callback_exceptions=True,
+                external_stylesheets=external_stylesheets)
 app.title = "Depósito de Medicamentos Emes S.A.S"
 
 server = app.server
@@ -169,14 +170,17 @@ def load_page_content(pathname):
         page_map = {
             '/cartera': cartera.layout,
             '/ventas': ventas.layout,
-            '/transferencias': transferencias.layout, # transferencias.layout,
-            '/cotizaciones': create_coming_soon_page("Cotizaciones"), # cotizaciones.layout,
+            '/transferencias': transferencias.layout,  # transferencias.layout,
+            # cotizaciones.layout,
+            '/cotizaciones': create_coming_soon_page("Cotizaciones"),
             '/cotizaciones/reportes': create_coming_soon_page("Reportes de Cotizaciones"),
             '/proveedores': create_coming_soon_page("Proveedores"),
             '/proveedores-ventas': create_coming_soon_page("Proveedores - Ventas"),
             '/proveedores-compras': create_coming_soon_page("Proveedores - Compras"),
-            '/facturas': create_coming_soon_page("Facturas"), #facturas.layout,
-            '/facturas/proveedores': create_coming_soon_page("Facturas Proveedores"), # facturas_proveedores.layout,
+            # facturas.layout,
+            '/facturas': create_coming_soon_page("Facturas"),
+            # facturas_proveedores.layout,
+            '/facturas/proveedores': create_coming_soon_page("Facturas Proveedores"),
             '/facturas/clientes': create_coming_soon_page("Facturas de Clientes"),
         }
 
@@ -494,16 +498,7 @@ def internal_error(error):
 
 if __name__ == '__main__':
     try:
-        port = int(os.environ.get('PORT', 8050))
-        debug_mode = os.environ.get('DEBUG', 'True').lower() == 'true'
-
-        print(f"🚀 Iniciando aplicación en puerto {port}")
-        print(f"🔧 Modo debug: {debug_mode}")
-
-        if debug_mode:
-            app.run(port=port, debug=True)
-        else:
-            app.run(host='0.0.0.0', port=port, debug=False)
+        app.run(host='0.0.0.0', debug=False)
 
     except Exception as e:
         print(f"❌ Error iniciando aplicación: {e}")
