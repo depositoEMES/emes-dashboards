@@ -6,3 +6,5 @@ gunicorn
 python-dotenv
 numpy
 openpyxl
+cv2
+PIL
