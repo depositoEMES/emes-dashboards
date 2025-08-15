@@ -87,6 +87,7 @@ def authenticate_user(n_clicks, username, password):
         is_valid, user_info = auth_manager.validate_user(username, password)
 
         if is_valid:
+            print(f"✅ Login exitoso - Guardando sesión: {user_info}")
             return (
                 f"✅ Bienvenido {user_info['full_name']}",
                 "login-message message-success",

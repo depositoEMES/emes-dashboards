@@ -416,35 +416,33 @@ layout = html.Div([
 
         # Fila 2.5: Ventas Acumuladas por Cliente (Treemap solo)
         html.Div([
-            # Header con selector de fechas
             html.H3("Ventas por Cliente - Análisis Temporal", style={
                 'textAlign': 'center', 
                 'marginBottom': '25px', 
                 'fontFamily': 'Inter'
             }),
             
+            # Contenedor de filtros OPTIMIZADOS
             html.Div([
-                # Filtro de meses (izquierda)
+                # Filtro de número de clientes (izquierda)
                 html.Div([
-                    html.Label("Filtrar por Meses:", style={
+                    html.Label("Número de Clientes a Mostrar:", style={
                         'fontWeight': 'bold',
                         'marginBottom': '10px',
                         'fontFamily': 'Inter',
                         'fontSize': '14px'
                     }),
-                    dcc.RangeSlider(
-                        id='ventas-filtro-meses',
-                        min=1,
-                        max=datetime.now().month,
-                        step=1,
-                        value=get_ultimos_3_meses(),  # Por defecto últimos 3 meses
+                    dcc.Slider(
+                        id='ventas-filtro-num-clientes',
+                        min=10,
+                        max=200,  
+                        step=10,
+                        value=10,  # Por defecto 50 clientes
                         marks={
-                            1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr',
-                            5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Ago',
-                            9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic'
+                            10: '10', 25: '25', 50: '50', 
+                            100: '100', 150: '150', 200: '200+'
                         },
-                        tooltip={"placement": "bottom", "always_visible": True},
-                        allowCross=False
+                        tooltip={"placement": "bottom", "always_visible": True}
                     )
                 ], style={
                     'width': '48%',
@@ -452,28 +450,25 @@ layout = html.Div([
                     'marginRight': '4%'
                 }),
                 
-                # Filtro de monto de ventas (derecha)
+                # Filtro de categoría de crecimiento (derecha)
                 html.Div([
-                    html.Label("Filtrar por Monto de Ventas:", style={
+                    html.Label("Filtrar por Tendencia:", style={
                         'fontWeight': 'bold',
                         'marginBottom': '10px',
                         'fontFamily': 'Inter',
                         'fontSize': '14px'
                     }),
-                    dcc.RangeSlider(
-                        id='ventas-filtro-monto-ventas',
-                        min=0,
-                        max=1000000,  # Valor inicial, se actualizará
-                        step=50000,
-                        value=[0, 1000000],  # Por defecto muestra todos
-                        marks={},  # Se configurará dinámicamente
-                        allowCross=False,
-                        tooltip={
-                            "placement": "bottom", 
-                            "always_visible": True,
-                            "style": {"color": "white", "fontSize": "12px"},
-                            "transform": "formatCurrency"
-                        },
+                    dcc.Dropdown(
+                        id='ventas-filtro-tendencia',
+                        options=[
+                            {'label': '🟢 Crecimiento Positivo', 'value': 'positivo'},
+                            {'label': '🟡 Estable', 'value': 'estable'},
+                            {'label': '🔴 Decrecimiento', 'value': 'negativo'},
+                            {'label': '📊 Todos', 'value': 'todos'}
+                        ],
+                        value='todos',
+                        placeholder="Seleccionar tendencia...",
+                        style={'fontFamily': 'Inter', 'fontSize': '14px'}
                     )
                 ], style={
                     'width': '48%',
@@ -486,7 +481,6 @@ layout = html.Div([
                 'border': '1px solid #e5e7eb'
             }),
             
-            # Treemap unificado
             dcc.Graph(id='ventas-treemap-unificado', style={'height': '650px'})
             
         ], id='ventas-row2-5-container', style={
@@ -501,10 +495,42 @@ layout = html.Div([
         html.Div([
             html.H3("Clientes por Días Sin Venta", style={
                     'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
-            html.P("(Clientes que no han comprado en 7+ días - Tamaño por total de ventas históricas)", style={
-                   'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
+            
+            # Slider dinámico para días sin venta
+            html.Div([
+                html.Label("Días mínimos sin venta:", style={
+                    'fontWeight': 'bold',
+                    'marginBottom': '10px',
+                    'fontFamily': 'Inter',
+                    'fontSize': '14px',
+                    'display': 'block'
+                }),
+                dcc.Slider(
+                    id='ventas-filtro-dias-sin-venta',
+                    min=0,
+                    max=365,  # Se configurará dinámicamente
+                    step=1,
+                    value=30,  # Valor por defecto
+                    marks={},  # Se configurarán dinámicamente
+                    tooltip={
+                        "placement": "bottom", 
+                        "always_visible": True,
+                        "style": {"color": "white", "fontSize": "12px"}
+                    }
+                )
+            ], style={
+                'marginBottom': '15px',
+                'padding': '15px',
+                'borderRadius': '8px',
+                'border': '1px solid #e5e7eb'
+            }),
+            
+            html.P(id='ventas-texto-dias-sin-venta', 
+                children="(Clientes que no han comprado en 30+ días - Tamaño por total de ventas históricas)", 
+                style={'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
+            
             dcc.Graph(id='ventas-treemap-dias-sin-venta')
-        ], id='ventas-row-top', style={
+        ], id='ventas-row-nueva-treemap', style={
             'borderRadius': '16px',
             'padding': '24px',
             'marginBottom': '24px',
@@ -907,7 +933,7 @@ def update_monto_slider_config(session_data, dropdown_value, data_store):
         
         # Filtrar solo ventas reales
         ventas_reales = df[df['tipo'].str.contains(
-            'Remision|Factura', case=False, na=False)]
+            'Remision', case=False, na=False)]
         
         if ventas_reales.empty:
             return 0, 1000000, [0, 1000000], {0: '$0', 1000000: '$1M'}, 50000
@@ -1455,253 +1481,243 @@ def update_top_clientes(session_data, dropdown_value, mes, data_store, theme):
         print(f"❌ [update_top_clientes] Error: {e}")
         return go.Figure()
 
-
 @callback(
     Output('ventas-treemap-unificado', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-filtro-meses', 'value'),
-     Input('ventas-filtro-monto-ventas', 'value'),
+     Input('ventas-filtro-num-clientes', 'value'),
+     Input('ventas-filtro-tendencia', 'value'),
      Input('ventas-data-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
 def update_treemap_unificado(
         session_data, 
         dropdown_value, 
-        filtro_meses, 
-        filtro_monto, 
+        num_clientes, 
+        filtro_tendencia, 
         data_store, 
         theme):
     """
-    Treemap unificado con ventas por cliente - Verde-Rojo sin jerarquía, categorizado por tendencia
+    Segmented sales based on "vendedor".
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         theme_styles = get_theme_styles(theme)
         
-        # Convert month filter
-        if filtro_meses and len(filtro_meses) == 2:
-            mes_inicio, mes_fin = filtro_meses
-        else:
-            mes_inicio, mes_fin = 1, 12  # Por defecto todos los meses
-
-        # Get data filtered by months
-        data = analyzer.get_ventas_por_rango_meses(
-            vendedor, 
-            mes_inicio, 
-            mes_fin, 
-            filtro_monto[0] if filtro_monto and len(filtro_monto) == 2 else None,
-            filtro_monto[1] if filtro_monto and len(filtro_monto) == 2 else None
-        )
+        # Obtener datos pre-filtrados directamente
+        df = analyzer.filter_data(vendedor, 'Todos')
         
-        if not data or data.get('total', pd.DataFrame()).empty:
-            # Mensaje específico cuando no hay meses seleccionados
-            if mes_inicio == mes_fin:
-                meses_esp = {1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio',
-                            7: 'Julio', 8: 'Agosto', 9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'}
-                mensaje = f"No hay datos disponibles para {meses_esp[mes_inicio]}"
-            else:
-                meses_esp = {1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr', 5: 'May', 6: 'Jun',
-                            7: 'Jul', 8: 'Ago', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic'}
-                mensaje = f"No hay datos disponibles para {meses_esp[mes_inicio]} - {meses_esp[mes_fin]}"
+        if df.empty:
+            return create_empty_figure("No hay datos disponibles", theme_styles)
+        
+        # Filtro único y directo
+        ventas_mask = df['tipo'].str.contains('Remision', case=False, na=False)
+        ventas_reales = df[ventas_mask].copy()
+        
+        if ventas_reales.empty:
+            return create_empty_figure("No hay ventas registradas", theme_styles)
+        
+        # Agrupación simple sin columnas auxiliares
+        resultado_total = ventas_reales.groupby('cliente_completo', as_index=False).agg({
+            'valor_neto': 'sum',
+            'documento_id': 'count'
+        })
+        
+        # Filtro rápido
+        resultado_total = \
+            resultado_total[resultado_total['valor_neto'] > 0].copy()
+        
+        if resultado_total.empty:
+            return \
+                create_empty_figure("No hay datos con ventas positivas", theme_styles)
+        
+        # Cálculo de tendencia 
+        top_previo = min(num_clientes * 2, num_clientes)  
+        resultado_work = resultado_total.nlargest(top_previo, 'valor_neto').copy()
+        
+        # Inicializar campos
+        resultado_work['tendencia'] = 'estable'
+        resultado_work['pct_crecimiento'] = 0.0
+        
+        # Crear índice de meses una sola vez
+        ventas_reales['mes_periodo'] = ventas_reales['fecha'].dt.to_period('M')
+        
+        # Calcular tendencia con ACUMULADO DE VARIACIONES para clientes relevantes
+        for idx, row in resultado_work.iterrows():
+            try:
+                cliente = row['cliente_completo']
                 
-            fig = go.Figure()
-            fig.add_annotation(
-                text=mensaje,
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, xanchor='center', yanchor='middle',
-                showarrow=False,
-                font=dict(size=16, color=theme_styles['text_color'])
-            )
-            fig.update_layout(
-                height=600,
-                paper_bgcolor=theme_styles['plot_bg'],
-                plot_bgcolor=theme_styles['plot_bg']
-            )
-            return fig
+                # Obtener serie temporal mensual del cliente
+                cliente_mensual = ventas_reales[
+                    ventas_reales['cliente_completo'] == cliente
+                ].groupby('mes_periodo')['valor_neto'].sum().sort_index()
+                
+                if len(cliente_mensual) >= 2:
+                    variaciones_mensuales = []
+                    
+                    for i in range(1, len(cliente_mensual)):
+                        mes_anterior = cliente_mensual.iloc[i-1]
+                        mes_actual = cliente_mensual.iloc[i]
+                        
+                        if mes_anterior > 0:  # Evitar división por cero
+                            variacion = ((mes_actual - mes_anterior) / mes_anterior) * 100
+                            variaciones_mensuales.append(variacion)
+                        elif mes_actual > 0 and mes_anterior == 0:
+                            variaciones_mensuales.append(100.0)  # 100% de crecimiento
+                    
+                    if variaciones_mensuales:
+                        pct_acumulado = sum(variaciones_mensuales)
+                        resultado_work.at[idx, 'pct_crecimiento'] = pct_acumulado
+                        
+                        # Categorización basada en acumulado
+                        if pct_acumulado > 20:  
+                            resultado_work.at[idx, 'tendencia'] = 'positivo'
+                        elif pct_acumulado < -20:  
+                            resultado_work.at[idx, 'tendencia'] = 'negativo'
+                        
+            except Exception as e:
+                continue
         
-        resultado_total = data['total']
-        resultado_mensual = data['mensual']
-        
-        # Función para generar colores verde-rojo modernos
-        def get_green_red_color(growth_trend=0, alpha=0.8):
-            """Generate modern green-red colors based on growth trend"""
-            # growth_trend: 1=positive, 0=neutral, -1=negative
+        # Aplicar filtro de tendencia sin copiar DataFrames
+        if filtro_tendencia != 'todos':
+            resultado_work = \
+                resultado_work[resultado_work['tendencia'] == filtro_tendencia]
             
-            if growth_trend > 0:
-                # Verde para crecimiento positivo
-                return f'rgba(16, 185, 129, {alpha})'   # emerald-500
-            elif growth_trend < 0:
-                # Rojo para decrecimiento
-                return f'rgba(239, 68, 68, {alpha})'    # red-500
-            else:
-                # Amarillo/naranja para estable
-                return f'rgba(245, 158, 11, {alpha})'   # amber-500
+            if resultado_work.empty:
+                return \
+                    create_empty_figure(f"No hay clientes con tendencia '{filtro_tendencia}'", theme_styles)
         
-        # Structure for treemap - SIN JERARQUÍA
-        ids = []
+        # Limitación final temprana
+        resultado_final = resultado_work.nlargest(num_clientes, 'valor_neto')
+        
+        # Construcción directa inline (sin funciones auxiliares)
+        ids = [f"C{i}" for i in range(len(resultado_final))]
+        
+        # Colores y emojis inline
+        color_map = \
+            {
+                'positivo': 'rgba(22,163,74,0.6)' if theme == 'light' else 'rgba(34,197,94,0.4)',
+                'negativo': 'rgba(153, 27, 27,0.6)' if theme == 'light' else 'rgba(239, 68, 68,0.4)',
+                'estable': 'rgba(217,119,6,0.6)' if theme == 'light' else 'rgba(251,191,36,0.4)'
+            }
+        
+        border_map = \
+            {
+                'positivo': 'rgba(22,163,74,1.0)' if theme == 'light' else 'rgba(34,197,94,1.0)',
+                'negativo': 'rgba(153, 27, 27,1.0)' if theme == 'light' else 'rgba(239, 68, 68,1.0)',
+                'estable': 'rgba(217,119,6,1.0)' if theme == 'light' else 'rgba(251,191,36,1.0)'
+            }
+        
+        emoji_map = {'positivo': '🟢', 'negativo': '🔴', 'estable': '🟡'}
+        
+        # Construcción en una sola pasada
         labels = []
-        parents = []
-        values = []
         colors = []
         border_colors = []
-        
-        # Format currency helper
-        def format_with_dots(val):
-            try:
-                return f"${val:,.0f}".replace(',', '.')
-            except:
-                return f"${val}"
-        
-        # Build treemap structure - SOLO CLIENTES, SIN SEGUNDO NIVEL
-        for idx, (_, row) in enumerate(resultado_total.iterrows()):
-            cliente = str(row['cliente_completo'])[:80]
-            if len(cliente) < len(str(row['cliente_completo'])):
-                cliente += "..."
-            
-            total_ventas = float(row['valor_neto'])
-            total_facturas = int(row['documento_id'])
-            
-            if total_ventas <= 0:
-                continue
-
-            cliente_id = f"C{idx}"
-            
-            # Determinar tendencia de crecimiento basada en datos mensuales
-            cliente_mensual = resultado_mensual[
-                resultado_mensual['cliente_completo'] == row['cliente_completo']
-            ].sort_values('mes_año')
-            
-            # Calcular tendencia simple
-            growth_trend = 0  # Default neutral
-            if len(cliente_mensual) >= 2:
-                first_month = cliente_mensual.iloc[0]['valor_neto']
-                last_month = cliente_mensual.iloc[-1]['valor_neto']
-                if last_month > first_month * 1.1:  # 10% más
-                    growth_trend = 1  # Positivo
-                elif last_month < first_month * 0.9:  # 10% menos
-                    growth_trend = -1  # Negativo
-            
-            # Emoji según tendencia
-            trend_emoji = "🟢" if growth_trend > 0 else "🔴" if growth_trend < 0 else "🟡"
-            
-            # SOLO CLIENTE - SIN HIJOS
-            ids.append(cliente_id)
-            labels.append(f"{trend_emoji} {cliente}")
-            parents.append("")  # Todos son raíz, sin jerarquía
-            values.append(total_ventas)
-            colors.append(get_green_red_color(growth_trend, alpha=0.4))
-            border_colors.append(get_green_red_color(growth_trend, alpha=0.9))
-        
-        if not ids:
-            fig = go.Figure()
-            fig.add_annotation(
-                text="No hay datos procesables",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, xanchor='center', yanchor='middle',
-                showarrow=False,
-                font=dict(size=16, color=theme_styles['text_color'])
-            )
-            fig.update_layout(
-                height=600,
-                paper_bgcolor=theme_styles['plot_bg']
-            )
-            return fig
-        
-        # Create custom text labels - SOLO PARA CLIENTES
+        values = []
         text_labels = []
         
-        for i, (id_item, label, value) in enumerate(zip(ids, labels, values)):
-            # Obtener datos del cliente
-            row = resultado_total.iloc[i]
+        for i, (_, row) in enumerate(resultado_final.iterrows()):
+            # Procesar datos básicos
+            cliente = \
+                str(row['cliente_completo'])[:80] + ("..." if len(str(row['cliente_completo'])) > 80 else "")
+            tendencia = row['tendencia']
+            emoji = emoji_map[tendencia]
+            valor = row['valor_neto']
             facturas = int(row['documento_id'])
+            pct = row['pct_crecimiento']
             
+            # Construir elementos
+            labels.append(f"{emoji} {cliente}")
+            colors.append(color_map[tendencia])
+            border_colors.append(border_map[tendencia])
+            values.append(valor)
+            
+            # Texto optimizado
+            valor_fmt = \
+                f"${valor/1000000:.1f}M" if valor >= 1000000 else f"${valor/1000:.0f}K" if valor >= 1000 else f"${valor:,.0f}".replace(',', '.')
             text_labels.append(
-                f"<b>{label}</b><br>{format_with_dots(value)}<br>{facturas} facturas"
+                f"<b>{emoji} {cliente}</b><br>"
+                f"<span style='font-size:14px;font-weight:bold'>{valor_fmt}</span><br>"
+                f"<span style='font-size:10px;opacity:0.9'>{facturas} fact. | {pct:+.0f}%</span>"
             )
         
-        # Create treemap - PLANO, SIN JERARQUÍA
+        # Figura mínima sin configuraciones extra
         fig = go.Figure(go.Treemap(
             ids=ids,
             labels=labels,
-            parents=parents,
+            parents=[""] * len(ids),
             values=values,
             text=text_labels,
             texttemplate="%{text}",
             textposition="middle center",
-            textfont=dict(size=11, color=theme_styles['text_color'], family='Inter'),
+            textfont=dict(
+                size=11, 
+                color=theme_styles['text_color'], 
+                family='Inter'
+            ),
             marker=dict(
                 colors=colors,
-                line=dict(width=1.5, color=border_colors)
+                line=dict(width=1.0, color=border_colors)
             ),
-            hovertemplate="<br>%{text}<br><extra></extra>",
-            branchvalues="total",
+            hovertemplate="<b>%{text}</b><extra></extra>",
             sort=True,
-            tiling=dict(
-                packing="squarify",  
-                pad=3
-            )
+            tiling=dict(packing="binary", pad=2)
         ))
         
-        # Add period info to title in Spanish
-        period_text = ""
-        
-        if mes_inicio and mes_fin:
-            try:
-                meses_esp = {
-                    1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr',
-                    5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Ago',
-                    9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic'
-                }
-                
-                if mes_inicio == mes_fin:
-                    period_text = f" ({meses_esp[mes_inicio]})"
-                else:
-                    period_text = f" ({meses_esp[mes_inicio]} - {meses_esp[mes_fin]})"
-            except:
-                pass
+        # Layout mínimo
+        tendencia_names = \
+            {
+                'positivo': 'Crecimiento',
+                'negativo': 'Decrecimiento', 
+                'estable': 'Estable',
+                'todos': 'Todas'
+            }
         
         fig.update_layout(
             height=650,
-            margin=dict(t=80, b=20, l=10, r=10),
-            font=dict(family="Inter", color=theme_styles['text_color']),
+            margin=dict(t=70, b=10, l=5, r=5),
+            font=dict(
+                family="Inter", 
+                color=theme_styles['text_color']
+            ),
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
             title=dict(
-                text=f"Ventas por Cliente - Análisis Temporal{period_text}<br><sub>🟢 Crecimiento positivo | 🟡 Estable | 🔴 Decrecimiento</sub>",
-                x=0.5,
-                y=0.98,
-                xanchor='center',
-                yanchor='top',
-                font=dict(
-                    size=16,
-                    color=theme_styles['text_color'],
-                    family="Inter"
-                )
+                text=f"Top {len(resultado_final)} Clientes - {tendencia_names.get(filtro_tendencia, 'Filtro')}<br><sub>🟢 Crecimiento | 🟡 Estable | 🔴 Decrecimiento</sub>",
+                x=0.5, y=0.98, 
+                font=dict(size=16, color=theme_styles['text_color'])
             )
         )
         
         return fig
-        
+
     except Exception as e:
-        print(f"❌ Error en treemap_unificado: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ Error en treemap optimizado: {e}")
         
-        # Error figure
-        fig = go.Figure()
-        fig.add_annotation(
-            text=f"Error cargando treemap:<br>{str(e)[:80]}",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, xanchor='center', yanchor='middle',
-            showarrow=False,
-            font=dict(size=14, color='red')
-        )
-        fig.update_layout(
-            height=600,
-            paper_bgcolor=theme_styles.get('plot_bg', 'white') if 'theme_styles' in locals() else 'white'
-        )
-        return fig
+        return \
+            create_empty_figure(
+                "Error de procesamiento", 
+                theme_styles if 'theme_styles' in locals() else {'plot_bg': 'white', 'text_color': 'black'}
+            )
+
+def create_empty_figure(message, theme_styles):
+    """
+    Crear figura vacía.
+    """
+    fig = go.Figure()
+    fig.add_annotation(
+        text=message, xref="paper", yref="paper",
+        x=0.5, y=0.5, xanchor='center', yanchor='middle',
+        showarrow=False, 
+        font=dict(size=16, color=theme_styles['text_color'], family='Inter')
+    )
+    fig.update_layout(
+        height=600, 
+        paper_bgcolor=theme_styles['plot_bg'],
+        plot_bgcolor=theme_styles['plot_bg']
+    )
+    return fig
 
 
 @callback(
@@ -2272,34 +2288,121 @@ def update_grafico_recaudo_vendedor(mes, data_store, theme):
     Output('ventas-treemap-dias-sin-venta', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-data-store', 'data'),  # 
+     Input('ventas-filtro-dias-sin-venta', 'value'),
+     Input('ventas-data-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, theme):
+def update_treemap_dias_sin_venta(session_data, dropdown_value, dias_minimos, data_store, theme):
     """
-    Update days without sales treemap.
+    Update days without sales treemap - TAMAÑO Y COLOR basados en DÍAS SIN VENTA
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_dias_sin_venta_por_cliente(vendedor)
         theme_styles = get_theme_styles(theme)
+        
+        # Aplicar filtro de días mínimos (por defecto 30)
+        dias_filtro = dias_minimos if dias_minimos is not None else 30
+        
+        # Solo filtrar si dias_filtro > 0
+        if dias_filtro > 0:
+            data = data[data['dias_sin_venta'] >= dias_filtro] if not data.empty else data
 
         if data.empty:
             fig = go.Figure()
+            if dias_filtro == 0:
+                mensaje = "No hay clientes con datos de días sin venta"
+            else:
+                mensaje = f"No hay clientes sin ventas por {dias_filtro}+ días"
+            
             fig.add_annotation(
-                text="No hay clientes sin ventas recientes",
+                text=mensaje,
                 xref="paper", yref="paper",
                 x=0.5, y=0.5, xanchor='center', yanchor='middle',
                 showarrow=False,
                 font=dict(size=16, color=theme_styles['text_color'])
             )
             fig.update_layout(
-                height=500, paper_bgcolor=theme_styles['plot_bg'])
+                height=500, 
+                paper_bgcolor=theme_styles['plot_bg'],
+                plot_bgcolor=theme_styles['plot_bg']
+            )
+            return fig
+        
+        # Clean data
+        data = data.copy()
+        data = data.dropna(subset=['cliente_completo', 'dias_sin_venta'])
+        
+        # Asegurar que dias_sin_venta sea numérico
+        data['dias_sin_venta'] = pd.to_numeric(data['dias_sin_venta'], errors='coerce')
+        data = data.dropna(subset=['dias_sin_venta'])
+        
+        # Filtrar valores negativos o zero (no tiene sentido en este contexto)
+        data = data[data['dias_sin_venta'] > 0]
+        
+        # Asegurar que cliente_completo no esté vacío
+        data = data[data['cliente_completo'].str.strip() != '']
+        
+        if data.empty:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No hay datos válidos para mostrar",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(height=500, paper_bgcolor=theme_styles['plot_bg'])
             return fig
 
-        # Create labels with client name and days
-        labels = [f"{cliente}<br>{dias} días" for cliente, dias in
-                  zip(data['cliente_completo'], data['dias_sin_venta'])]
+        def get_categoria_y_color(dias, alpha=0.4, is_dark_theme=False):
+            """
+            Categorizar días y obtener color según urgencia y tema.
+            """
+            if is_dark_theme:
+                if dias < 30:
+                    return "Reciente (< 1 mes)", f"rgba(34, 197, 94, {alpha})"      # Verde vibrante
+                elif dias < 60:
+                    return "1-2 meses", f"rgba(251, 191, 36, {alpha})"              # Amarillo dorado
+                elif dias < 90:
+                    return "2-3 meses", f"rgba(245, 158, 11, {alpha})"              # Naranja vibrante
+                elif dias < 180:
+                    return "3-6 meses", f"rgba(239, 68, 68, {alpha})"               # Rojo vibrante
+                else:
+                    return "6+ meses", f"rgba(153, 27, 27, {alpha})"                # Rojo oscuro intenso
+            else:
+                if dias < 30:
+                    return "Reciente (< 1 mes)", f"rgba(21, 128, 61, {alpha})"      # Verde bosque
+                elif dias < 60:
+                    return "1-2 meses", f"rgba(180, 83, 9, {alpha})"                # Naranja tierra
+                elif dias < 90:
+                    return "2-3 meses", f"rgba(154, 52, 18, {alpha})"               # Naranja rojizo oscuro
+                elif dias < 180:
+                    return "3-6 meses", f"rgba(153, 27, 27, {alpha})"               # Rojo granate
+                else:
+                    return "6+ meses", f"rgba(69, 10, 10, {alpha})"   
+
+        # Aplicar categorización
+        data = data.copy()
+        data['categoria'] = \
+            data['dias_sin_venta'].apply(lambda x: get_categoria_y_color(x)[0])
+        data['color'] = \
+            data['dias_sin_venta'].apply(lambda x: get_categoria_y_color(x)[1])
+        data['border_color'] = \
+            data['dias_sin_venta'].apply(lambda x: get_categoria_y_color(x, alpha=0.9)[1])
+
+        # Create labels optimizadas
+        labels = []
+        
+        for _, row in data.iterrows():
+            cliente = row['cliente_completo']
+            dias = int(row['dias_sin_venta'])
+            categoria = row['categoria']
+            
+            # Truncar nombre si es muy largo
+            cliente_corto = cliente[:50] + "..." if len(cliente) > 50 else cliente
+            
+            labels.append(f"{cliente_corto}\n{dias} días\n({categoria})")
 
         # Format dates safely
         fechas_formatted = []
@@ -2313,47 +2416,87 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, them
                         pd.to_datetime(fecha).strftime('%Y-%m-%d'))
             except:
                 fechas_formatted.append("Sin fecha")
-
-        # Create treemap with size based on days without sales
+                
+        
+        ids = data.index.astype(str)
+                
+        # Create treemap - TAMAÑO basado en DÍAS SIN VENTA
         fig = go.Figure(go.Treemap(
+            ids=ids,
             labels=labels,
-            values=data['dias_sin_venta'],  # Size by days without sales
+            values=data['dias_sin_venta'],  # ← TAMAÑO por días sin venta
             parents=[""] * len(data),
-            texttemplate="<b>%{label}</b><br>Ventas: %{customdata}",
-            hovertemplate="<b>%{text}</b><br>" +
-                         "Días sin venta: %{value}<br>" +
-                         "Ventas históricas: %{customdata[0]}<br>" +
-                         "Última venta: %{customdata[1]}<br>" +
+            text=[f"<b>{cliente[:80]}{'...' if len(cliente) > 80 else ''}</b><br>"
+                  f"<span style='font-size:14px'>{int(dias)} días</span><br>"
+                  f"<span style='font-size:10px'>{categoria}</span>"
+                  for cliente, dias, categoria in zip(
+                      data['cliente_completo'], 
+                      data['dias_sin_venta'],
+                      data['categoria']
+                  )],
+            texttemplate="%{text}",
+            textposition="middle center",
+            textfont=dict(size=10, color=theme_styles['text_color'], family='Inter', weight='bold'),
+            hovertemplate="<b>%{customdata[0]}</b><br>" +
+                         "Días sin venta: <b>%{value}</b><br>" +
+                         "Categoría: <b>%{customdata[1]}</b><br>" +
+                         "Ventas históricas: %{customdata[2]}<br>" +
+                         "Última venta: %{customdata[3]}<br>" +
                          "<extra></extra>",
-            text=[cliente[:80] + "..." if len(cliente) > 80 else cliente
-                  for cliente in data['cliente_completo']],
-            customdata=[[format_currency_int(ventas), fecha_str]
-                        for ventas, fecha_str in zip(
+            customdata=[[
+                cliente,
+                categoria, 
+                format_currency_int(ventas),
+                fecha_str
+            ] for cliente, categoria, ventas, fecha_str in zip(
+                data['cliente_completo'],
+                data['categoria'],
                 data['valor_neto'],
-                fechas_formatted)],
+                fechas_formatted
+            )],
             marker=dict(
-                colors=data['dias_sin_venta'],
-                colorscale='RdYlBu_r',
-                line=dict(width=2, color='white'),
-                cmin=data['dias_sin_venta'].min(),
-                cmax=data['dias_sin_venta'].max()
+                colors=data['color'].tolist(), 
+                line=dict(width=1.0, color=data['border_color'])
             ),
-            textfont=dict(size=10)
+            branchvalues="remainder",
+            sort=True,  # Ordenar por tamaño (días sin venta)
+            tiling=dict(packing="binary")
         ))
+
+        # Título con información adicional
+        total_clientes = len(data)
+        promedio_dias = data['dias_sin_venta'].mean()
 
         fig.update_layout(
             height=500,
-            font=dict(family="Inter", size=12,
-                      color=theme_styles['text_color']),
+            font=dict(
+                family="Inter", 
+                size=12, 
+                color=theme_styles['text_color']
+            ),
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            margin=dict(t=0, b=0, l=0, r=0)
+            margin=dict(t=40, b=0, l=0, r=0),
+            title=dict(
+                text=f"Clientes por Días Sin Venta ({total_clientes} clientes, promedio: {promedio_dias:.0f} días)",
+                x=0.5, y=0.98, xanchor='center', yanchor='top',
+                font=dict(size=14, color=theme_styles['text_color'], family="Inter")
+            )
         )
 
         return fig
+        
     except Exception as e:
         print(f"❌ [update_treemap_dias_sin_venta] Error: {e}")
-        return go.Figure()
+        import traceback
+        traceback.print_exc()
+        
+        fig = go.Figure()
+        fig.update_layout(
+            height=500,
+            paper_bgcolor=theme_styles.get('plot_bg', 'white') if 'theme_styles' in locals() else 'white'
+        )
+        return fig
 
 
 @callback(
@@ -2367,13 +2510,13 @@ def update_treemap_dias_sin_venta(session_data, dropdown_value, data_store, them
      Input('ventas-theme-store', 'data')]
 )
 def update_evolucion_cliente(
-    cliente, 
-    tipo_evolucion, 
-    session_data, 
-    dropdown_value, 
-    mes, 
-    data_store, 
-    theme):
+        cliente, 
+        tipo_evolucion, 
+        session_data, 
+        dropdown_value, 
+        mes, 
+        data_store, 
+        theme):
     """
     Update client evolution chart - filtered by month using main DataFrame.
     """
@@ -3361,13 +3504,15 @@ def update_dropdown_visibility(session_data):
      Output('ventas-dropdown-vista-recaudo', 'style'),
      Output('ventas-dropdown-tipo-grafico', 'style'),
      Output('ventas-heatmap-clientes', 'style'),
+     Output('ventas-filtro-tendencia', 'style'),
      Output('ventas-dropdown-vendedor', 'className'),
      Output('ventas-dropdown-mes', 'className'),
      Output('ventas-dropdown-cliente', 'className'),
      Output('ventas-dropdown-tipo-evolucion', 'className'),
      Output('ventas-dropdown-vista-recaudo', 'className'),
      Output('ventas-dropdown-tipo-grafico', 'className'),
-     Output('ventas-heatmap-clientes', 'className')], 
+     Output('ventas-heatmap-clientes', 'className'),
+     Output('ventas-filtro-tendencia', 'className')],
     [Input('ventas-theme-store', 'data'),
      Input('session-store', 'data')]
 )
@@ -3413,10 +3558,10 @@ def update_dropdown_styles(theme, session_data):
             # Styles
             vendedor_style, dropdown_style, dropdown_style,
             dropdown_style, vista_style, tipo_grafico_style, 
-            heatmap_dropdown_style,
+            heatmap_dropdown_style, dropdown_style,
             # Classes
             css_class, css_class, css_class, css_class,
-            css_class, css_class, heatmap_css_class
+            css_class, css_class, heatmap_css_class, css_class
         )
 
 
@@ -3451,10 +3596,10 @@ def update_card_styles(theme):
 
 @callback(
     [Output('ventas-row1-container', 'style'),
-     Output('ventas-row1-2-container', 'style'),      # <- COMPARATIVA
-     Output('ventas-row1-3-container', 'style'),      # <- ÁREA INDIVIDUAL  
+     Output('ventas-row1-2-container', 'style'),      
+     Output('ventas-row1-3-container', 'style'),
+     Output('ventas-row-nueva-treemap', 'style'),      
      Output('ventas-row1-5-container', 'style'),
-     Output('ventas-row-top', 'style'),
      Output('ventas-row2-container', 'style'),
      Output('ventas-row2-5-container', 'style'),
      Output('ventas-row4-container', 'style'),
@@ -3464,7 +3609,7 @@ def update_card_styles(theme):
      Output('ventas-heatmap-top10', 'style'),     
      Output('ventas-heatmap-bottom10', 'style')], 
     [Input('ventas-theme-store', 'data'),
-     Input('session-store', 'data')]  # <- CLAVE: Reacciona a cambios de sesión
+     Input('session-store', 'data')] 
 )
 def update_container_styles(theme, session_data):
     """
@@ -3554,8 +3699,8 @@ def update_container_styles(theme, session_data):
         base_style,                    # ventas-row1-container (siempre visible)
         comparativa_style,             # ventas-row1-2-container (solo admin)
         area_individual_style,         # ventas-row1-3-container (solo admin)  
+        base_style,
         base_style,                    # ventas-row1-5-container (siempre visible)
-        base_style,                    # ventas-row-top (siempre visible)
         base_style,                    # ventas-row2-container (siempre visible)
         treemap_style,                 # ventas-row2-5-container (siempre visible)
         base_style,                    # ventas-row4-container (siempre visible)
@@ -3664,10 +3809,20 @@ def update_metric_cards(session_data, dropdown_value, mes, data_store, theme):
     [State('ventas-heatmap-top10', 'className'),
      State('ventas-heatmap-bottom10', 'className')]
 )
-def update_heatmap_variaciones(session_data, dropdown_value, rango_meses, top10_clicks, 
-                              bottom10_clicks, clientes_seleccionados, data_store, theme,
-                              top10_class, bottom10_class):
-    """Actualizar heatmap con 3 tipos de filtros - CORREGIDO"""
+def update_heatmap_variaciones(
+        session_data, 
+        dropdown_value, 
+        rango_meses, 
+        top10_clicks, 
+        bottom10_clicks, 
+        clientes_seleccionados, 
+        data_store, 
+        theme,
+        top10_class, 
+        bottom10_class):
+    """
+    Actualizar heatmap con 3 tipos de filtros.
+    """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
         theme_styles = get_theme_styles(theme)
@@ -3731,10 +3886,17 @@ def update_heatmap_variaciones(session_data, dropdown_value, rango_meses, top10_
             texttemplate="%{text}",
             textfont={"family": "Inter", "size": 10, "color": "white"},
             colorscale=[
-                [0.0, "#b91c1c"], [0.15, "#dc2626"], [0.3, "#ef4444"],
-                [0.4, "#f87171"], [0.45, "#fbbf24"], [0.5, "#e5e7eb"],
-                [0.55, "#84cc16"], [0.6, "#22c55e"], [0.7, "#16a34a"],
-                [0.85, "#15803d"], [1.0, "#166534"]
+                [0.0, "rgba(185, 28, 28, 0.7)"],
+                [0.15, "rgba(220, 38, 38, 0.7)"],
+                [0.3, "rgba(239, 68, 68, 0.7)"],
+                [0.4, "rgba(248, 113, 113, 0.7)"],
+                [0.45, "rgba(251, 191, 36, 0.7)"],
+                [0.5, "rgba(229, 231, 235, 0.7)"],
+                [0.55, "rgba(132, 204, 22, 0.7)"],
+                [0.6, "rgba(34, 197, 94, 0.7)"],
+                [0.7, "rgba(22, 163, 74, 0.7)"],
+                [0.85, "rgba(21, 128, 61, 0.7)"],
+                [1.0, "rgba(22, 101, 52, 0.7)"]
             ],
             showscale=False,
             hoverongaps=False,
@@ -3855,3 +4017,139 @@ def update_heatmap_button_styles(top10_clicks, bottom10_clicks, clientes_selecci
     
     # Default
     return 'heatmap-filter-btn active', 'heatmap-filter-btn', dash.no_update
+
+@callback(
+    [Output('ventas-filtro-num-clientes', 'max'),
+     Output('ventas-filtro-num-clientes', 'marks')],
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-data-store', 'data')]
+)
+def update_slider_clientes_config(session_data, dropdown_value, data_store):
+    """
+    Configurar dinámicamente el slider de número de clientes.
+    """
+    try:
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        
+        # Obtener datos básicos para calcular total de clientes
+        df = analyzer.filter_data(vendedor, 'Todos')
+        ventas_reales = df[df['tipo'].str.contains('Remision', case=False, na=False)]
+        
+        if ventas_reales.empty:
+            return 200, {10: '10', 50: '50', 100: '100', 200: '200+'}
+        
+        # Calcular número total de clientes únicos
+        total_clientes = ventas_reales['cliente_completo'].nunique()
+        
+        # Ajustar máximo del slider
+        max_clientes = min(max(total_clientes, 50), 500)  # Entre 50 y 500
+        
+        # Crear marcas dinámicas
+        marks = {}
+        step_size = max_clientes // 5
+        for i in range(0, 6):
+            value = min(10 + (i * step_size), max_clientes)
+            if value == max_clientes:
+                marks[value] = f'{value}+'
+            else:
+                marks[value] = str(value)
+        
+        return max_clientes, marks
+        
+    except Exception as e:
+        print(f"❌ Error configurando slider de clientes: {e}")
+        return 200, {10: '10', 50: '50', 100: '100', 200: '200+'}
+    
+@callback(
+    [Output('ventas-filtro-dias-sin-venta', 'min'),
+     Output('ventas-filtro-dias-sin-venta', 'max'),
+     Output('ventas-filtro-dias-sin-venta', 'marks'),
+     Output('ventas-filtro-dias-sin-venta', 'value')],
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-data-store', 'data')]
+)
+def update_slider_dias_sin_venta_config(
+        session_data, 
+        dropdown_value, 
+        data_store):
+    """
+    Configurar dinámicamente el slider de días sin venta según los datos disponibles
+    """
+    try:
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        
+        # Obtener datos de días sin venta
+        data = analyzer.get_dias_sin_venta_por_cliente(vendedor)
+        
+        if data.empty:
+            return \
+                (
+                    0, 
+                    365, 
+                    {
+                        0: '0', 30: '30', 60: '60', 90: '90', 
+                        180: '180', 365: '365+'
+                    }, 
+                    30
+                )
+        
+        # Calcular min y max reales
+        min_dias = int(data['dias_sin_venta'].min())
+        max_dias = int(data['dias_sin_venta'].max())
+        
+        # Ajustar valores para mejor UX
+        min_slider = max(0, min_dias - 5)  # Dar un poco de margen
+        max_slider = min(max_dias + 10, 730)  # Máximo 2 años
+        
+        # Crear marcas dinámicas inteligentes
+        marks = {}
+        
+        if max_slider <= 90:
+            # Para rangos cortos: cada 15 días
+            step = 15
+            
+            for i in range(0, max_slider + 1, step):
+                marks[i] = str(i)
+        elif max_slider <= 365:
+            # Para rangos medianos: cada 30 días
+            step = 30
+            for i in range(0, max_slider + 1, step):
+                if i == 0:
+                    marks[i] = '0'
+                elif i >= 365:
+                    marks[i] = '1 año+'
+                else:
+                    marks[i] = str(i)
+        else:
+            # Para rangos largos: marcas especiales
+            marks = \
+                {
+                    0: '0',
+                    30: '1 mes',
+                    60: '2 meses', 
+                    90: '3 meses',
+                    180: '6 meses',
+                    365: '1 año',
+                    max_slider: f'{max_slider//30} meses+'
+                }
+        
+        # Valor por defecto inteligente
+        default_value = min(30, max_slider // 3)  # 30 días o 1/3 del máximo
+        
+        return min_slider, max_slider, marks, default_value
+        
+    except Exception as e:
+        print(f"❌ Error configurando slider de días sin venta: {e}")
+        # Configuración de fallback
+        return \
+            (
+                0, 
+                365, 
+                {
+                    0: '0', 30: '30', 60: '60', 90: '90', 
+                    180: '180', 365: '365+'
+                }, 
+                30
+            )
