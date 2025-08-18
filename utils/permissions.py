@@ -13,7 +13,7 @@ def get_user_vendor_filter(session_data):
     # Admin account
     return \
         'Todos' if seller in ['JESUS IVAN GOMEZ VELASQUEZ',
-                              'YAMITH SCHNEIDER MESA ESCOBAR'] else seller
+                              'YAMITH SCHNEIDER MESA ESCOBAR', 'DINA NARANJO'] else seller
 
 
 def can_see_all_vendors(session_data):
@@ -28,4 +28,4 @@ def can_see_all_vendors(session_data):
 
     return \
         seller in ['JESUS IVAN GOMEZ VELASQUEZ',
-                   'YAMITH SCHNEIDER MESA ESCOBAR']
+                   'YAMITH SCHNEIDER MESA ESCOBAR', 'DINA NARANJO']
