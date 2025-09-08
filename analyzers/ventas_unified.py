@@ -1,6 +1,7 @@
 import time
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Dict, Any
 
 
 class UnifiedVentasAnalyzer:
@@ -9,11 +10,10 @@ class UnifiedVentasAnalyzer:
         """
         Initialize the UnifiedVentasAnalyzer with empty dataframes.
         """
-        # DataFrames principales
-        self.df_ventas_totales = pd.DataFrame()  # Datos completos
-        self.df_ventas = pd.DataFrame()          # Para dashboard de ventas (por vendedor)
-        self.df_transferencias = pd.DataFrame()  # Para dashboard de transferencias (por transferencista)
-        
+        self.df_ventas_totales = pd.DataFrame()
+        self.df_ventas = pd.DataFrame()
+        self.df_transferencias = pd.DataFrame()
+
         # Listas de filtros
         self.vendedores_list = ['Todos']
         self.transferencistas_list = ['Todos']
@@ -21,9 +21,16 @@ class UnifiedVentasAnalyzer:
 
         # Cache para datos complementarios
         self._df_convenios = pd.DataFrame()
+        self._df_cuotas = pd.DataFrame()
         self._df_recibos = pd.DataFrame()
         self._df_num_clientes = pd.DataFrame()
         self._df_clientes = pd.DataFrame()
+
+        # Cache para datos maestros
+        self._maestro_tipos = {}
+        self._maestros_forma_pago = {}
+        self._maestro_vendedores = {}
+        self._clientes_id_cache = {}
 
         # Control de actualizaciones
         self._last_update = None
@@ -31,6 +38,7 @@ class UnifiedVentasAnalyzer:
         self._last_recibos_update = None
         self._last_num_clientes_update = None
         self._last_clientes_update = None
+        self._last_maestros_update = None
 
     def reload_data(self):
         """
@@ -45,6 +53,13 @@ class UnifiedVentasAnalyzer:
             self._df_recibos = pd.DataFrame()
             self._df_num_clientes = pd.DataFrame()
             self._df_clientes = pd.DataFrame()
+            self._df_cuotas = pd.DataFrame()
+
+            # Limpiar cache de maestros
+            self._maestro_tipos = {}
+            self._maestros_forma_pago = {}
+            self._maestro_vendedores = {}
+            self._clientes_id_cache = {}
 
             self.vendedores_list = ['Todos']
             self.transferencistas_list = ['Todos']
@@ -61,6 +76,7 @@ class UnifiedVentasAnalyzer:
             self._last_recibos_update = None
             self._last_num_clientes_update = None
             self._last_clientes_update = None
+            self._last_maestros_update = None
 
             return result
 
@@ -82,52 +98,85 @@ class UnifiedVentasAnalyzer:
                 if db:
                     return db
             except Exception as e:
-                print(f"⚠️ Intento {attempt + 1}/{max_retries}: Error conectando a DB: {e}")
+                print(
+                    f"⚠️ Intento {attempt + 1}/{max_retries}: Error conectando a DB: {e}")
 
             # Wait until next attempt
             if attempt < max_retries - 1:
                 time.sleep(1)
 
-        print("❌ No se pudo establecer conexión a la base de datos después de varios intentos")
+        print(
+            "❌ No se pudo establecer conexión a la base de datos después de varios intentos")
         return None
 
-    def load_data_from_firebase(self, force_reload=False):
+    def load_maestros_data(self, force_reload: bool = False) -> bool:
         """
-        Load sales data from Firebase database with caching and retry logic.
-        UNA SOLA LLAMADA a ventas_totales que se separa para ambos dashboards.
-
-        Args:
-            force_reload (bool): Si True, fuerza la recarga incluso si ya hay datos
+        Cargar datos maestros de tipos de documento y códigos de vendedores.
         """
         try:
             # Si ya tenemos datos y no es recarga forzada, usar cache
-            if not force_reload and not self.df_ventas_totales.empty:
-                return self.df_ventas_totales
+            if not force_reload and \
+                self._maestro_tipos and \
+                    self._maestro_vendedores and \
+                    self._maestros_forma_pago:
+                return True
 
             db = self._get_db()
-            
+
             if not db:
-                print("❌ [UnifiedVentasAnalyzer] No se pudo obtener conexión a la base de datos")
-                return pd.DataFrame()
+                print(
+                    "❌ [UnifiedVentasAnalyzer] No se pudo obtener conexión para maestros")
+                return False
 
-            # UNA SOLA LLAMADA a la nueva colección
-            data = db.get("ventas_totales")
-            
-            # Load "clientes_id" collection
-            self.load_clientes_data_from_firebase()
+            # Cargar tipo_documentos
+            tipos_data = db.get_by_path("maestros/tipo_documentos")
 
-            if data:
-                result = self.process_unified_data(data)
-                return result
+            if tipos_data:
+                self._maestro_tipos = tipos_data
             else:
-                print("⚠️ [UnifiedVentasAnalyzer] No data found in Firebase - ventas_totales")
-                return pd.DataFrame()
+                print("⚠️ No se encontraron datos en maestros/tipo_documentos")
+
+            # Cargar codigos_vendedores
+            vendedores_data = db.get_by_path("maestros/codigos_vendedores")
+
+            if vendedores_data:
+                self._maestro_vendedores = vendedores_data
+            else:
+                print("⚠️ No se encontraron datos en maestros/codigos_vendedores")
+
+            # Cargar forma_pago
+            forma_pago_data = db.get_by_path("maestros/forma_pago_clientes")
+
+            if forma_pago_data:
+                self._maestros_forma_pago = forma_pago_data
+            else:
+                print("⚠️ No se encontraron datos en maestros/forma_pago_clientes")
+
+            self._last_maestros_update = datetime.now()
+
+            return True
 
         except Exception as e:
-            print(f"❌ [UnifiedVentasAnalyzer] Error loading sales data from Firebase: {e}")
-            return pd.DataFrame()
+            print(f"❌ Error cargando datos maestros: {e}")
+            return False
 
-    def process_clientes_data(self, data):
+    def __get_forma_pago_by_id(self, forma_pago_code: str) -> str:
+        """
+        Get "forma pago" based on id.
+
+        Args:
+            forma_pago_code (str): Client's ID.
+
+        Returns:
+            str: Forma pago.
+        """
+        return \
+            self._maestros_forma_pago.get(
+                forma_pago_code,
+                forma_pago_code
+            )
+
+    def process_clientes_data(self, data: pd.DataFrame) -> pd.DataFrame:
         """
         Process clientes_id data.
         """
@@ -146,22 +195,62 @@ class UnifiedVentasAnalyzer:
                 'departamento': cliente_info.get('departamento', ''),
                 'direccion': cliente_info.get('direccion', ''),
                 'estado': cliente_info.get('estado', 'Anulado'),
+                'nit': cliente_info.get('nit', ''),
+                'zona': cliente_info.get('zona', ''),
+                'subzona': cliente_info.get('subzona', ''),
+                'forma_pago': self.__get_forma_pago_by_id(cliente_info.get('forma_pago', '')),
+                'cupo_credito': float(cliente_info.get('cupo_credito', 0) or 0)
             }
             clientes_list.append(cliente_row)
 
         return pd.DataFrame(clientes_list) if clientes_list else pd.DataFrame()
-    
-    def load_clientes_data_from_firebase(self, force_reload=False):
+
+    def load_data_from_firebase(self, force_reload: bool = False) -> pd.DataFrame:
+        """
+        Load sales data from fac_ventas instead of ventas_totales.
+        """
+        try:
+            # Si ya tenemos datos y no es recarga forzada, usar cache
+            if not force_reload and not self.df_ventas_totales.empty:
+                return self.df_ventas_totales
+
+            db = self._get_db()
+
+            if not db:
+                print(
+                    "❌ [UnifiedVentasAnalyzer] No se pudo obtener conexión a la base de datos")
+                return pd.DataFrame()
+
+            if not self.load_maestros_data(force_reload):
+                print("⚠️ Continuando sin algunos datos maestros")
+
+            # Load clientes_id data into cache
+            self.load_clientes_data_from_firebase(force_reload)
+
+            # Get invoices data
+            data = db.get("fac_ventas")
+
+            if data:
+                result = self.process_unified_data(data)
+                return result
+            else:
+                print(
+                    "⚠️ [UnifiedVentasAnalyzer] No data found in Firebase - fac_ventas")
+                return pd.DataFrame()
+
+        except Exception as e:
+            print(
+                f"❌ [UnifiedVentasAnalyzer] Error loading sales data from Firebase: {e}")
+            return pd.DataFrame()
+
+    def load_clientes_data_from_firebase(self, force_reload: bool = False) -> pd.DataFrame:
         """
         Load clientes_id data from Firebase database with caching.
-
-        Args:
-            force_reload (bool): Si True, fuerza la recarga incluso si ya hay datos
         """
         try:
             # Usar cache si está disponible y no es recarga forzada
             if not force_reload and hasattr(self, '_df_clientes') and \
-                    not self._df_clientes.empty:
+                    not self._df_clientes.empty and self._clientes_id_cache:
                 return self._df_clientes
 
             db = self._get_db()
@@ -171,9 +260,16 @@ class UnifiedVentasAnalyzer:
                     "❌ [VentasAnalyzer] No se pudo obtener conexión para clientes")
                 return pd.DataFrame()
 
-            data = db.get("clientes_id")
+            data = db.get_by_path("maestros/clientes_id")
 
             if data:
+                self._clientes_id_cache = {}
+
+                for cliente_id, cliente_info in data.items():
+                    id1 = cliente_info.get('id1', cliente_id)
+                    self._clientes_id_cache[id1] = cliente_info
+
+                # Procesar para DataFrame también
                 result = self.process_clientes_data(data)
 
                 # Guardar en cache
@@ -184,20 +280,20 @@ class UnifiedVentasAnalyzer:
             else:
                 print("⚠️ [VentasAnalyzer] No clientes_id data found in Firebase")
                 self._df_clientes = pd.DataFrame()
+                self._clientes_id_cache = {}
                 return pd.DataFrame()
 
         except Exception as e:
             print(
                 f"❌ [VentasAnalyzer] Error loading clientes_id data from Firebase: {e}")
-            
             self._df_clientes = pd.DataFrame()
-            
+            self._clientes_id_cache = {}
             return pd.DataFrame()
-    
+
     def get_dias_sin_venta_por_cliente(
-        self, 
-        mode: str, 
-        vendedor: str='Todos'):
+            self,
+            mode: str,
+            vendedor: str = 'Todos'):
         """
         Get days without transfers for each client.
         Solo incluye clientes con estado diferente a 'Anulado'.
@@ -205,51 +301,52 @@ class UnifiedVentasAnalyzer:
         if mode == "ventas":
             df = \
                 self.filter_ventas_data(
-                    vendedor=vendedor, 
+                    vendedor=vendedor,
                     mes='Todos'
                 )
         else:
             df = \
                 self.filter_transferencias_data(
-                    transferencista=vendedor, 
+                    transferencista=vendedor,
                     mes='Todos'
                 )
-            
-        ventas_reales = df[df['tipo'].str.contains('Remision', case=False, na=False)]
+
+        ventas_reales = df[df['tipo'].str.contains(
+            'Remision', case=False, na=False)]
 
         if ventas_reales.empty:
             return pd.DataFrame()
 
-        # NUEVO: Obtener datos de clientes para filtrar por estado
+        # Obtener datos de clientes para filtrar por estado
         df_clientes = self._df_clientes
-        
-        # Si no hay datos de clientes, cargar desde Firebase
+
         if df_clientes.empty:
             df_clientes = self.load_clientes_data_from_firebase()
-        
+
         # Si aún no hay datos de clientes, proceder sin filtro
         if df_clientes.empty:
-            print("⚠️ No se pudieron cargar datos de clientes, procesando sin filtro de estado")
+            print(
+                "⚠️ No se pudieron cargar datos de clientes, procesando sin filtro de estado")
             clientes_activos = ventas_reales['id1'].unique()
         else:
             # Filtrar clientes que NO estén anulados
             clientes_no_anulados = df_clientes[
-                (df_clientes['estado'] != 'Anulado') & 
+                (df_clientes['estado'] != 'Anulado') &
                 (df_clientes['estado'].notna())
             ]
-            
+
             if clientes_no_anulados.empty:
                 print("⚠️ No se encontraron clientes con estado válido")
                 return pd.DataFrame()
-            
+
             # Obtener lista de IDs de clientes activos
             clientes_activos = clientes_no_anulados['id1'].unique()
-        
+
         # FILTRAR ventas solo de clientes activos (no anulados)
         ventas_reales_filtradas = ventas_reales[
             ventas_reales['id1'].isin(clientes_activos)
         ]
-        
+
         if ventas_reales_filtradas.empty:
             print("⚠️ No se encontraron ventas para clientes activos")
             return pd.DataFrame()
@@ -270,7 +367,8 @@ class UnifiedVentasAnalyzer:
 
         # Calculate days without sales
         today = datetime.now()
-        ultima_venta['dias_sin_venta'] = (today - ultima_venta['fecha']).dt.days
+        ultima_venta['dias_sin_venta'] = (
+            today - ultima_venta['fecha']).dt.days
 
         # Filter out recent sales (less than 7 days) to focus on inactive clients
         resultado = ultima_venta[ultima_venta['dias_sin_venta'] >= 7].copy()
@@ -291,14 +389,15 @@ class UnifiedVentasAnalyzer:
             else:
                 return "180+ días"
 
-        resultado['categoria'] = resultado['dias_sin_venta'].apply(categorize_days)
+        resultado['categoria'] = resultado['dias_sin_venta'].apply(
+            categorize_days)
 
         # Sort by days without sales descending
         return resultado.sort_values('dias_sin_venta', ascending=False)
-    
+
     def process_unified_data(self, data):
         """
-        Process raw unified sales data and create separated DataFrames.
+        Process raw unified sales data from fac_ventas and enrich with master data.
         """
         if not data:
             return pd.DataFrame()
@@ -307,24 +406,43 @@ class UnifiedVentasAnalyzer:
 
         # Procesar cada documento (donde key = número de factura/nota)
         for doc_id, doc_info in data.items():
-            doc_row = {
-                'documento_id': doc_id,
-                'vendedor': doc_info.get('vendedor', ''),
-                'transferencista': doc_info.get('transferencista', ''),
-                'cliente': doc_info.get('cliente', ''),
-                'url': doc_info.get('url', ''),
-                'nit': doc_info.get('nit', ''),
-                'fecha': doc_info.get('fecha', ''),
-                'tipo': doc_info.get('tipo', ''),
-                'valor_bruto': float(doc_info.get('valor_bruto', 0) or 0),
-                'descuento': float(doc_info.get('descuento', 0) or 0),
-                'iva': float(doc_info.get('iva', 0) or 0),
-                'forma_pago': doc_info.get('forma_pago', 'No Definida'),
-                'zona': doc_info.get('zona', ''),
-                'subzona': doc_info.get('subzona', ''),
-                'cupo_credito': float(doc_info.get('cupo_credito', 0) or 0),
-                'id1': doc_info.get('id1', '')
-            }
+            # Obtener el id1 para buscar datos del cliente
+            id1 = doc_info.get('id1', '')
+            cliente_data = self._clientes_id_cache.get(id1, {})
+
+            # Decodificar tipo de documento
+            tipo_codigo = doc_info.get('tipo', '')
+            tipo_nombre = self._maestro_tipos.get(tipo_codigo, "N/A")
+
+            # Decodificar vendedor
+            vendedor_codigo = doc_info.get('vendedor', '')
+            vendedor_nombre = self._maestro_vendedores.get(
+                vendedor_codigo, "N/A")
+
+            # Decodificar transferencista
+            transf_codigo = doc_info.get('transferencista', '')
+            transf_nombre = self._maestro_vendedores.get(transf_codigo, "N/A")
+
+            doc_row = \
+                {
+                    'documento_id': doc_id,
+                    'vendedor': vendedor_nombre,
+                    'transferencista': transf_nombre,
+                    'cliente': cliente_data.get('nombre', ''),
+                    'url': cliente_data.get('razon', ''),
+                    'nit': cliente_data.get('nit', ''),
+                    'fecha': doc_info.get('fecha', ''),
+                    'tipo': tipo_nombre,
+                    'valor_bruto': float(doc_info.get('valor_bruto', 0) or 0),
+                    'descuento': float(doc_info.get('descuento', 0) or 0),
+                    'iva': float(doc_info.get('iva', 0) or 0),
+                    'forma_pago': cliente_data.get('forma_pago', 'No Definida'),
+                    'zona': cliente_data.get('zona', ''),
+                    'subzona': cliente_data.get('subzona', ''),
+                    'cupo_credito': float(cliente_data.get('cupo_credito', 0) or 0),
+                    'id1': id1
+                }
+
             ventas_list.append(doc_row)
 
         if not ventas_list:
@@ -357,7 +475,8 @@ class UnifiedVentasAnalyzer:
 
         # Create combined client name
         df['cliente_completo'] = df.apply(
-            lambda row: f"{row['cliente']} – {row['url']}" if row['url'] and row['url'].strip() else row['cliente'], 
+            lambda row: f"{row['cliente']} – {row['url']}" if row['url'] and row['url'].strip(
+            ) else row['cliente'],
             axis=1
         )
 
@@ -372,20 +491,25 @@ class UnifiedVentasAnalyzer:
         # DataFrame para ventas (por vendedor)
         # Filtrar registros donde vendedor no está vacío
         ventas_mask = (
-            self.df_ventas_totales['vendedor'].notna() & 
+            self.df_ventas_totales['vendedor'].notna() &
             (self.df_ventas_totales['vendedor'] != '') &
-            (self.df_ventas_totales['vendedor'] != 'null')
+            (self.df_ventas_totales['vendedor'] != 'null') &
+            (~self.df_ventas_totales['vendedor'].str.contains(
+                'Vendedor \\d+', na=False))  # Excluir no decodificados
         )
         self.df_ventas = self.df_ventas_totales[ventas_mask].copy()
 
-        # DataFrame para transferencias (por transferencista)
         # Filtrar registros donde transferencista no está vacío
         transferencias_mask = (
-            self.df_ventas_totales['transferencista'].notna() & 
+            self.df_ventas_totales['transferencista'].notna() &
             (self.df_ventas_totales['transferencista'] != '') &
-            (self.df_ventas_totales['transferencista'] != 'null')
+            (self.df_ventas_totales['transferencista'] != 'null') &
+            (~self.df_ventas_totales['transferencista'].str.contains(
+                'Transferencista \\d+', na=False))  # Excluir no decodificados
         )
-        self.df_transferencias = self.df_ventas_totales[transferencias_mask].copy()
+
+        self.df_transferencias = \
+            self.df_ventas_totales[transferencias_mask].copy()
 
         # Create vendedores list
         if not self.df_ventas.empty:
@@ -394,11 +518,15 @@ class UnifiedVentasAnalyzer:
 
         # Create transferencistas list
         if not self.df_transferencias.empty:
-            transferencistas_unicos = self.df_transferencias['transferencista'].dropna().unique()
-            self.transferencistas_list = ['Todos'] + sorted(transferencistas_unicos)
+            transferencistas_unicos = self.df_transferencias['transferencista'].dropna(
+            ).unique()
+            self.transferencistas_list = [
+                'Todos'] + sorted(transferencistas_unicos)
 
     def filter_ventas_data(self, vendedor='Todos', mes='Todos'):
-        """Filter ventas data by salesperson and month."""
+        """
+        Filter ventas data by salesperson and month.
+        """
         df = self.df_ventas.copy()
 
         if vendedor != 'Todos':
@@ -414,9 +542,12 @@ class UnifiedVentasAnalyzer:
         df = self.filter_ventas_data(vendedor, mes)
 
         # Filter only sales (exclude credit notes, returns, etc.)
-        ventas_reales = df[df['tipo'].str.contains('Remision', case=False, na=False)]
-        devoluciones = df[df['tipo'].str.contains('Devolución|Devolucion', case=False, na=False)]
-        notas_credito = df[df['tipo'].str.contains('Nota.*crédito|Nota.*credito', case=False, na=False)]
+        ventas_reales = df[df['tipo'].str.contains(
+            'Remision', case=False, na=False)]
+        devoluciones = df[df['tipo'].str.contains(
+            'Devolución|Devolucion', case=False, na=False)]
+        notas_credito = df[df['tipo'].str.contains(
+            'Nota.*crédito|Nota.*credito', case=False, na=False)]
 
         total_ventas = ventas_reales['valor_neto'].sum()
         total_devoluciones = abs(devoluciones['valor_neto'].sum())
@@ -437,17 +568,56 @@ class UnifiedVentasAnalyzer:
         }
 
     def get_ventas_por_mes(self, vendedor='Todos'):
-        """Get sales evolution by month."""
+        """
+        Get sales evolution by month with net sales (sales minus returns).
+        """
         df = self.filter_ventas_data(vendedor, 'Todos')
-        ventas_reales = df[df['tipo'].str.contains('Remision', case=False, na=False)]
 
-        if ventas_reales.empty:
+        # Separar ventas reales y devoluciones
+        ventas_reales = df[df['tipo'].str.contains(
+            'Remision', case=False, na=False)]
+        devoluciones = df[df['tipo'].str.contains(
+            'Devolución|Devolucion', case=False, na=False)]
+
+        if ventas_reales.empty and devoluciones.empty:
             return pd.DataFrame()
 
-        resultado = ventas_reales.groupby('mes_nombre').agg({
+        # Agrupar ventas por mes
+        resultado_ventas = ventas_reales.groupby('mes_nombre').agg({
             'valor_neto': 'sum',
             'documento_id': 'count'
-        }).reset_index()
+        }).reset_index() if not ventas_reales.empty else pd.DataFrame()
+
+        # Agrupar devoluciones por mes
+        resultado_devoluciones = devoluciones.groupby('mes_nombre').agg({
+            'valor_neto': 'sum'
+        }).reset_index() if not devoluciones.empty else pd.DataFrame()
+
+        # Si solo hay ventas
+        if resultado_devoluciones.empty:
+            return resultado_ventas.sort_values('mes_nombre')
+
+        # Si solo hay devoluciones
+        if resultado_ventas.empty:
+            resultado_devoluciones['documento_id'] = 0
+            resultado_devoluciones['valor_neto'] = - \
+                abs(resultado_devoluciones['valor_neto'])
+            return resultado_devoluciones.sort_values('mes_nombre')
+
+        # Combinar ventas y devoluciones
+        resultado = resultado_ventas.merge(
+            resultado_devoluciones,
+            on='mes_nombre',
+            how='outer',
+            suffixes=('', '_dev')
+        ).fillna(0)
+
+        # Calcular ventas netas (ventas - devoluciones)
+        resultado['valor_neto'] = resultado['valor_neto'] - \
+            abs(resultado['valor_neto_dev'])
+
+        # Limpiar columnas
+        resultado = resultado[['mes_nombre', 'valor_neto', 'documento_id']]
 
         return resultado.sort_values('mes_nombre')
 
@@ -463,14 +633,22 @@ class UnifiedVentasAnalyzer:
 
         return df
 
-    def get_resumen_transferencias(self, transferencista='Todos', mes='Todos'):
-        """Get transfer summary statistics."""
+    def get_resumen_transferencias(
+            self,
+            transferencista: str = 'Todos',
+            mes: str = 'Todos') -> Dict[str, Any]:
+        """
+        Get transfer summary statistics.
+        """
         df = self.filter_transferencias_data(transferencista, mes)
 
         # Filter only sales (exclude credit notes, returns, etc.)
-        ventas_reales = df[df['tipo'].str.contains('Remision', case=False, na=False)]
-        devoluciones = df[df['tipo'].str.contains('Devolución|Devolucion', case=False, na=False)]
-        notas_credito = df[df['tipo'].str.contains('Nota.*crédito|Nota.*credito', case=False, na=False)]
+        ventas_reales = df[df['tipo'].str.contains(
+            'Remision', case=False, na=False)]
+        devoluciones = df[df['tipo'].str.contains(
+            'Devolución|Devolucion', case=False, na=False)]
+        notas_credito = df[df['tipo'].str.contains(
+            'Nota.*crédito|Nota.*credito', case=False, na=False)]
 
         total_transferencias = ventas_reales['valor_neto'].sum()
         total_devoluciones = abs(devoluciones['valor_neto'].sum())
@@ -490,10 +668,14 @@ class UnifiedVentasAnalyzer:
             'porcentaje_descuento': (abs(ventas_reales['descuento'].sum()) / ventas_reales['valor_bruto'].sum() * 100) if ventas_reales['valor_bruto'].sum() > 0 else 0
         }
 
-    def get_transferencias_por_mes(self, transferencista='Todos'):
-        """Get transfers evolution by month."""
+    def get_transferencias_por_mes(self, transferencista: str = 'Todos') -> pd.DataFrame:
+        """
+        Get transfers evolution by month.
+        """
         df = self.filter_transferencias_data(transferencista, 'Todos')
-        ventas_reales = df[df['tipo'].str.contains('Remision', case=False, na=False)]
+
+        ventas_reales = df[df['tipo'].str.contains(
+            'Remision', case=False, na=False)]
 
         if ventas_reales.empty:
             return pd.DataFrame()
@@ -508,7 +690,7 @@ class UnifiedVentasAnalyzer:
     def get_ventas_por_dia_semana(self, person='Todos', mes='Todos', person_type='vendedor'):
         """
         Get sales distribution by day of week.
-        
+
         Args:
             person: Name of person (vendedor or transferencista)
             mes: Month filter
@@ -519,7 +701,8 @@ class UnifiedVentasAnalyzer:
         else:
             df = self.filter_transferencias_data(person, mes)
 
-        ventas_reales = df[df['tipo'].str.contains('Remision', case=False, na=False)]
+        ventas_reales = df[df['tipo'].str.contains(
+            'Remision', case=False, na=False)]
 
         if ventas_reales.empty:
             return pd.DataFrame()
@@ -529,12 +712,15 @@ class UnifiedVentasAnalyzer:
         ventas_reales['dia_semana'] = ventas_reales['fecha'].dt.day_name()
 
         # Define order for days of week in Spanish
-        dias_orden = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-        dias_espanol = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+        dias_orden = ['Monday', 'Tuesday', 'Wednesday',
+                      'Thursday', 'Friday', 'Saturday', 'Sunday']
+        dias_espanol = ['Lunes', 'Martes', 'Miércoles',
+                        'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
         # Map English to Spanish
         dia_map = dict(zip(dias_orden, dias_espanol))
-        ventas_reales['dia_semana_es'] = ventas_reales['dia_semana'].map(dia_map)
+        ventas_reales['dia_semana_es'] = ventas_reales['dia_semana'].map(
+            dia_map)
 
         resultado = ventas_reales.groupby('dia_semana_es').agg({
             'valor_neto': 'sum',
@@ -549,7 +735,7 @@ class UnifiedVentasAnalyzer:
         )
         return resultado.sort_values('dia_semana_es')
 
-    def load_convenios_from_firebase(self, force_reload=False):
+    def load_convenios_from_firebase(self, force_reload: bool = False) -> pd.DataFrame:
         """
         Load convenios data from Firebase database with caching.
         """
@@ -557,11 +743,11 @@ class UnifiedVentasAnalyzer:
             if not force_reload and not self._df_convenios.empty:
                 return self._df_convenios
 
-            start_time = time.time()
             db = self._get_db()
 
             if not db:
-                print("❌ [UnifiedVentasAnalyzer] No se pudo obtener conexión para convenios")
+                print(
+                    "❌ [UnifiedVentasAnalyzer] No se pudo obtener conexión para convenios")
                 return pd.DataFrame()
 
             data = db.get("convenios")
@@ -573,21 +759,26 @@ class UnifiedVentasAnalyzer:
 
                 return result
             else:
-                print("⚠️ [UnifiedVentasAnalyzer] No convenios data found in Firebase")
+                print(
+                    "⚠️ [UnifiedVentasAnalyzer] No convenios data found in Firebase")
                 self._df_convenios = pd.DataFrame()
                 return pd.DataFrame()
 
         except Exception as e:
-            print(f"❌ [UnifiedVentasAnalyzer] Error loading convenios data from Firebase: {e}")
+            print(
+                f"❌ [UnifiedVentasAnalyzer] Error loading convenios data from Firebase: {e}")
             self._df_convenios = pd.DataFrame()
             return pd.DataFrame()
 
-    def process_convenios_data(self, data):
-        """Process convenios data with correct field names."""
+    def process_convenios_data(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Process convenios data with correct field names.
+        """
         if not data:
             return pd.DataFrame()
 
         convenios_list = []
+
         for nit, convenio_info in data.items():
             convenio_row = {
                 'nit': nit,
@@ -601,7 +792,8 @@ class UnifiedVentasAnalyzer:
             }
             convenios_list.append(convenio_row)
 
-        df_convenios = pd.DataFrame(convenios_list) if convenios_list else pd.DataFrame()
+        df_convenios = pd.DataFrame(
+            convenios_list) if convenios_list else pd.DataFrame()
 
         # Filter only confirmed agreements
         if not df_convenios.empty:
@@ -609,12 +801,15 @@ class UnifiedVentasAnalyzer:
 
         return df_convenios
 
-    def clear_all_cache(self):
-        """Clean cache to force reload."""
+    def clear_all_cache(self) -> None:
+        """
+        Clean cache to force reload.
+        """
         self.df_ventas_totales = pd.DataFrame()
         self.df_ventas = pd.DataFrame()
         self.df_transferencias = pd.DataFrame()
         self._df_convenios = pd.DataFrame()
+        self._df_cuotas = pd.DataFrame()
         self._df_recibos = pd.DataFrame()
         self._df_num_clientes = pd.DataFrame()
         self._df_clientes = pd.DataFrame()
@@ -629,23 +824,50 @@ class UnifiedVentasAnalyzer:
         self._last_num_clientes_update = None
         self._last_clientes_update = None
 
-    def get_cache_status(self):
-        """Get current cache status for debugging."""
-        return {
-            'ventas_totales': {
-                'records': len(self.df_ventas_totales),
-                'last_update': self._last_update.isoformat() if self._last_update else None
-            },
-            'ventas': {
-                'records': len(self.df_ventas),
-                'vendedores': len(self.vendedores_list) - 1
-            },
-            'transferencias': {
-                'records': len(self.df_transferencias),
-                'transferencistas': len(self.transferencistas_list) - 1
-            },
-            'convenios': {
-                'records': len(self._df_convenios),
-                'last_update': self._last_convenios_update.isoformat() if self._last_convenios_update else None
+    def get_cache_status(self) -> Dict[str, Any]:
+        """
+        Get current cache status for debugging including new caches.
+        """
+        return \
+            {
+                'ventas_totales': {
+                    'records': len(self.df_ventas_totales),
+                    'last_update': self._last_update.isoformat() if self._last_update else None
+                },
+                'ventas': {
+                    'records': len(self.df_ventas),
+                    'vendedores': len(self.vendedores_list) - 1
+                },
+                'transferencias': {
+                    'records': len(self.df_transferencias),
+                    'transferencistas': len(self.transferencistas_list) - 1
+                },
+                'convenios': {
+                    'records': len(self._df_convenios),
+                    'last_update': self._last_convenios_update.isoformat() if self._last_convenios_update else None
+                },
+                'maestros': {
+                    'tipos_documentos': len(self._maestro_tipos),
+                    'codigos_vendedores': len(self._maestro_vendedores),
+                    'clientes_cache': len(self._clientes_id_cache),
+                    'last_update': self._last_maestros_update.isoformat() if self._last_maestros_update else None
+                }
             }
-        }
+
+    def get_seller_name(self, id1: str) -> str:
+        """
+        Get seller name based on id.
+
+        Args:
+            id1 (str): Client's ID.
+
+        Returns:
+            str: Seller name.
+        """
+        vendedor_code = \
+            self._clientes_id_cache.get(id1, {}).get("vendedor")
+
+        vendedor = \
+            self._maestro_vendedores.get(vendedor_code, "")
+
+        return vendedor

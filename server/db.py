@@ -28,7 +28,12 @@ class Database:
             "clientes",
             "listas_precios",
             "clientes_id",
-            "ventas_totales"
+            "ventas_totales",
+            "cuotas_vendedores",
+            "maestros",
+            "fac_ventas",
+            "analisis_vendedores",
+            "vendedores_activos"
         ]
 
     def __init__(self):

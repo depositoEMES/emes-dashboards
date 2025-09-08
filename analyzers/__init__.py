@@ -1,9 +1,11 @@
 from .cartera import *
 from .ventas_unified import *
 from .ventas import *
+from .evaluacion_analyzer import *
 from .transferencias import *
-from .proveedores import *
-from .cotizaciones import *
+# from .proveedores_ventas import *
+# from .proveedores_compras import *
+# from .cotizaciones import *
 from .image_processor import *
 from .excel_processor import *
 from .facturas_proveedores import *
@@ -11,12 +13,14 @@ from .facturas_proveedores import *
 # Para mantener compatibilidad con imports existentes
 __all__ = [
     'UnifiedVentasAnalyzer',
-    'VentasAnalyzer', 
-    'TransferenciasAnalyzer'
+    'VentasAnalyzer',
+    'TransferenciasAnalyzer',
+    'EvaluacionAnalyzer'
 ]
 
 # Crear instancia global del analyzer unificado para uso compartido
 _unified_instance = None
+
 
 def get_unified_analyzer():
     """
@@ -28,6 +32,7 @@ def get_unified_analyzer():
         _unified_instance = UnifiedVentasAnalyzer()
         print("✅ Instancia unificada de analyzer creada")
     return _unified_instance
+
 
 def reload_unified_data():
     """
@@ -43,6 +48,7 @@ def reload_unified_data():
         print("⚠️ No hay instancia unificada para recargar")
         return None
 
+
 def clear_unified_cache():
     """
     Limpiar cache de la instancia unificada.
@@ -53,6 +59,7 @@ def clear_unified_cache():
         print("🧹 Cache unificado limpiado")
     else:
         print("⚠️ No hay instancia unificada para limpiar")
+
 
 def get_unified_status():
     """

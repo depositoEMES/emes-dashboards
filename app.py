@@ -30,7 +30,8 @@ try:
         ventas,
         transferencias,
         # cotizaciones,
-        # proveedores,
+        # proveedores_ventas,
+        # proveedores_compras,
         # facturas,
         # facturas_proveedores
     )
@@ -60,12 +61,15 @@ def get_permission_manager():
     """
     try:
         from server import get_db
+
         db = get_db()
+
         if db:
             return PermissionManager(db)
         else:
             print("❌ No se pudo obtener conexión a la base de datos")
             return None
+
     except Exception as e:
         print(f"❌ Error obteniendo PermissionManager: {e}")
         return None
@@ -175,8 +179,10 @@ def load_page_content(pathname):
             '/cotizaciones': create_coming_soon_page("Cotizaciones"),
             '/cotizaciones/reportes': create_coming_soon_page("Reportes de Cotizaciones"),
             '/proveedores': create_coming_soon_page("Proveedores"),
-            '/proveedores-ventas': create_coming_soon_page("Proveedores - Ventas"),
-            '/proveedores-compras': create_coming_soon_page("Proveedores - Compras"),
+            # proveedores_ventas.layout,
+            '/proveedores-ventas': create_coming_soon_page("Proveedores Ventas"),
+            # proveedores_compras.layout,
+            '/proveedores-compras': create_coming_soon_page("Proveedores Compras"),
             # facturas.layout,
             '/facturas': create_coming_soon_page("Facturas"),
             # facturas_proveedores.layout,
@@ -498,7 +504,16 @@ def internal_error(error):
 
 if __name__ == '__main__':
     try:
-        app.run(host='0.0.0.0', debug=False)
+        port = int(os.environ.get('PORT', 8050))
+        debug_mode = os.environ.get('DEBUG', 'True').lower() == 'true'
+
+        print(f"🚀 Iniciando aplicación en puerto {port}")
+        print(f"🔧 Modo debug: {debug_mode}")
+
+        if debug_mode:
+            app.run(port=port, debug=True, use_reloader=False)
+        else:
+            app.run(host='0.0.0.0', port=port, debug=False)
 
     except Exception as e:
         print(f"❌ Error iniciando aplicación: {e}")

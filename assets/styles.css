@@ -1611,3 +1611,74 @@ button:focus,
 .dark-theme .glass-card {
     z-index: 1 !important;
 }
+
+.custom-datepicker .DateInput {
+    background-color: white !important;
+    border-color: transparent;
+    border-radius: 12px !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 10px !important;
+    height: 37px !important;
+    padding: 0 12px !important;
+    transition: all 0.3s ease !important;
+}
+
+.custom-datepicker .DateInput:hover {
+    border-color: #3b82f6 !important;
+}
+
+.custom-datepicker .DateInput.DateInput--focused {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.custom-datepicker .DateInput_input {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 12px !important;
+    color: #374151 !important;
+    padding: 11px 0 !important;
+    background-color: transparent !important;
+    border: none !important;
+}
+
+.custom-datepicker .DateInput_input::placeholder {
+    color: #9ca3af !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+.custom-datepicker .DateRangePickerInput {
+    background-color: white !important;
+    border-radius: 12px !important;
+}
+
+.custom-datepicker .DateRangePickerInput_arrow {
+    color: #6b7280 !important;
+}
+
+/* Dark theme para DatePicker */
+.dark-theme .custom-datepicker .DateInput {
+    background-color: #374151 !important;
+    border-color: #4b5563 !important;
+    color: #f9fafb !important;
+}
+
+.dark-theme .custom-datepicker .DateInput:hover {
+    border-color: #3b82f6 !important;
+}
+
+.dark-theme .custom-datepicker .DateInput_input {
+    color: #f9fafb !important;
+    background-color: transparent !important;
+}
+
+.dark-theme .custom-datepicker .DateInput_input::placeholder {
+    color: #9ca3af !important;
+}
+
+.dark-theme .custom-datepicker .DateRangePickerInput {
+    background-color: #374151 !important;
+}
+
+.dark-theme .custom-datepicker .DateRangePickerInput_arrow {
+    color: #e5e7eb !important;
+}
