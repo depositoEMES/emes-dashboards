@@ -5,4 +5,7 @@ firebase-admin
 gunicorn
 python-dotenv
 numpy
+openpyxl
+opencv-python
+pillow
 holidays
