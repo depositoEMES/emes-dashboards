@@ -504,16 +504,7 @@ def internal_error(error):
 
 if __name__ == '__main__':
     try:
-        port = int(os.environ.get('PORT', 8050))
-        debug_mode = os.environ.get('DEBUG', 'True').lower() == 'true'
-
-        print(f"🚀 Iniciando aplicación en puerto {port}")
-        print(f"🔧 Modo debug: {debug_mode}")
-
-        if debug_mode:
-            app.run(port=port, debug=True, use_reloader=False)
-        else:
-            app.run(host='0.0.0.0', debug=False)
+        app.run(host='0.0.0.0', debug=False)
 
     except Exception as e:
         print(f"❌ Error iniciando aplicación: {e}")
