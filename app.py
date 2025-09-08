@@ -513,7 +513,7 @@ if __name__ == '__main__':
         if debug_mode:
             app.run(port=port, debug=True, use_reloader=False)
         else:
-            app.run(host='0.0.0.0', port=port, debug=False)
+            app.run(host='0.0.0.0', debug=False)
 
     except Exception as e:
         print(f"❌ Error iniciando aplicación: {e}")
