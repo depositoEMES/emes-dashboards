@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 import pandas as pd
 
 from .helpers import VentasAnalysisHelper
-from analyzers import VentasAnalyzer
+from analyzers import VentasAnalyzer, EvaluacionAnalyzer
 from utils import (
     format_currency_int,
     get_theme_styles,
@@ -49,6 +49,7 @@ layout = html.Div([
     # Store for theme
     dcc.Store(id='ventas-theme-store', data='light'),
     dcc.Store(id='ventas-data-store', data={'last_update': 0}),
+    dcc.Store(id='ventas-rfm-cache-status', storage_type='memory'),
 
     # Notification area
     html.Div(id='ventas-notification-area', children=[], style={
@@ -3738,7 +3739,8 @@ def update_treemap_rfm_plus(
         theme_styles = get_theme_styles(theme)
 
         # Obtener datos RFM+ completos
-        data = analyzer.calculate_enhanced_rfm_scores(vendedor)
+        # data = analyzer.calculate_enhanced_rfm_scores(vendedor)
+        data = analyzer.calculate_enhanced_rfm_scores(vendedor, use_cache=True)
 
         if data.empty:
             return create_empty_figure("No hay datos RFM+ disponibles", theme_styles)
@@ -4467,6 +4469,24 @@ def update_rfm_insights(
 
 
 @callback(
+    Output('ventas-rfm-cache-status', 'data'),
+    Input('ventas-dropdown-vendedor', 'value'),
+    prevent_initial_call=True
+)
+def clear_cache_on_vendor_change(vendedor):
+    """
+    Opcional: Limpiar cache cuando cambie el vendedor principal
+    """
+    try:
+        from analyzers import VentasAnalyzer
+        analyzer = VentasAnalyzer()
+        analyzer.clear_rfm_cache()
+        return {'status': 'cache_cleared', 'vendor': vendedor}
+    except:
+        return {'status': 'error'}
+
+
+@callback(
     Output('ventas-grafico-cumplimiento-cuotas', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
@@ -5045,6 +5065,7 @@ def update_summary_panel(session_data, dropdown_value, mes, data_store, theme):
 
     # Calcular variación ajustada
     variacion_ajustada = 0
+
     if mes != 'Todos':
         try:
             from datetime import datetime
@@ -5057,8 +5078,10 @@ def update_summary_panel(session_data, dropdown_value, mes, data_store, theme):
                 vendedor, mes_anterior)
 
             hoy = datetime.now()
+
             if fecha_mes.year == hoy.year and fecha_mes.month == hoy.month:
                 from utils import calcular_dias_habiles_colombia
+
                 dias_mes, dias_transcurridos = calcular_dias_habiles_colombia(
                     fecha_mes.year, fecha_mes.month)
 
@@ -5273,32 +5296,6 @@ def update_summary_panel(session_data, dropdown_value, mes, data_store, theme):
     ])
 
 
-# @callback(
-#     Output('ventas-eval-container', 'style'),
-#     [Input('session-store', 'data'),
-#      Input('ventas-theme-store', 'data')]
-# )
-# def show_evaluation_container(session_data, theme):
-#     """
-#     Show evaluation container only for admins.
-#     """
-#     from utils import can_see_all_vendors
-
-#     theme_styles = get_theme_styles(theme)
-
-#     if not session_data or not can_see_all_vendors(session_data):
-#         return {'display': 'none'}
-
-#     return {
-#         'borderRadius': '20px',
-#         'padding': '30px',
-#         'marginBottom': '24px',
-#         'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
-#         'width': '100%',
-#         'backgroundColor': theme_styles['paper_color'],
-#         'display': 'block'
-#     }
-
 @callback(
     Output('ventas-eval-container', 'style'),
     [Input('session-store', 'data'),
@@ -5341,21 +5338,31 @@ def show_evaluation_container(session_data, theme):
 
 @callback(
     Output('ventas-eval-podium', 'children'),
-    [Input('ventas-eval-metric-selector', 'value'),
+    [Input('session-store', 'data'),
+     Input('ventas-eval-metric-selector', 'value'),
      Input('ventas-data-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_evaluation_podium(metric, data_store, theme):
-    """Update podium display with new Score"""
+def update_evaluation_podium(session_data, metric, data_store, theme):
+    """
+    Update podium display with new Score.
+    """
     try:
-        from analyzers import EvaluacionAnalyzer
-        theme_styles = get_theme_styles(theme)
+        from utils import can_see_all_vendors
+
+        # If you are an individual seller (admin but with limited access), not show
+        if not can_see_all_vendors(session_data):
+            return \
+                html.Div("Gráfico no disponible para vendedores",
+                         style={'textAlign': 'center'})
 
         analyzer = EvaluacionAnalyzer()
         df_ranking = analyzer.get_vendor_ranking(metric)
 
         if df_ranking.empty:
-            return html.Div("No hay datos disponibles", style={'textAlign': 'center'})
+            return \
+                html.Div("No hay datos disponibles",
+                         style={'textAlign': 'center'})
 
         # Get top 3
         top3 = df_ranking.head(3)
@@ -5399,7 +5406,7 @@ def update_evaluation_podium(metric, data_store, theme):
                             'color': 'rgba(255,255,255,0.9)',
                             'marginRight': '10px'
                         }),
-                        html.Span(f"Score: {row['score']:.1f}", style={  # NUEVO
+                        html.Span(f"Score: {row['score']:.1f}", style={
                             'fontSize': '11px',
                             'color': 'rgba(255,255,255,0.9)',
                             'fontWeight': 'bold'
@@ -5430,18 +5437,24 @@ def update_evaluation_podium(metric, data_store, theme):
 
 @callback(
     Output('ventas-eval-table-container', 'children'),
-    [Input('ventas-eval-metric-selector', 'value'),
+    [Input('session-store', 'data'),
+     Input('ventas-eval-metric-selector', 'value'),
      Input('ventas-eval-show-details', 'value'),
      Input('ventas-data-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_evaluation_table(metric, show_details, data_store, theme):
+def update_evaluation_table(session_data, metric, show_details, data_store, theme):
     """
     Update evaluation table with Score column.
     """
     try:
-        from analyzers import EvaluacionAnalyzer
-        theme_styles = get_theme_styles(theme)
+        from utils import can_see_all_vendors
+
+        # If you are an individual seller (admin but with limited access), not show
+        if not can_see_all_vendors(session_data):
+            return \
+                html.Div("Gráfico no disponible para vendedores",
+                         style={'textAlign': 'center'})
 
         analyzer = EvaluacionAnalyzer()
         df_ranking = analyzer.get_vendor_ranking(metric)
@@ -5459,7 +5472,7 @@ def update_evaluation_table(metric, show_details, data_store, theme):
             html.Th("Score Total", style={'width': '8%'}),
             html.Th("Eficiencia", style={'width': '8%'}),
             html.Th("Calidad", style={'width': '8%'}),
-            html.Th("Score Dist.", style={'width': '8%'}),  # NUEVO
+            html.Th("Score Dist.", style={'width': '8%'}),
             html.Th("Categoría", style={'width': '12%'}),
             html.Th("Análisis", style={'width': '33%'})
         ]
@@ -5645,11 +5658,10 @@ def update_evaluation_table(metric, show_details, data_store, theme):
 )
 def update_efficiency_chart(vendedor, data_store, theme):
     """
-    Gráfico de barras agrupadas con ticket promedio
+    Bars chart grouped with average ticket.
     """
     try:
         from analyzers import VentasAnalyzer
-        import plotly.graph_objects as go
 
         theme_styles = get_theme_styles(theme)
         analyzer = VentasAnalyzer()
@@ -5679,9 +5691,9 @@ def update_efficiency_chart(vendedor, data_store, theme):
                 y=y1_data,
                 name='Ventas ($)',
                 marker=dict(
-                    color='rgba(59, 130, 246, 0.6)',  # Azul con opacidad
+                    color='rgba(59, 130, 246, 0.6)',
                     line=dict(
-                        color='rgba(59, 130, 246, 0.9)',  # Borde más oscuro
+                        color='rgba(59, 130, 246, 0.9)',
                         width=2
                     )
                 ),
@@ -5719,7 +5731,7 @@ def update_efficiency_chart(vendedor, data_store, theme):
                 mode='lines+markers+text',
                 name='Ticket Promedio',
                 line=dict(
-                    color='rgba(245, 158, 11, 0.8)',  # Naranja
+                    color='rgba(245, 158, 11, 0.8)',
                     width=3,
                     dash='dot'
                 ),
@@ -5747,13 +5759,13 @@ def update_efficiency_chart(vendedor, data_store, theme):
             font=dict(family="Inter", size=12,
                       color=theme_styles['text_color']),
             xaxis=dict(
-                showgrid=False,  # Sin grid
+                showgrid=False,
                 showline=True,
                 linecolor=theme_styles['border_color'],
                 tickfont=dict(size=11)
             ),
             yaxis=dict(
-                showgrid=False,  # Sin grid
+                showgrid=False,
                 showline=True,
                 linecolor=theme_styles['border_color'],
                 tickformat='$,.0f',
@@ -5789,7 +5801,10 @@ def update_efficiency_chart(vendedor, data_store, theme):
      Output('ventas-efficiency-title', 'style')],
     Input('ventas-theme-store', 'data')
 )
-def update_efficiency_container_theme(theme):
+def update_efficiency_container_theme(theme: str):
+    """
+    Update efficiency container styles.
+    """
     theme_styles = get_theme_styles(theme)
 
     container_style = {
@@ -5804,8 +5819,7 @@ def update_efficiency_container_theme(theme):
         'textAlign': 'center',
         'marginBottom': '20px',
         'color': theme_styles['text_color'],
-        'fontSize': '20px',
-        'fontWeight': '600'
+        'fontFamily': 'Inter'
     }
 
     return container_style, title_style

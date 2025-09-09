@@ -12,8 +12,12 @@ def get_user_vendor_filter(session_data):
 
     # Admin account
     return \
-        'Todos' if seller in ['JESUS IVAN GOMEZ VELASQUEZ',
-                              'YAMITH SCHNEIDER MESA ESCOBAR'] else seller
+        'Todos' if seller in \
+        [
+            'JESUS IVAN GOMEZ VELASQUEZ',
+            'YAMITH SCHNEIDER MESA ESCOBAR',
+            'DINA NARANJO'
+        ] else seller
 
 
 def can_see_all_vendors(session_data):
@@ -27,8 +31,12 @@ def can_see_all_vendors(session_data):
         session_data.get('seller', '')
 
     return \
-        seller in ['JESUS IVAN GOMEZ VELASQUEZ',
-                   'YAMITH SCHNEIDER MESA ESCOBAR']
+        seller in \
+        [
+            'JESUS IVAN GOMEZ VELASQUEZ',
+            'YAMITH SCHNEIDER MESA ESCOBAR',
+            'DINA NARANJO'
+        ]
 
 
 def get_selected_vendor(session_data, dropdown_value):
@@ -45,6 +53,7 @@ def get_selected_vendor(session_data, dropdown_value):
         else:
             # For regular users, return their specific seller
             return get_user_vendor_filter(session_data)
+
     except Exception as e:
         print(f"Error en get_selected_vendor: {e}")
         return 'Todos'

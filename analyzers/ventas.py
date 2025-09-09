@@ -22,6 +22,11 @@ class VentasAnalyzer:
         from . import get_unified_analyzer
         self._unified_analyzer = get_unified_analyzer()
 
+        # Cache manager for RFM+ model
+        self._rfm_cache = {}
+        self._rfm_cache_timestamp = None
+        self._rfm_cache_ttl = 300
+
     @property
     def df_ventas(self) -> DataFrame:
         """
@@ -1007,155 +1012,36 @@ class VentasAnalyzer:
             traceback.print_exc()
             return pd.DataFrame()
 
-    def calculate_enhanced_rfm_scores(self, vendedor='Todos'):
+    def calculate_enhanced_rfm_scores(self, vendedor='Todos', use_cache=True):
         """
-        Calcular RFM+ Score incluyendo análisis de tendencias.
-        CORREGIDO: Manejo mejorado de fechas y conversiones.
+        Calcular RFM+ Score con CACHE para evitar recálculos
+        Mantiene TODAS las categorías y cálculos originales
         """
         try:
-            # Calcular último mes finalizado
-            hoy = datetime.now()
+            # Generar clave de cache
+            cache_key = f"rfm_{vendedor}"
+            current_time = datetime.now()
 
-            # Si estamos en los primeros días del mes, usar el mes anterior completo
-            if hoy.day <= 3:
-                ultimo_mes_finalizado = (hoy.replace(
-                    day=1) - timedelta(days=1)).replace(day=1)
-            else:
-                ultimo_mes_finalizado = (hoy.replace(
-                    day=1) - timedelta(days=1)).replace(day=1)
+            # Verificar si hay datos en cache válidos
+            if (use_cache and
+                cache_key in self._rfm_cache and
+                self._rfm_cache_timestamp and
+                    (current_time - self._rfm_cache_timestamp).seconds < self._rfm_cache_ttl):
+                # Retornar copia para evitar modificaciones
+                return self._rfm_cache[cache_key].copy()
 
-            # Fecha de corte: último día del mes finalizado
-            if ultimo_mes_finalizado.month == 12:
-                fecha_corte = ultimo_mes_finalizado.replace(
-                    year=ultimo_mes_finalizado.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                fecha_corte = ultimo_mes_finalizado.replace(
-                    month=ultimo_mes_finalizado.month + 1, day=1) - timedelta(days=1)
+            # Si no hay cache o expiró, usar el método original optimizado
+            rfm_data = self._calculate_enhanced_rfm_optimized(vendedor)
 
-            # 🔧 CONVERTIR fecha_corte a pandas Timestamp para evitar problemas
-            fecha_corte = pd.Timestamp(fecha_corte)
+            # Guardar en cache
+            if use_cache and not rfm_data.empty:
+                self._rfm_cache[cache_key] = rfm_data.copy()
+                self._rfm_cache_timestamp = current_time
 
-            # Obtener datos de ventas FILTRADOS hasta la fecha de corte
-            df = self.filter_data(vendedor, 'Todos')
-            ventas_reales = df[df['tipo'].str.contains(
-                'Remision', case=False, na=False)]
-
-            # FILTRO CRÍTICO: Solo datos hasta el último mes finalizado
-            ventas_reales = ventas_reales[ventas_reales['fecha']
-                                          <= fecha_corte]
-
-            if ventas_reales.empty:
-                print(f"⚠️ No hay datos de ventas hasta {fecha_corte}")
-                return pd.DataFrame()
-
-            # Calcular métricas RFM básicas por cliente
-            rfm_data = ventas_reales.groupby('cliente_completo').agg({
-                'fecha': ['max', 'min', 'count'],
-                'documento_id': 'count',
-                'valor_neto': ['sum', 'mean']
-            }).reset_index()
-
-            # Aplanar columnas multi-level
-            rfm_data.columns = ['cliente_completo', 'fecha_max', 'fecha_min', 'periodos_activos',
-                                'frequency', 'monetary_total', 'monetary_promedio']
-
-            # Recency calculado desde fecha de corte
-            rfm_data['recency_days'] = (
-                fecha_corte - rfm_data['fecha_max']).dt.days
-
-            trend_data = []
-            for cliente in rfm_data['cliente_completo']:
-                trend_metrics = self._calculate_client_trends(
-                    ventas_reales, cliente, fecha_corte)
-                trend_data.append(trend_metrics)
-
-            # Convertir a DataFrame y unir
-            trend_df = pd.DataFrame(trend_data)
-            rfm_enhanced = pd.merge(
-                rfm_data, trend_df, on='cliente_completo', how='left')
-
-            # Filtrar valores válidos
-            rfm_enhanced = rfm_enhanced[
-                (rfm_enhanced['recency_days'] >= 0) &
-                (rfm_enhanced['frequency'] > 0) &
-                (rfm_enhanced['monetary_total'] > 0)
-            ]
-
-            if rfm_enhanced.empty:
-                print("⚠️ No hay datos válidos después de filtros")
-                return pd.DataFrame()
-
-            # Calcular scores RFM tradicionales (1-5)
-            try:
-                # RECENCY: Menos días = mejor score (invertir)
-                rfm_enhanced['R'] = pd.qcut(rfm_enhanced['recency_days'],
-                                            q=5, labels=[5, 4, 3, 2, 1], duplicates='drop')
-
-                # FREQUENCY: Más transacciones = mejor score
-                rfm_enhanced['F'] = pd.qcut(rfm_enhanced['frequency'].rank(method='first'),
-                                            q=5, labels=[1, 2, 3, 4, 5], duplicates='drop')
-
-                # MONETARY: Más valor = mejor score
-                rfm_enhanced['M'] = pd.qcut(rfm_enhanced['monetary_total'].rank(method='first'),
-                                            q=5, labels=[1, 2, 3, 4, 5], duplicates='drop')
-
-                # TREND: Score basado en CAGR y variaciones
-                rfm_enhanced['T'] = rfm_enhanced.apply(
-                    self._calculate_trend_score, axis=1)
-
-            except Exception as e:
-                print(f"⚠️ Error en cálculo de quintiles: {e}")
-                # Fallback: usar percentiles simples
-                rfm_enhanced['R'] = pd.cut(rfm_enhanced['recency_days'],
-                                           bins=5, labels=[5, 4, 3, 2, 1], duplicates='drop')
-                rfm_enhanced['F'] = pd.cut(rfm_enhanced['frequency'],
-                                           bins=5, labels=[1, 2, 3, 4, 5], duplicates='drop')
-                rfm_enhanced['M'] = pd.cut(rfm_enhanced['monetary_total'],
-                                           bins=5, labels=[1, 2, 3, 4, 5], duplicates='drop')
-                rfm_enhanced['T'] = rfm_enhanced.apply(
-                    self._calculate_trend_score, axis=1)
-
-            # Convertir a enteros, manejando posibles NaN
-            for col in ['R', 'F', 'M', 'T']:
-                rfm_enhanced[col] = pd.to_numeric(
-                    rfm_enhanced[col], errors='coerce').fillna(3).astype(int)
-
-            # Crear RFM+ Score combinado
-            rfm_enhanced['rfm_score'] = (
-                rfm_enhanced['R'].astype(str) +
-                rfm_enhanced['F'].astype(str) +
-                rfm_enhanced['M'].astype(str) +
-                rfm_enhanced['T'].astype(str)
-            )
-
-            # Calcular RFM+ Score numérico ponderado
-            rfm_enhanced['rfm_numeric'] = (
-                rfm_enhanced['R'] * 0.30 +
-                rfm_enhanced['F'] * 0.25 +
-                rfm_enhanced['M'] * 0.25 +
-                rfm_enhanced['T'] * 0.20
-            )
-
-            # Categorizar clientes según RFM+
-            rfm_enhanced['categoria_rfm'] = rfm_enhanced.apply(
-                self._categorize_enhanced_rfm, axis=1)
-
-            # Añadir información adicional
-            rfm_enhanced['valor_promedio_transaccion'] = rfm_enhanced['monetary_total'] / \
-                rfm_enhanced['frequency']
-
-            # Renombrar para compatibilidad
-            rfm_enhanced.rename(columns={
-                'monetary_total': 'monetary',
-                'fecha_max': 'fecha'
-            }, inplace=True)
-
-            return rfm_enhanced
+            return rfm_data
 
         except Exception as e:
-            print(f"❌ Error calculando RFM+ scores: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"❌ Error en RFM con cache: {e}")
             return pd.DataFrame()
 
     def _calculate_client_trends(self, ventas_data, cliente, fecha_corte):
@@ -1400,60 +1286,6 @@ class VentasAnalyzer:
         # 🔄 IRREGULARES: Patrones inconsistentes
         else:
             return "🔄 Comportamiento Irregular"
-
-    def get_client_rfm_details(self, cliente, vendedor='Todos'):
-        """
-        Obtener detalles completos RFM+ para un cliente específico.
-        """
-        try:
-            # Obtener datos RFM+ completos
-            rfm_data = self.calculate_enhanced_rfm_scores(vendedor)
-
-            if rfm_data.empty:
-                return None
-
-            # Buscar cliente específico
-            client_data = rfm_data[rfm_data['cliente_completo'] == cliente]
-
-            if client_data.empty:
-                return None
-
-            client_info = client_data.iloc[0]
-
-            # Formatear información detallada
-            details = {
-                'cliente': cliente,
-                'categoria': client_info['categoria_rfm'],
-                'rfm_score': client_info['rfm_score'],
-                'rfm_numeric': round(client_info['rfm_numeric'], 2),
-                'scores': {
-                    'recency': int(client_info['R']),
-                    'frequency': int(client_info['F']),
-                    'monetary': int(client_info['M']),
-                    'trend': int(client_info['T'])
-                },
-                'metricas': {
-                    'dias_ultima_compra': int(client_info['recency_days']),
-                    'total_compras': int(client_info['frequency']),
-                    'valor_total': client_info['monetary'],
-                    'valor_promedio': client_info['valor_promedio_transaccion'],
-                    'meses_activos': int(client_info['meses_activos'])
-                },
-                'tendencias': {
-                    'cagr_6m': client_info['cagr_6m'],
-                    'variacion_3m': client_info['variacion_3m'],
-                    'variacion_reciente': client_info['variacion_reciente'],
-                    'tendencia_general': client_info['tendencia_general'],
-                    'consistencia': client_info['consistencia']
-                },
-                'recomendacion': self._get_client_recommendation(client_info)
-            }
-
-            return details
-
-        except Exception as e:
-            print(f"❌ Error obteniendo detalles RFM para {cliente}: {e}")
-            return None
 
     def _get_client_recommendation(self, client_info):
         """
@@ -2059,75 +1891,81 @@ class VentasAnalyzer:
 
     def get_resumen_mensual(self, vendedor='Todos'):
         """
-        Obtener resumen de ventas mensuales con clientes únicos
+        Get monthly sales summary with unique customers
+        Using Get_Ventas_Por_mes for consistency with other graphics
         """
         try:
-            # Usar el método correcto para obtener datos
+            # Obtener datos de ventas mensuales usando el método existente
+            df_ventas_mes = self.get_ventas_por_mes(vendedor)
+
+            if df_ventas_mes.empty:
+                return pd.DataFrame()
+
             monthly_data = []
-            current_date = datetime.now()
 
-            for month_offset in range(6):  # Últimos 6 meses
-                month_date = current_date - timedelta(days=30 * month_offset)
-                month_str = month_date.strftime("%Y-%m")
-                month_label = month_date.strftime("%b %Y")
+            for _, row in df_ventas_mes.iterrows():
+                mes = row['mes_nombre']
 
-                # Obtener datos del mes usando métodos existentes
-                df_mes = self.filter_data(vendedor, month_str)
+                # Obtener datos detallados del mes para contar clientes
+                df_mes_detalle = self.filter_data(vendedor, mes)
 
-                if df_mes.empty:
-                    month_totals = {
-                        'mes': month_label,
-                        'fecha': month_date.strftime("%Y-%m-01"),
-                        'ventas_brutas': 0,
-                        'devoluciones': 0,
-                        'ventas_netas': 0,
-                        'clientes_unicos': 0,
-                        'num_transacciones': 0,
-                        'ticket_promedio': 0,
-                        'venta_por_cliente': 0
-                    }
-                else:
-                    # Filtrar solo ventas reales
-                    ventas_reales = df_mes[df_mes['tipo'].str.contains(
-                        'Remision', case=False, na=False)]
-                    devoluciones = df_mes[df_mes['tipo'].str.contains(
-                        'Devolucion', case=False, na=False)]
+                if not df_mes_detalle.empty:
+                    ventas_reales = \
+                        df_mes_detalle[df_mes_detalle['tipo'].str.contains(
+                            'Remision',
+                            case=False,
+                            na=False)
+                        ]
+                    devoluciones = \
+                        df_mes_detalle[df_mes_detalle['tipo'].str.contains(
+                            'Devolución|Devolucion',
+                            case=False,
+                            na=False)
+                        ]
 
-                    ventas_brutas = ventas_reales['valor_bruto'].sum(
-                    ) if not ventas_reales.empty else 0
-                    total_devoluciones = abs(
-                        devoluciones['valor_neto'].sum()) if not devoluciones.empty else 0
-                    ventas_netas = ventas_brutas - total_devoluciones
+                    total_ventas = ventas_reales['valor_neto'].sum()
+                    total_devoluciones = abs(devoluciones['valor_neto'].sum())
+                    total_ventas_netas = total_ventas - total_devoluciones
 
                     # Contar clientes únicos
-                    clientes_unicos = ventas_reales['cliente_completo'].nunique(
-                    ) if not ventas_reales.empty else 0
+                    clientes_unicos = \
+                        ventas_reales['cliente_completo'].nunique(
+                        ) if not ventas_reales.empty else 0
 
-                    # Contar transacciones
-                    num_transacciones = len(
-                        ventas_reales) if not ventas_reales.empty else 0
+                    num_transacciones = \
+                        len(ventas_reales) if not ventas_reales.empty else 0
 
                     # Calcular promedios
-                    ticket_promedio = ventas_netas / num_transacciones if num_transacciones > 0 else 0
-                    venta_por_cliente = ventas_netas / clientes_unicos if clientes_unicos > 0 else 0
+                    ticket_promedio = total_ventas_netas / \
+                        num_transacciones if num_transacciones > 0 else 0
+                    venta_por_cliente = total_ventas_netas / \
+                        clientes_unicos if clientes_unicos > 0 else 0
+                else:
+                    clientes_unicos = 0
+                    num_transacciones = 0
+                    ticket_promedio = 0
+                    venta_por_cliente = 0
 
-                    month_totals = {
-                        'mes': month_label,
-                        'fecha': month_date.strftime("%Y-%m-01"),
-                        'ventas_brutas': ventas_brutas,
-                        'devoluciones': total_devoluciones,
-                        'ventas_netas': ventas_netas,
-                        'clientes_unicos': clientes_unicos,
-                        'num_transacciones': num_transacciones,
-                        'ticket_promedio': ticket_promedio,
-                        'venta_por_cliente': venta_por_cliente
-                    }
+                # Crear fecha para ordenamiento
+                try:
+                    fecha = pd.to_datetime(mes + '-01')
+                    mes_label = fecha.strftime('%b %Y')
+                except:
+                    fecha = pd.to_datetime(mes, format='%Y-%m')
+                    mes_label = fecha.strftime('%b %Y')
 
-                monthly_data.append(month_totals)
+                monthly_data.append({
+                    'mes': mes_label,
+                    'fecha': fecha,
+                    'ventas_netas': row['valor_neto'],
+                    'clientes_unicos': clientes_unicos,
+                    'num_transacciones': num_transacciones,
+                    'ticket_promedio': ticket_promedio,
+                    'venta_por_cliente': venta_por_cliente
+                })
 
             # Crear DataFrame y ordenar
             df = pd.DataFrame(monthly_data)
-            df['fecha'] = pd.to_datetime(df['fecha'])
             df = df.sort_values('fecha')
 
             return df
@@ -2137,3 +1975,397 @@ class VentasAnalyzer:
             import traceback
             traceback.print_exc()
             return pd.DataFrame()
+
+    def _calculate_enhanced_rfm_optimized(self, vendedor):
+        """
+        Versión OPTIMIZADA del cálculo RFM original
+        Mantiene TODAS las categorías y lógica original
+        """
+        try:
+            # Calcular último mes finalizado
+            hoy = datetime.now()
+
+            if hoy.day <= 3:
+                ultimo_mes_finalizado = (hoy.replace(
+                    day=1) - timedelta(days=1)).replace(day=1)
+            else:
+                ultimo_mes_finalizado = (hoy.replace(
+                    day=1) - timedelta(days=1)).replace(day=1)
+
+            if ultimo_mes_finalizado.month == 12:
+                fecha_corte = ultimo_mes_finalizado.replace(
+                    year=ultimo_mes_finalizado.year + 1, month=1, day=1) - timedelta(days=1)
+            else:
+                fecha_corte = ultimo_mes_finalizado.replace(
+                    month=ultimo_mes_finalizado.month + 1, day=1) - timedelta(days=1)
+
+            fecha_corte = pd.Timestamp(fecha_corte)
+
+            # Obtener datos de ventas
+            df = self.filter_data(vendedor, 'Todos')
+            ventas_reales = df[df['tipo'].str.contains(
+                'Remision', case=False, na=False)]
+            ventas_reales = ventas_reales[ventas_reales['fecha']
+                                          <= fecha_corte]
+
+            if ventas_reales.empty:
+                print(f"⚠️ No hay datos de ventas hasta {fecha_corte}")
+                return pd.DataFrame()
+
+            # OPTIMIZACIÓN: Cálculo vectorizado de métricas base
+            rfm_data = ventas_reales.groupby('cliente_completo').agg({
+                'fecha': ['max', 'min', 'count'],
+                'documento_id': 'count',
+                'valor_neto': ['sum', 'mean']
+            }).reset_index()
+
+            rfm_data.columns = ['cliente_completo', 'fecha_max', 'fecha_min', 'periodos_activos',
+                                'frequency', 'monetary_total', 'monetary_promedio']
+
+            rfm_data['recency_days'] = (
+                fecha_corte - rfm_data['fecha_max']).dt.days
+
+            # OPTIMIZACIÓN: Calcular tendencias en batch (no uno por uno)
+            trend_data = self._calculate_client_trends_batch(
+                ventas_reales, fecha_corte)
+
+            # Merge con tendencias
+            rfm_enhanced = pd.merge(
+                rfm_data, trend_data, on='cliente_completo', how='left'
+            )
+
+            # Rellenar valores faltantes con defaults
+            rfm_enhanced['cagr_6m'] = rfm_enhanced['cagr_6m'].fillna(0)
+            rfm_enhanced['variacion_3m'] = rfm_enhanced['variacion_3m'].fillna(
+                0)
+            rfm_enhanced['variacion_reciente'] = rfm_enhanced['variacion_reciente'].fillna(
+                0)
+            rfm_enhanced['tendencia_general'] = rfm_enhanced['tendencia_general'].fillna(
+                'estable')
+            rfm_enhanced['meses_activos'] = rfm_enhanced['meses_activos'].fillna(
+                1)
+            rfm_enhanced['consistencia'] = rfm_enhanced['consistencia'].fillna(
+                0)
+
+            # Filtrar valores válidos
+            rfm_enhanced = rfm_enhanced[
+                (rfm_enhanced['recency_days'] >= 0) &
+                (rfm_enhanced['frequency'] > 0) &
+                (rfm_enhanced['monetary_total'] > 0)
+            ]
+
+            if rfm_enhanced.empty:
+                return pd.DataFrame()
+
+            # Calcular scores RFM tradicionales
+            try:
+                # RECENCY: Menos días = mejor score
+                rfm_enhanced['R'] = pd.qcut(rfm_enhanced['recency_days'],
+                                            q=5, labels=[5, 4, 3, 2, 1], duplicates='drop')
+
+                # FREQUENCY: Más transacciones = mejor score
+                rfm_enhanced['F'] = pd.qcut(rfm_enhanced['frequency'].rank(method='first'),
+                                            q=5, labels=[1, 2, 3, 4, 5], duplicates='drop')
+
+                # MONETARY: Más valor = mejor score
+                rfm_enhanced['M'] = pd.qcut(rfm_enhanced['monetary_total'].rank(method='first'),
+                                            q=5, labels=[1, 2, 3, 4, 5], duplicates='drop')
+
+            except:
+                # Fallback con cut si qcut falla
+                rfm_enhanced['R'] = pd.cut(rfm_enhanced['recency_days'],
+                                           bins=5, labels=[5, 4, 3, 2, 1], duplicates='drop')
+                rfm_enhanced['F'] = pd.cut(rfm_enhanced['frequency'],
+                                           bins=5, labels=[1, 2, 3, 4, 5], duplicates='drop')
+                rfm_enhanced['M'] = pd.cut(rfm_enhanced['monetary_total'],
+                                           bins=5, labels=[1, 2, 3, 4, 5], duplicates='drop')
+
+            # TREND Score basado en CAGR y variaciones (mantener lógica original)
+            rfm_enhanced['T'] = rfm_enhanced.apply(
+                self._calculate_trend_score, axis=1)
+
+            # Convertir a enteros
+            for col in ['R', 'F', 'M', 'T']:
+                rfm_enhanced[col] = pd.to_numeric(
+                    rfm_enhanced[col], errors='coerce').fillna(3).astype(int)
+
+            # Crear RFM+ Score combinado
+            rfm_enhanced['rfm_score'] = (
+                rfm_enhanced['R'].astype(str) +
+                rfm_enhanced['F'].astype(str) +
+                rfm_enhanced['M'].astype(str) +
+                rfm_enhanced['T'].astype(str)
+            )
+
+            # Calcular RFM+ Score numérico ponderado
+            rfm_enhanced['rfm_numeric'] = (
+                rfm_enhanced['R'] * 0.30 +
+                rfm_enhanced['F'] * 0.25 +
+                rfm_enhanced['M'] * 0.25 +
+                rfm_enhanced['T'] * 0.20
+            )
+
+            # Categorizar clientes usando TODAS las categorías originales
+            rfm_enhanced['categoria_rfm'] = rfm_enhanced.apply(
+                self._categorize_enhanced_rfm, axis=1
+            )
+
+            # Información adicional
+            rfm_enhanced['valor_promedio_transaccion'] = (
+                rfm_enhanced['monetary_total'] / rfm_enhanced['frequency']
+            )
+
+            # Renombrar para compatibilidad
+            rfm_enhanced.rename(columns={
+                'monetary_total': 'monetary',
+                'fecha_max': 'fecha'
+            }, inplace=True)
+
+            return rfm_enhanced
+
+        except Exception as e:
+            print(f"❌ Error calculando RFM optimizado: {e}")
+            import traceback
+            traceback.print_exc()
+            return pd.DataFrame()
+
+    def _calculate_client_trends_batch(self, ventas_data, fecha_corte):
+        """
+        Calcular tendencias para TODOS los clientes de forma eficiente
+        """
+        try:
+            # Preparar datos mensuales para todos los clientes de una vez
+            ventas_data = ventas_data.copy()
+            ventas_data['mes_periodo'] = ventas_data['fecha'].dt.to_period('M')
+
+            # Agrupar por cliente y mes
+            monthly_sales = ventas_data.groupby(['cliente_completo', 'mes_periodo'])[
+                'valor_neto'].sum().reset_index()
+
+            # Lista para resultados
+            trend_results = []
+
+            # Procesar cada cliente
+            for cliente in monthly_sales['cliente_completo'].unique():
+                client_data = monthly_sales[monthly_sales['cliente_completo'] == cliente]
+                client_data = client_data.set_index(
+                    'mes_periodo')['valor_neto'].sort_index()
+
+                # Usar el método original _calculate_client_trends pero sin el filtrado inicial
+                trend_metrics = self._calculate_client_trends_from_series(
+                    cliente, client_data, fecha_corte
+                )
+                trend_results.append(trend_metrics)
+
+            return pd.DataFrame(trend_results)
+
+        except Exception as e:
+            print(f"❌ Error en cálculo batch de tendencias: {e}")
+            return pd.DataFrame()
+
+    def _calculate_client_trends_from_series(self, cliente, monthly_sales, fecha_corte):
+        """
+        Calcular métricas de tendencia desde una serie mensual (más eficiente)
+        """
+        try:
+            if len(monthly_sales) < 2:
+                return {
+                    'cliente_completo': cliente,
+                    'cagr_6m': 0,
+                    'variacion_3m': 0,
+                    'variacion_reciente': 0,
+                    'tendencia_general': 'estable',
+                    'meses_activos': 1,
+                    'consistencia': 0
+                }
+
+            # Convertir fecha_corte a period
+            if hasattr(fecha_corte, 'to_period'):
+                ultimo_periodo_completo = fecha_corte.to_period('M')
+            else:
+                ultimo_periodo_completo = pd.Timestamp(
+                    fecha_corte).to_period('M')
+
+            # Filtrar hasta el último período completo
+            monthly_sales = monthly_sales[monthly_sales.index <=
+                                          ultimo_periodo_completo]
+
+            if len(monthly_sales) < 2:
+                return {
+                    'cliente_completo': cliente,
+                    'cagr_6m': 0,
+                    'variacion_3m': 0,
+                    'variacion_reciente': 0,
+                    'tendencia_general': 'estable',
+                    'meses_activos': 1,
+                    'consistencia': 0
+                }
+
+            # 1. CAGR de últimos 6 meses
+            meses_disponibles = len(monthly_sales)
+            meses_cagr = min(6, meses_disponibles)
+            recent_months = monthly_sales.tail(meses_cagr)
+
+            if len(recent_months) >= 2:
+                primer_valor = recent_months.iloc[0]
+                ultimo_valor = recent_months.iloc[-1]
+                periodos = len(recent_months) - 1
+
+                if primer_valor > 0 and periodos > 0:
+                    cagr_6m = ((ultimo_valor / primer_valor)
+                               ** (1/periodos) - 1) * 100
+                else:
+                    cagr_6m = 0
+            else:
+                cagr_6m = 0
+
+            # 2. Variación de últimos 3 meses vs 3 meses anteriores
+            if len(monthly_sales) >= 6:
+                ultimos_3m = monthly_sales.tail(3).sum()
+                anteriores_3m = monthly_sales.tail(6).head(3).sum()
+
+                if anteriores_3m > 0:
+                    variacion_3m = (
+                        (ultimos_3m - anteriores_3m) / anteriores_3m) * 100
+                else:
+                    variacion_3m = 100 if ultimos_3m > 0 else 0
+            else:
+                variacion_3m = 0
+
+            # 3. Variación del último mes vs promedio anterior
+            if len(monthly_sales) >= 3:
+                ultimo_mes = monthly_sales.iloc[-1]
+                promedio_anterior = monthly_sales.iloc[:-1].mean()
+
+                if promedio_anterior > 0:
+                    variacion_reciente = (
+                        (ultimo_mes - promedio_anterior) / promedio_anterior) * 100
+                else:
+                    variacion_reciente = 100 if ultimo_mes > 0 else 0
+            else:
+                variacion_reciente = 0
+
+            # 4. Tendencia general
+            if cagr_6m > 10 and variacion_3m > 5:
+                tendencia_general = 'crecimiento_fuerte'
+            elif cagr_6m > 0 and variacion_3m >= 0:
+                tendencia_general = 'crecimiento'
+            elif cagr_6m < -10 and variacion_3m < -5:
+                tendencia_general = 'decrecimiento_fuerte'
+            elif cagr_6m < 0 and variacion_3m < 0:
+                tendencia_general = 'decrecimiento'
+            else:
+                tendencia_general = 'estable'
+
+            # 5. Consistencia
+            if len(monthly_sales) >= 3:
+                cv = (monthly_sales.std() / monthly_sales.mean()) * \
+                    100 if monthly_sales.mean() > 0 else 100
+                consistencia = max(0, 100 - cv)
+            else:
+                consistencia = 50
+
+            return {
+                'cliente_completo': cliente,
+                'cagr_6m': round(cagr_6m, 2),
+                'variacion_3m': round(variacion_3m, 2),
+                'variacion_reciente': round(variacion_reciente, 2),
+                'tendencia_general': tendencia_general,
+                'meses_activos': meses_disponibles,
+                'consistencia': round(consistencia, 1)
+            }
+
+        except Exception as e:
+            print(f"❌ Error calculando tendencias para {cliente}: {e}")
+            return {
+                'cliente_completo': cliente,
+                'cagr_6m': 0,
+                'variacion_3m': 0,
+                'variacion_reciente': 0,
+                'tendencia_general': 'estable',
+                'meses_activos': 1,
+                'consistencia': 0
+            }
+
+    def get_client_rfm_details(self, cliente, vendedor='Todos'):
+        """
+        Obtener detalles RFM+ para un cliente específico USANDO CACHE
+        """
+        try:
+            # Primero intentar obtener del cache
+            cache_key = f"rfm_{vendedor}"
+            current_time = datetime.now()
+
+            if (cache_key in self._rfm_cache and
+                self._rfm_cache_timestamp and
+                    (current_time - self._rfm_cache_timestamp).seconds < self._rfm_cache_ttl):
+
+                rfm_data = self._rfm_cache[cache_key]
+                client_data = rfm_data[rfm_data['cliente_completo'] == cliente]
+
+                if not client_data.empty:
+                    client_info = client_data.iloc[0]
+                    return self._format_client_rfm_details(client_info)
+
+            # Si no está en cache, calcular TODO y cachear
+            rfm_data = \
+                self.calculate_enhanced_rfm_scores(
+                    vendedor,
+                    use_cache=True
+                )
+
+            if rfm_data.empty:
+                return None
+
+            # Buscar cliente específico
+            client_data = rfm_data[rfm_data['cliente_completo'] == cliente]
+
+            if client_data.empty:
+                return None
+
+            client_info = client_data.iloc[0]
+            return self._format_client_rfm_details(client_info)
+
+        except Exception as e:
+            print(f"❌ Error obteniendo detalles RFM para {cliente}: {e}")
+            return None
+
+    def _format_client_rfm_details(self, client_info):
+        """
+        Formatear detalles del cliente desde el DataFrame RFM
+        """
+        return {
+            'cliente': client_info['cliente_completo'],
+            'categoria': client_info['categoria_rfm'],
+            'rfm_score': client_info['rfm_score'],
+            'rfm_numeric': round(client_info['rfm_numeric'], 2),
+            'scores': {
+                'recency': int(client_info['R']),
+                'frequency': int(client_info['F']),
+                'monetary': int(client_info['M']),
+                'trend': int(client_info['T'])
+            },
+            'metricas': {
+                'dias_ultima_compra': int(client_info['recency_days']),
+                'total_compras': int(client_info['frequency']),
+                'valor_total': client_info['monetary'],
+                'valor_promedio': client_info['valor_promedio_transaccion'],
+                'meses_activos': int(client_info['meses_activos'])
+            },
+            'tendencias': {
+                'cagr_6m': client_info['cagr_6m'],
+                'variacion_3m': client_info['variacion_3m'],
+                'variacion_reciente': client_info['variacion_reciente'],
+                'tendencia_general': client_info['tendencia_general'],
+                'consistencia': client_info['consistencia']
+            },
+            'recomendacion': self._get_client_recommendation(client_info)
+        }
+
+    def clear_rfm_cache(self):
+        """
+        Método para limpiar el cache manualmente si es necesario
+        """
+        self._rfm_cache = {}
+        self._rfm_cache_timestamp = None
+        print("🗑️ Cache RFM limpiado")
