@@ -4478,7 +4478,6 @@ def clear_cache_on_vendor_change(vendedor):
     Opcional: Limpiar cache cuando cambie el vendedor principal
     """
     try:
-        from analyzers import VentasAnalyzer
         analyzer = VentasAnalyzer()
         analyzer.clear_rfm_cache()
         return {'status': 'cache_cleared', 'vendor': vendedor}
@@ -5652,16 +5651,18 @@ def update_evaluation_table(session_data, metric, show_details, data_store, them
 
 @callback(
     Output('ventas-efficiency-chart', 'figure'),
-    [Input('ventas-dropdown-vendedor', 'value'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-data-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_efficiency_chart(vendedor, data_store, theme):
+def update_efficiency_chart(session_data, dropdown_value, data_store, theme):
     """
     Bars chart grouped with average ticket.
     """
     try:
-        from analyzers import VentasAnalyzer
+        vendedor = \
+            get_selected_vendor(session_data, dropdown_value)
 
         theme_styles = get_theme_styles(theme)
         analyzer = VentasAnalyzer()
