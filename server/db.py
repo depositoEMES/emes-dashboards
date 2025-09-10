@@ -33,7 +33,8 @@ class Database:
             "maestros",
             "fac_ventas",
             "analisis_vendedores",
-            "vendedores_activos"
+            "vendedores_activos",
+            "fletes_transportadoras"
         ]
 
     def __init__(self):

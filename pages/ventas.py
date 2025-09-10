@@ -4,7 +4,6 @@ from datetime import datetime
 
 import dash
 from dash import dcc, html, Input, Output, State, callback
-import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 
@@ -14,7 +13,8 @@ from utils import (
     format_currency_int,
     get_theme_styles,
     get_dropdown_style,
-    get_selected_vendor
+    get_selected_vendor,
+    can_see_all_vendors
 )
 
 analyzer = VentasAnalyzer()
@@ -50,6 +50,7 @@ layout = html.Div([
     dcc.Store(id='ventas-theme-store', data='light'),
     dcc.Store(id='ventas-data-store', data={'last_update': 0}),
     dcc.Store(id='ventas-rfm-cache-status', storage_type='memory'),
+    dcc.Store(id='ventas-fletes-page', data=1),
 
     # Notification area
     html.Div(id='ventas-notification-area', children=[], style={
@@ -798,7 +799,95 @@ layout = html.Div([
             'width': '100%',
             'background': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             'display': 'none'  # Se mostrará solo para admins
-        })
+        }),
+
+        # Fletes row
+        html.Div([
+            html.Div([
+                # Header moderno
+                html.H3(
+                    "Tarifas de Transporte",
+                    style={'textAlign': 'center', 'marginBottom': '10px', 'fontFamily': 'Inter'}),
+
+                # Control de búsqueda estilizado
+                html.Div([
+                    dcc.Dropdown(
+                        id='ventas-fletes-search',
+                        className='custom-dropdown',
+                        placeholder='Buscar ciudad...',
+                        style={
+                            'height': '44px',
+                            'borderRadius': '12px',
+                            'fontSize': '14px',
+                            'marginBottom': '30px'
+                        },
+                        clearable=True
+                    )
+                ], style={'textAlign': 'center'}),
+
+                # Contenedor de tabla con scroll
+                html.Div([
+                    # Header fijo
+                    html.Div(id='ventas-fletes-header', style={
+                        'position': 'sticky',
+                        'top': '0',
+                        'zIndex': '10',
+                        'backgroundColor': 'white'
+                    }),
+
+                    # Cuerpo de la tabla con scroll
+                    html.Div(id='ventas-fletes-body', style={
+                        'maxHeight': '400px',
+                        'overflowY': 'auto',
+                        'overflowX': 'hidden'
+                    })
+                ], style={
+                    'backgroundColor': 'white',
+                    'borderRadius': '12px',
+                    'border': '1px solid rgba(0,0,0,0.05)',
+                    'boxShadow': '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    'overflow': 'hidden'
+                }),
+
+                # Controles de paginación
+                html.Div([
+                    html.Button('◀', id='ventas-fletes-prev', style={
+                        'marginRight': '10px',
+                        'padding': '8px 12px',
+                        'borderRadius': '6px',
+                        'border': 'none',
+                        'backgroundColor': '#f3f4f6',
+                        'cursor': 'pointer',
+                        'fontWeight': '600'
+                    }),
+                    html.Span(id='ventas-fletes-page-info', style={
+                        'margin': '0 15px',
+                        'fontSize': '14px',
+                        'color': '#6b7280'
+                    }),
+                    html.Button('▶', id='ventas-fletes-next', style={
+                        'marginLeft': '10px',
+                        'padding': '8px 12px',
+                        'borderRadius': '6px',
+                        'border': 'none',
+                        'backgroundColor': '#f3f4f6',
+                        'cursor': 'pointer',
+                        'fontWeight': '600'
+                    })
+                ], style={
+                    'textAlign': 'center',
+                    'marginTop': '20px',
+                    'display': 'flex',
+                    'justifyContent': 'center',
+                    'alignItems': 'center'
+                })
+
+            ], id='ventas-fletes-content', style={
+                'padding': '30px',
+                'backgroundColor': '#fafafa',
+                'borderRadius': '20px'
+            })
+        ], id='ventas-fletes-container', style={'display': 'none', 'marginBottom': '30px'})
 
     ], style={
         'margin': '0 auto',
@@ -3461,7 +3550,8 @@ def update_card_styles(theme):
      Output('ventas-row2-5-container', 'style'),
      Output('ventas-row4-container', 'style'),
      Output('ventas-row5-container', 'style'),
-     Output('ventas-row6-container', 'style')],
+     Output('ventas-row6-container', 'style'),
+     Output('ventas-fletes-container', 'style')],
     [Input('ventas-theme-store', 'data'),
      Input('session-store', 'data')]
 )
@@ -3470,6 +3560,9 @@ def update_container_styles_simple(theme, session_data):
     Update styles for chart containers (versión simplificada sin controles de cumplimiento).
     """
     from utils import can_see_all_vendors
+
+    is_admin = \
+        can_see_all_vendors(session_data)
 
     theme_styles = get_theme_styles(theme)
 
@@ -3572,7 +3665,8 @@ def update_container_styles_simple(theme, session_data):
         # ventas-row5-container (siempre visible)
         base_style,
         # ventas-row6-container (siempre visible)
-        base_style
+        base_style,
+        base_style if not is_admin else {'display': 'none'}
     ]
 
 
@@ -3967,12 +4061,14 @@ def update_categorias_rfm_plus_options(session_data, dropdown_value, data_store)
      Output('ventas-dropdown-tipo-evolucion', 'style'),
      Output('ventas-dropdown-vista-recaudo', 'style'),
      Output('ventas-filtro-categoria-rfm', 'style'),
+     Output('ventas-fletes-search', 'style'),
      Output('ventas-dropdown-vendedor', 'className'),
      Output('ventas-dropdown-mes', 'className'),
      Output('ventas-dropdown-cliente', 'className'),
      Output('ventas-dropdown-tipo-evolucion', 'className'),
      Output('ventas-dropdown-vista-recaudo', 'className'),
-     Output('ventas-filtro-categoria-rfm', 'className')],
+     Output('ventas-filtro-categoria-rfm', 'className'),
+     Output('ventas-fletes-search', 'className'),],
     [Input('ventas-theme-store', 'data'),
      Input('session-store', 'data')]
 )
@@ -4006,10 +4102,10 @@ def update_dropdown_styles_with_rfm(theme, session_data):
             # Styles
             vendedor_style, dropdown_style, dropdown_style,
             dropdown_style, vista_style,
-            dropdown_style,
+            dropdown_style, dropdown_style,
             # Classes
             css_class, css_class, css_class, css_class,
-            css_class, css_class
+            css_class, css_class, css_class
         )
 
 
@@ -5824,3 +5920,315 @@ def update_efficiency_container_theme(theme: str):
     }
 
     return container_style, title_style
+
+
+@callback(
+    [Output('ventas-fletes-zona-filter', 'options'),
+     Output('ventas-fletes-transportadora-filter', 'options')],
+    Input('ventas-data-store', 'data')
+)
+def update_fletes_filters(data_store):
+    """
+    Update filter options
+    """
+    try:
+        analyzer = VentasAnalyzer()
+
+        df_fletes = analyzer.load_fletes_from_firebase()
+
+        if df_fletes.empty:
+            return [], []
+
+        # Opciones de zonas únicas
+        zonas = df_fletes['zona'].unique()
+        zona_options = [{'label': zona, 'value': zona}
+                        for zona in sorted(zonas)]
+
+        # Opciones de transportadoras únicas
+        transportadoras = set()
+
+        for trans_list in df_fletes['transportadora']:
+            transportadoras.update(trans_list)
+
+        trans_options = [{'label': t, 'value': t}
+                         for t in sorted(transportadoras)]
+
+        return zona_options, trans_options
+
+    except Exception as e:
+        print(f"Error updating filters: {e}")
+        return [], []
+
+
+@callback(
+    Output('ventas-fletes-search', 'options'),
+    Input('ventas-data-store', 'data')
+)
+def load_cities_options(data_store):
+    try:
+        analyzer = VentasAnalyzer()
+
+        df = analyzer.load_fletes_from_firebase()
+
+        if df.empty:
+            return []
+
+        # Crear opciones para el dropdown
+        cities = df['ciudad'].unique()
+        return [{'label': city, 'value': city} for city in sorted(cities)]
+
+    except:
+        return []
+
+
+@callback(
+    [Output('ventas-fletes-header', 'children'),
+     Output('ventas-fletes-body', 'children'),
+     Output('ventas-fletes-page-info', 'children'),
+     Output('ventas-fletes-page', 'data')],
+    [Input('session-store', 'data'),
+     Input('ventas-fletes-search', 'value'),
+     Input('ventas-fletes-prev', 'n_clicks'),
+     Input('ventas-fletes-next', 'n_clicks'),
+     Input('ventas-theme-store', 'data')],
+    [State('ventas-fletes-page', 'data')]
+)
+def update_modern_fletes_table(
+        session_data,
+        search_value,
+        prev_clicks,
+        next_clicks,
+        theme,
+        current_page):
+    """
+    Tabla moderna con header fijo y paginación
+    """
+    try:
+        from dash import ctx
+
+        is_admin = can_see_all_vendors(session_data)
+
+        if is_admin:
+            return [], html.Div("Este gráfico no está disponible para administradores", style={'padding': '40px', 'textAlign': 'center'}), "", 1
+
+        theme_styles = get_theme_styles(theme)
+        analyzer = VentasAnalyzer()
+
+        df = analyzer.load_fletes_from_firebase()
+
+        if df.empty:
+            return [], html.Div("No hay datos disponibles", style={'padding': '40px', 'textAlign': 'center'}), "", 1
+
+        # Filtrar por búsqueda
+        df_filtered = df.copy()
+        if search_value:
+            df_filtered = df_filtered[df_filtered['ciudad'] == search_value]
+
+        # Paginación
+        items_per_page = 10
+        total_items = len(df_filtered)
+        total_pages = max(
+            1, (total_items + items_per_page - 1) // items_per_page)
+
+        # Determinar página actual
+        if ctx.triggered_id == 'ventas-fletes-prev' and current_page > 1:
+            current_page -= 1
+        elif ctx.triggered_id == 'ventas-fletes-next' and current_page < total_pages:
+            current_page += 1
+        elif not ctx.triggered_id:
+            current_page = 1
+
+        # Asegurar que la página esté en rango válido
+        current_page = max(1, min(current_page, total_pages))
+
+        # Obtener items de la página actual
+        start_idx = (current_page - 1) * items_per_page
+        end_idx = start_idx + items_per_page
+        df_page = df_filtered.iloc[start_idx:end_idx]
+
+        # Crear header (fijo) - MODIFICADO: todos los títulos centrados
+        header_row = html.Div([
+            html.Div("CIUDAD", style={
+                'width': '15%',
+                'display': 'inline-block',
+                'padding': '15px',
+                'fontWeight': '700',
+                'fontSize': '12px',
+                'letterSpacing': '1px',
+                'color': '#6b7280',
+                'borderBottom': '2px solid #e5e7eb',
+                'backgroundColor': 'white' if theme == 'light' else '#1f2937',
+                'textAlign': 'center'  # CENTRADO
+            }),
+            html.Div("DEPARTAMENTO", style={
+                'width': '15%',
+                'display': 'inline-block',
+                'padding': '15px',
+                'fontWeight': '700',
+                'fontSize': '12px',
+                'letterSpacing': '1px',
+                'color': '#6b7280',
+                'borderBottom': '2px solid #e5e7eb',
+                'textAlign': 'center'  # CENTRADO
+            }),
+            html.Div("ZONA", style={
+                'width': '20%',
+                'display': 'inline-block',
+                'padding': '15px',
+                'fontWeight': '700',
+                'fontSize': '12px',
+                'letterSpacing': '1px',
+                'color': '#6b7280',
+                'borderBottom': '2px solid #e5e7eb',
+                'textAlign': 'center'  # CENTRADO
+            }),
+            html.Div("TRANSPORTADORAS", style={
+                'width': '20%',  # REDUCIDO de 25% a 20%
+                'display': 'inline-block',
+                'padding': '15px',
+                'fontWeight': '700',
+                'fontSize': '12px',
+                'letterSpacing': '1px',
+                'color': '#6b7280',
+                'borderBottom': '2px solid #e5e7eb',
+                'textAlign': 'center'  # CENTRADO
+            }),
+            html.Div("MÍNIMO", style={
+                'width': '15%',  # AUMENTADO de 13% a 15%
+                'display': 'inline-block',
+                'padding': '15px',
+                'fontWeight': '700',
+                'fontSize': '12px',
+                'letterSpacing': '1px',
+                'color': '#6b7280',
+                'borderBottom': '2px solid #e5e7eb',
+                'textAlign': 'center'  # CENTRADO
+            }),
+            html.Div("FLETE", style={
+                'width': '15%',  # AUMENTADO de 12% a 15%
+                'display': 'inline-block',
+                'padding': '15px',
+                'fontWeight': '700',
+                'fontSize': '12px',
+                'letterSpacing': '1px',
+                'color': '#6b7280',
+                'borderBottom': '2px solid #e5e7eb',
+                'textAlign': 'center'  # CENTRADO
+            })
+        ], style={'width': '100%', 'backgroundColor': 'white' if theme == 'light' else '#1f2937'})
+
+        # Crear filas del cuerpo
+        body_rows = []
+        colors = ['#3b82f6', '#10b981', '#8b5cf6',
+                  '#f59e0b', '#ef4444', '#ec4899']
+
+        for idx, row in df_page.iterrows():
+            # Estilo alternado de filas
+            row_bg = 'white' if (idx - start_idx) % 2 == 0 else '#f9fafb'
+            if theme == 'dark':
+                row_bg = '#1f2937' if (idx - start_idx) % 2 == 0 else '#111827'
+
+            # Formatear transportadoras con badges modernos
+            transportadoras = row['transportadora']
+
+            trans_badges = html.Div([
+                html.Span(t, style={
+                    'background': f'linear-gradient(135deg, {colors[i % len(colors)]}, {colors[(i+1) % len(colors)]})',
+                    'color': 'white',
+                    'padding': '4px 10px',
+                    'borderRadius': '15px',
+                    'fontSize': '11px',
+                    'marginRight': '6px',
+                    'display': 'inline-block',
+                    'marginBottom': '4px',
+                    'fontWeight': '500',
+                    'boxShadow': '0 1px 2px rgba(0,0,0,0.1)'
+                }) for i, t in enumerate(transportadoras)
+            ], style={'textAlign': 'center'})
+
+            body_rows.append(
+                html.Div([
+                    html.Div([
+                        html.Div(row['ciudad'], style={
+                            'fontFamily': 'Inter',
+                            'color': theme_styles['text_color']
+                        }),
+                    ], style={
+                        'width': '15%',
+                        'display': 'inline-block',
+                        'padding': '15px',
+                        'verticalAlign': 'middle',
+                        'fontSize': '13px',
+                        'fontWeight': 'bold',
+                        'textAlign': 'center'
+                    }),
+                    html.Div(row['depto'], style={
+                        'width': '15%',
+                        'display': 'inline-block',
+                        'padding': '15px',
+                        'color': theme_styles['text_color'],
+                        'fontSize': '13px',
+                        'verticalAlign': 'middle',
+                        'textAlign': 'center'
+                    }),
+                    html.Div(row['zona'], style={
+                        'width': '20%',
+                        'display': 'inline-block',
+                        'padding': '15px',
+                        'color': theme_styles['text_color'],
+                        'fontSize': '13px',
+                        'verticalAlign': 'middle',
+                        'textAlign': 'center'
+                    }),
+                    html.Div(trans_badges, style={
+                        'width': '20%',
+                        'display': 'inline-block',
+                        'padding': '15px',
+                        'verticalAlign': 'middle',
+                        'fontSize': '13px',
+                    }),
+                    html.Div(f"{format_currency_int(row['valor_pedido_minimo'])}", style={
+                        'width': '15%',  # AUMENTADO
+                        'display': 'inline-block',
+                        'padding': '15px',
+                        'textAlign': 'center',  # CENTRADO
+                        'color': '#059669',
+                        'fontSize': '14px',
+                        'fontWeight': 'bold',
+                        'verticalAlign': 'middle'
+                    }),
+                    html.Div(f"{format_currency_int(row['valor_flete_unidad'])}", style={
+                        'width': '15%',  # AUMENTADO
+                        'display': 'inline-block',
+                        'padding': '15px',
+                        'textAlign': 'center',  # CENTRADO
+                        'fontSize': '13px',
+                        'color': theme_styles['text_color'],
+                        'verticalAlign': 'middle'
+                    })
+                ], style={
+                    'width': '100%',
+                    'backgroundColor': row_bg,
+                    'borderBottom': '1px solid #f3f4f6',
+                    'transition': 'all 0.2s',
+                    'cursor': 'pointer'
+                }, className='flete-row')
+            )
+
+        # Info de paginación
+        page_info = f"Página {current_page} de {total_pages} • {total_items} ciudades"
+
+        return header_row, body_rows, page_info, current_page
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return [], html.Div(f"Error: {str(e)}"), "", 1
+
+
+# CSS para hover effect (agregar al archivo CSS o al style de la app)
+"""
+.flete-row:hover {
+    background-color: #f0f9ff !important;
+    transform: translateX(4px);
+}
+"""

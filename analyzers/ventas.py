@@ -2369,3 +2369,52 @@ class VentasAnalyzer:
         self._rfm_cache = {}
         self._rfm_cache_timestamp = None
         print("🗑️ Cache RFM limpiado")
+
+    def load_fletes_from_firebase(self, force_reload=False):
+        """
+        Load freight and conveyor data from Firebase.
+        """
+        try:
+            if not force_reload and hasattr(self, '_df_fletes') and not self._df_fletes.empty:
+                return self._df_fletes
+
+            db = self._unified_analyzer._get_db()
+
+            if not db:
+                print("❌ No se pudo obtener conexión para fletes")
+                return pd.DataFrame()
+
+            data = db.get("fletes_transportadoras")
+
+            if data:
+                fletes_list = []
+
+                for flete_id, flete_info in data.items():
+                    fletes_list.append({
+                        'ciudad': flete_info.get('ciudad', ''),
+                        'depto': flete_info.get('depto', ''),
+                        'transportadora': flete_info.get('transportadora', ''),
+                        'valor_flete_unidad': flete_info.get('valor_flete_unidad', 0),
+                        'valor_pedido_minimo': flete_info.get('valor_pedido_minimo', 0),
+                        'zona': flete_info.get('zona', '')
+                    })
+
+                df_fletes = pd.DataFrame(fletes_list)
+
+                # Agrupar por ciudad
+                df_grouped = df_fletes.groupby(['ciudad', 'depto', 'zona']).agg({
+                    'transportadora': lambda x: list(x),
+                    'valor_flete_unidad': 'min',  # Mostrar el valor mínimo
+                    'valor_pedido_minimo': 'min'   # Mostrar el pedido mínimo
+                }).reset_index()
+
+                self._df_fletes = df_grouped
+                return df_grouped
+            else:
+                print("⚠️ No se encontraron datos de fletes")
+                self._df_fletes = pd.DataFrame()
+                return pd.DataFrame()
+
+        except Exception as e:
+            print(f"❌ Error cargando fletes: {e}")
+            return pd.DataFrame()
