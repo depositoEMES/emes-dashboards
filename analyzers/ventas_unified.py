@@ -560,7 +560,7 @@ class UnifiedVentasAnalyzer:
             'total_notas_credito': total_notas_credito,
             'ventas_netas': ventas_netas,
             'num_facturas': len(ventas_reales),
-            'num_clientes': ventas_reales['cliente'].nunique() if not ventas_reales.empty else 0,
+            'num_clientes': ventas_reales['cliente_completo'].nunique() if not ventas_reales.empty else 0,
             'num_devoluciones': len(devoluciones),
             'ticket_promedio': total_ventas / len(ventas_reales) if len(ventas_reales) > 0 else 0,
             'total_descuentos': abs(ventas_reales['descuento'].sum()),
