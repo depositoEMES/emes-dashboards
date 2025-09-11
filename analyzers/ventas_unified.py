@@ -298,7 +298,7 @@ class UnifiedVentasAnalyzer:
         Get days without transfers for each client.
         Solo incluye clientes con estado diferente a 'Anulado'.
         """
-        if mode == "ventas":
+        if mode == "vendedor":
             df = \
                 self.filter_ventas_data(
                     vendedor=vendedor,

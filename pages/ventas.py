@@ -803,90 +803,84 @@ layout = html.Div([
 
         # Fletes row
         html.Div([
+            # Header moderno
+            html.H3(
+                "Tarifas de Transporte",
+                style={'textAlign': 'center', 'marginBottom': '10px', 'fontFamily': 'Inter'}),
+
+            # Control de búsqueda estilizado
             html.Div([
-                # Header moderno
-                html.H3(
-                    "Tarifas de Transporte",
-                    style={'textAlign': 'center', 'marginBottom': '10px', 'fontFamily': 'Inter'}),
+                dcc.Dropdown(
+                    id='ventas-fletes-search',
+                    className='custom-dropdown',
+                    placeholder='Buscar ciudad...',
+                    style={
+                        'height': '44px',
+                        'borderRadius': '12px',
+                        'fontSize': '14px',
+                        'marginBottom': '30px'
+                    },
+                    clearable=True
+                )
+            ], style={'textAlign': 'center'}),
 
-                # Control de búsqueda estilizado
-                html.Div([
-                    dcc.Dropdown(
-                        id='ventas-fletes-search',
-                        className='custom-dropdown',
-                        placeholder='Buscar ciudad...',
-                        style={
-                            'height': '44px',
-                            'borderRadius': '12px',
-                            'fontSize': '14px',
-                            'marginBottom': '30px'
-                        },
-                        clearable=True
-                    )
-                ], style={'textAlign': 'center'}),
-
-                # Contenedor de tabla con scroll
-                html.Div([
-                    # Header fijo
-                    html.Div(id='ventas-fletes-header', style={
-                        'position': 'sticky',
-                        'top': '0',
-                        'zIndex': '10',
-                        'backgroundColor': 'white'
-                    }),
-
-                    # Cuerpo de la tabla con scroll
-                    html.Div(id='ventas-fletes-body', style={
-                        'maxHeight': '400px',
-                        'overflowY': 'auto',
-                        'overflowX': 'hidden'
-                    })
-                ], style={
-                    'backgroundColor': 'white',
-                    'borderRadius': '12px',
-                    'border': '1px solid rgba(0,0,0,0.05)',
-                    'boxShadow': '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                    'overflow': 'hidden'
+            # Contenedor de tabla con scroll
+            html.Div([
+                # Header fijo
+                html.Div(id='ventas-fletes-header', style={
+                    'position': 'sticky',
+                    'top': '0',
+                    'zIndex': '10',
+                    'backgroundColor': 'white'
                 }),
 
-                # Controles de paginación
-                html.Div([
-                    html.Button('◀', id='ventas-fletes-prev', style={
-                        'marginRight': '10px',
-                        'padding': '8px 12px',
-                        'borderRadius': '6px',
-                        'border': 'none',
-                        'backgroundColor': '#f3f4f6',
-                        'cursor': 'pointer',
-                        'fontWeight': '600'
-                    }),
-                    html.Span(id='ventas-fletes-page-info', style={
-                        'margin': '0 15px',
-                        'fontSize': '14px',
-                        'color': '#6b7280'
-                    }),
-                    html.Button('▶', id='ventas-fletes-next', style={
-                        'marginLeft': '10px',
-                        'padding': '8px 12px',
-                        'borderRadius': '6px',
-                        'border': 'none',
-                        'backgroundColor': '#f3f4f6',
-                        'cursor': 'pointer',
-                        'fontWeight': '600'
-                    })
-                ], style={
-                    'textAlign': 'center',
-                    'marginTop': '20px',
-                    'display': 'flex',
-                    'justifyContent': 'center',
-                    'alignItems': 'center'
+                # Cuerpo de la tabla con scroll
+                html.Div(id='ventas-fletes-body', style={
+                    'maxHeight': '400px',
+                    'overflowY': 'auto',
+                    'overflowX': 'hidden'
                 })
+            ], style={
+                'backgroundColor': 'white',
+                'borderRadius': '12px',
+                'border': '1px solid rgba(0,0,0,0.05)',
+                'boxShadow': '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                'overflow': 'hidden'
+            }),
 
-            ], id='ventas-fletes-content', style={
-                'padding': '30px',
-                'backgroundColor': '#fafafa',
-                'borderRadius': '20px'
+            # Controles de paginación
+            html.Div([
+                html.Button('◀', id='ventas-fletes-prev', style={
+                    'marginRight': '10px',
+                    'padding': '8px 12px',
+                    'borderRadius': '6px',
+                    'border': 'none',
+                    'backgroundColor': '#f3f4f6',
+                    'cursor': 'pointer',
+                    'fontWeight': '600'
+                }),
+                html.Span(id='ventas-fletes-page-info', style={
+                    'margin': '0 15px',
+                    'fontSize': '14px',
+                    'color': '#6b7280'
+                }),
+                html.Button('▶', id='ventas-fletes-next', style={
+                    'marginLeft': '10px',
+                    'padding': '8px 12px',
+                    'borderRadius': '6px',
+                    'border': 'none',
+                    'backgroundColor': '#f3f4f6',
+                    'cursor': 'pointer',
+                    'fontWeight': '600'
+                })
+            ], style={
+                'textAlign': 'center',
+                'marginTop': '20px',
+                'display': 'flex',
+                'justifyContent': 'center',
+                'alignItems': 'center'
             })
+
         ], id='ventas-fletes-container', style={'display': 'none', 'marginBottom': '30px'})
 
     ], style={
