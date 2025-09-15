@@ -1978,28 +1978,13 @@ class VentasAnalyzer:
 
     def _calculate_enhanced_rfm_optimized(self, vendedor):
         """
-        Versión OPTIMIZADA del cálculo RFM original
-        Mantiene TODAS las categorías y lógica original
+        OPTIMIZED VERSION OF THE ORIGINAL RFM CALCULATION.
         """
         try:
-            # Calcular último mes finalizado
+            # CAMBIO 1: Calcular hasta el mes actual (no mes previo)
             hoy = datetime.now()
 
-            if hoy.day <= 3:
-                ultimo_mes_finalizado = (hoy.replace(
-                    day=1) - timedelta(days=1)).replace(day=1)
-            else:
-                ultimo_mes_finalizado = (hoy.replace(
-                    day=1) - timedelta(days=1)).replace(day=1)
-
-            if ultimo_mes_finalizado.month == 12:
-                fecha_corte = ultimo_mes_finalizado.replace(
-                    year=ultimo_mes_finalizado.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                fecha_corte = ultimo_mes_finalizado.replace(
-                    month=ultimo_mes_finalizado.month + 1, day=1) - timedelta(days=1)
-
-            fecha_corte = pd.Timestamp(fecha_corte)
+            fecha_corte = pd.Timestamp(hoy)
 
             # Obtener datos de ventas
             df = self.filter_data(vendedor, 'Todos')
@@ -2031,8 +2016,7 @@ class VentasAnalyzer:
 
             # Merge con tendencias
             rfm_enhanced = pd.merge(
-                rfm_data, trend_data, on='cliente_completo', how='left'
-            )
+                rfm_data, trend_data, on='cliente_completo', how='left')
 
             # Rellenar valores faltantes con defaults
             rfm_enhanced['cagr_6m'] = rfm_enhanced['cagr_6m'].fillna(0)
@@ -2107,8 +2091,7 @@ class VentasAnalyzer:
 
             # Categorizar clientes usando TODAS las categorías originales
             rfm_enhanced['categoria_rfm'] = rfm_enhanced.apply(
-                self._categorize_enhanced_rfm, axis=1
-            )
+                self._categorize_enhanced_rfm, axis=1)
 
             # Información adicional
             rfm_enhanced['valor_promedio_transaccion'] = (
@@ -2165,7 +2148,8 @@ class VentasAnalyzer:
 
     def _calculate_client_trends_from_series(self, cliente, monthly_sales, fecha_corte):
         """
-        Calcular métricas de tendencia desde una serie mensual (más eficiente)
+        Calculate trend metrics from a monthly series
+        Cag from January to the last closed month.
         """
         try:
             if len(monthly_sales) < 2:
@@ -2201,15 +2185,17 @@ class VentasAnalyzer:
                     'consistencia': 0
                 }
 
-            # 1. CAGR de últimos 6 meses
-            meses_disponibles = len(monthly_sales)
-            meses_cagr = min(6, meses_disponibles)
-            recent_months = monthly_sales.tail(meses_cagr)
+            # CAMBIO 2: CAGR desde enero del año actual hasta último mes cerrado
+            current_year = fecha_corte.year
+            enero_period = pd.Period(f'{current_year}-01', freq='M')
 
-            if len(recent_months) >= 2:
-                primer_valor = recent_months.iloc[0]
-                ultimo_valor = recent_months.iloc[-1]
-                periodos = len(recent_months) - 1
+            # Filtrar datos desde enero del año actual
+            year_data = monthly_sales[monthly_sales.index >= enero_period]
+
+            if len(year_data) >= 2:
+                primer_valor = year_data.iloc[0]
+                ultimo_valor = year_data.iloc[-1]
+                periodos = len(year_data) - 1
 
                 if primer_valor > 0 and periodos > 0:
                     cagr_6m = ((ultimo_valor / primer_valor)
@@ -2217,18 +2203,41 @@ class VentasAnalyzer:
                 else:
                     cagr_6m = 0
             else:
-                cagr_6m = 0
+                # Si no hay suficientes datos del año actual, usar los últimos meses disponibles
+                meses_disponibles = len(monthly_sales)
+                meses_cagr = min(6, meses_disponibles)
+                recent_months = monthly_sales.tail(meses_cagr)
 
-            # 2. Variación de últimos 3 meses vs 3 meses anteriores
-            if len(monthly_sales) >= 6:
-                ultimos_3m = monthly_sales.tail(3).sum()
-                anteriores_3m = monthly_sales.tail(6).head(3).sum()
+                if len(recent_months) >= 2:
+                    primer_valor = recent_months.iloc[0]
+                    ultimo_valor = recent_months.iloc[-1]
+                    periodos = len(recent_months) - 1
 
-                if anteriores_3m > 0:
-                    variacion_3m = (
-                        (ultimos_3m - anteriores_3m) / anteriores_3m) * 100
+                    if primer_valor > 0 and periodos > 0:
+                        cagr_6m = ((ultimo_valor / primer_valor)
+                                   ** (1/periodos) - 1) * 100
+                    else:
+                        cagr_6m = 0
                 else:
-                    variacion_3m = 100 if ultimos_3m > 0 else 0
+                    cagr_6m = 0
+
+            # CAMBIO 3: Variación de últimos 3 meses vs 3 meses anteriores (solo meses cerrados)
+            if len(monthly_sales) >= 6:
+                # Usar solo meses cerrados para el cálculo
+                meses_cerrados = monthly_sales[monthly_sales.index <
+                                               ultimo_periodo_completo]
+
+                if len(meses_cerrados) >= 6:
+                    ultimos_3m = meses_cerrados.tail(3).sum()
+                    anteriores_3m = meses_cerrados.tail(6).head(3).sum()
+
+                    if anteriores_3m > 0:
+                        variacion_3m = (
+                            (ultimos_3m - anteriores_3m) / anteriores_3m) * 100
+                    else:
+                        variacion_3m = 100 if ultimos_3m > 0 else 0
+                else:
+                    variacion_3m = 0
             else:
                 variacion_3m = 0
 
@@ -2271,7 +2280,7 @@ class VentasAnalyzer:
                 'variacion_3m': round(variacion_3m, 2),
                 'variacion_reciente': round(variacion_reciente, 2),
                 'tendencia_general': tendencia_general,
-                'meses_activos': meses_disponibles,
+                'meses_activos': len(monthly_sales),
                 'consistencia': round(consistencia, 1)
             }
 

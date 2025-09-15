@@ -1776,17 +1776,17 @@ def update_clientes_impactados(session_data, dropdown_value, data_store, theme):
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data'),  #
+     Input('ventas-data-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
 def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme):
     """
     Update convenios analysis table with enhanced design and expected sales.
+    CORREGIDO: Agregar columna "Falta para Cumplir"
     """
     try:
         vendedor = get_selected_vendor(session_data, dropdown_value)
-        data = analyzer.get_analisis_convenios(
-            vendedor, mes="Todos")  # Don't apply month filter
+        data = analyzer.get_analisis_convenios(vendedor, mes="Todos")
         theme_styles = get_theme_styles(theme)
 
         if data.empty:
@@ -1833,7 +1833,7 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
         # Create table rows
         table_rows = []
 
-        # Header
+        # Header - CORREGIDO: Agregar columna "Falta para Cumplir"
         header = html.Tr([
             html.Th("Cliente", style={'padding': '12px', 'backgroundColor': '#34495e',
                     'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
@@ -1844,12 +1844,12 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
             html.Th("Ventas", style={'padding': '12px', 'backgroundColor': '#34495e',
                     'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
                                      'position': 'sticky', 'top': '0', 'zIndex': '10'}),
-            html.Th("Ventas Esperadas", style={'padding': '12px', 'backgroundColor': '#34495e',
-                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
-                                               'position': 'sticky', 'top': '0', 'zIndex': '10'}),
             html.Th("Meta", style={'padding': '12px', 'backgroundColor': '#34495e',
                     'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
                                    'position': 'sticky', 'top': '0', 'zIndex': '10'}),
+            html.Th("Falta para Cumplir", style={'padding': '12px', 'backgroundColor': '#34495e',
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
+                                                 'position': 'sticky', 'top': '0', 'zIndex': '10'}),
             html.Th("% Cumplimiento", style={'padding': '12px', 'backgroundColor': '#34495e',
                     'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
                                              'position': 'sticky', 'top': '0', 'zIndex': '10'}),
@@ -1863,22 +1863,27 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
             # Determine overall status comparing % Cumplimiento with % Esperado
             progreso_actual = row['progreso_meta_pct']
             cumple_meta = row['cumplimiento_meta']
-            adelantado = progreso_actual > progreso_esperado  # Above expected progress
-            cerca_esperado = progreso_actual >= (
-                progreso_esperado - 5)  # Within 5% of expected progress
+            adelantado = progreso_actual > progreso_esperado
+            cerca_esperado = progreso_actual >= (progreso_esperado - 5)
 
             if cumple_meta:
                 estado_text = '🟢 Cumplió'
-                estado_color = '#27ae60'  # Verde
+                estado_color = '#27ae60'
             elif adelantado:
                 estado_text = '🟡 Adelantado'
-                estado_color = '#f3c212'  # Verde-Amarillo (YellowGreen)
+                estado_color = '#f3c212'
             elif cerca_esperado:
                 estado_text = '🟠 Cerca'
-                estado_color = '#FF8C00'  # Naranja
+                estado_color = '#FF8C00'
             else:
                 estado_text = '🔴 Atrasado'
-                estado_color = '#e74c3c'  # Rojo
+                estado_color = '#e74c3c'
+
+            # CAMBIO 4: Calcular falta para cumplir
+            falta_cumplir = max(0, row['target_value'] - row['valor_neto'])
+            falta_text = format_currency_int(
+                falta_cumplir) if falta_cumplir > 0 else "✅ Cumplido"
+            falta_color = '#ef4444' if falta_cumplir > 0 else '#22c55e'
 
             table_row = html.Tr([
                 # Cliente (left aligned)
@@ -1889,23 +1894,27 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
                              'fontSize': '9px', 'color': '#7f8c8d'})
                 ], style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'textAlign': 'left'}),
 
-                # All other columns centered
+                # Vendedor
                 html.Td(row['seller_name'][:30] + "..." if len(row['seller_name']) > 30 else row['seller_name'],
                         style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'}),
 
+                # Ventas
                 html.Td(format_currency_int(row['valor_neto']),
                         style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'}),
 
-                html.Td(format_currency_int(row['ventas_esperadas']),
-                        style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'}),
-
+                # Meta
                 html.Td(format_currency_int(row['target_value']),
                         style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'}),
+
+                # NUEVA COLUMNA: Falta para cumplir
+                html.Td(falta_text,
+                        style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center', 'color': falta_color, 'fontWeight': 'bold'}),
 
                 # Progress bar for % Cumplimiento with status color
                 html.Td(create_progress_bar(row['progreso_meta_pct'], estado_color),
                         style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'textAlign': 'center'}),
 
+                # Estado
                 html.Td(estado_text,
                         style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'color': estado_color,
                                'fontWeight': 'bold', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'})
@@ -1921,7 +1930,7 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
             'borderCollapse': 'collapse',
             'backgroundColor': theme_styles['paper_color'],
             'color': theme_styles['text_color'],
-            'margin': '0 auto'  # Center the table
+            'margin': '0 auto'
         })
 
         # Calculate summary statistics with 4 categories
@@ -1929,15 +1938,18 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
         cumpliendo_meta = data['cumplimiento_meta'].sum()
         adelantados = ((data['progreso_meta_pct'] > progreso_esperado) & (
             ~data['cumplimiento_meta'])).sum()
-        cerca_esperado = ((data['progreso_meta_pct'] >= (progreso_esperado - 5)) &
-                          (data['progreso_meta_pct'] <= progreso_esperado) &
-                          (~data['cumplimiento_meta'])).sum()
-        atrasados = total_convenios - cumpliendo_meta - adelantados - cerca_esperado
+        cerca_esperado_count = ((data['progreso_meta_pct'] >= (progreso_esperado - 5)) &
+                                (data['progreso_meta_pct'] <= progreso_esperado) &
+                                (~data['cumplimiento_meta'])).sum()
+        atrasados = total_convenios - cumpliendo_meta - adelantados - cerca_esperado_count
         promedio_cumplimiento = data['progreso_meta_pct'].mean()
+
+        # CAMBIO 5: Calcular total falta para cumplir
+        total_falta_cumplir = data.apply(lambda row: max(
+            0, row['target_value'] - row['valor_neto']), axis=1).sum()
 
         summary = html.Div([
             html.Div([
-
                 html.Div([
                     html.Div([
                         html.H5(f"{total_convenios}", style={
@@ -1954,15 +1966,15 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
                     ], style={'textAlign': 'center', 'padding': '10px', 'margin': '5px'}),
 
                     html.Div([
-                        html.H5(f"{adelantados}", style={'margin': '0',
-                                'fontSize': '24px', 'color': '#f3c212'}),
+                        html.H5(f"{adelantados}", style={
+                                'margin': '0', 'fontSize': '24px', 'color': '#f3c212'}),
                         html.P("Adelantados", style={
                                'margin': '0', 'fontSize': '12px'})
                     ], style={'textAlign': 'center', 'padding': '10px', 'margin': '5px'}),
 
                     html.Div([
-                        html.H5(f"{cerca_esperado}", style={'margin': '0',
-                                'fontSize': '24px', 'color': '#FF8C00'}),
+                        html.H5(f"{cerca_esperado_count}", style={
+                                'margin': '0', 'fontSize': '24px', 'color': '#FF8C00'}),
                         html.P("Cerca Esperado", style={
                                'margin': '0', 'fontSize': '12px'})
                     ], style={'textAlign': 'center', 'padding': '10px', 'margin': '5px'}),
@@ -1986,6 +1998,14 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
                                 'margin': '0', 'fontSize': '24px', 'color': '#16a085'}),
                         html.P("Promedio Real", style={
                                'margin': '0', 'fontSize': '12px'})
+                    ], style={'textAlign': 'center', 'padding': '10px', 'margin': '5px'}),
+
+                    # NUEVA MÉTRICA: Total falta para cumplir
+                    html.Div([
+                        html.H5(format_currency_int(total_falta_cumplir), style={
+                                'margin': '0', 'fontSize': '24px', 'color': '#e74c3c'}),
+                        html.P("Falta para cumplir", style={
+                               'margin': '0', 'fontSize': '12px'})
                     ], style={'textAlign': 'center', 'padding': '10px', 'margin': '5px'})
 
                 ], style={'display': 'flex', 'justifyContent': 'space-around', 'flexWrap': 'wrap'})
@@ -1997,6 +2017,7 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
             html.Div(table, style={'maxHeight': '600px', 'overflowY': 'auto',
                      'border': f'1px solid {theme_styles["line_color"]}', 'borderRadius': '5px'})
         ])
+
     except Exception as e:
         print(f"❌ [update_tabla_convenios] Error: {e}")
         return html.Div([html.P("Error al cargar datos de convenios")])
@@ -2695,7 +2716,7 @@ def update_evolucion_cliente(
             scores_info = (
                 f"<br><span style='font-size:11px; margin-top:5px; display:inline-block;'>"
                 f"📊 RFM+T: R{scores['recency']} F{scores['frequency']} M{scores['monetary']} T{scores['trend']} | "
-                f"🔄 CAGR 6M: {tendencias['cagr_6m']:+.1f}% | "
+                f"🔄 CAGR: {tendencias['cagr_6m']:+.1f}% | "
                 f"📈 Var 3M: {tendencias['variacion_3m']:+.1f}% | "
                 f"⚡ Reciente: {tendencias['variacion_reciente']:+.1f}%</span>"
             )
@@ -2973,7 +2994,7 @@ def update_client_rfm_details_panel(cliente, session_data, dropdown_value, data_
                         'fontFamily': 'Inter', 'fontSize': '14px', 'marginBottom': '10px'}),
                 html.Div([
                     html.P([
-                        html.Span("CAGR 6M: "),
+                        html.Span("CAGR: "),
                         html.Span(f"{tendencias['cagr_6m']:+.1f}%",
                                   style={'color': '#22c55e' if tendencias['cagr_6m'] > 0 else '#ef4444', 'fontWeight': 'bold'})
                     ], style={'margin': '3px 0', 'fontSize': '12px'}),
@@ -3939,7 +3960,7 @@ def update_treemap_rfm_plus(
             "Cliente: <b>%{customdata[1]}<br></b>" +
             "Valor Total: %{customdata[2]}<br>" +
             "RFM+ Score: %{customdata[3]}<br>" +
-            "CAGR 6M: %{customdata[4]}%<br>" +
+            "CAGR: %{customdata[4]}%<br>" +
             "Frecuencia: %{customdata[5]} compras<br>" +
             "Última compra: hace %{customdata[6]} días<br>" +
             "Score Numérico: %{customdata[7]:.2f}<br>" +
@@ -5140,7 +5161,8 @@ def update_panel_cumplimiento_style(theme):
 )
 def update_summary_panel(session_data, dropdown_value, mes, data_store, theme):
     """
-    Panel de resumen mejorado con efectividad al final
+    Panel de resumen mejorado con efectividad y devoluciones detalladas
+    CORREGIDO: Agregar valor monetario y cantidad de devoluciones
     """
     vendedor = get_selected_vendor(session_data, dropdown_value)
     theme_styles = get_theme_styles(theme)
@@ -5208,7 +5230,7 @@ def update_summary_panel(session_data, dropdown_value, mes, data_store, theme):
                         'color': '#6b7280'
                     }),
                     html.Div([
-                        html.Span(f"{'↑' if variacion_ajustada >= 0 else '↓'} {abs(variacion_ajustada):.1f}%", style={
+                        html.Span(f"{'↗' if variacion_ajustada >= 0 else '↘'} {abs(variacion_ajustada):.1f}%", style={
                             'fontSize': '12px',
                             'color': '#22c55e' if variacion_ajustada >= 0 else '#ef4444',
                             'fontWeight': 'bold'
@@ -5229,7 +5251,7 @@ def update_summary_panel(session_data, dropdown_value, mes, data_store, theme):
                 'borderRight': f'1px solid {theme_styles["line_color"]}'
             }),
 
-            # Columna 2: Efectividad (ahora al final)
+            # CAMBIO 6: Nueva columna de devoluciones (valor y cantidad)
             html.Div([
                 html.Div([
                     html.Div([
@@ -5247,30 +5269,25 @@ def update_summary_panel(session_data, dropdown_value, mes, data_store, theme):
                             'textAlign': 'center'
                         })
                     ]),
+                    html.H4(format_currency_int(resumen['total_devoluciones']), style={
+                        'margin': '5px 0 0 0',
+                        'fontSize': '28px',
+                        'fontWeight': 'bold',
+                        'color': '#ef4444'
+                    }),
                     html.Div([
-                        html.Div(style={
-                            'width': '100%',
-                            'height': '8px',
-                            'backgroundColor': '#e5e7eb',
-                            'borderRadius': '4px',
-                            'overflow': 'hidden',
-                            'margin': '15px 0'
-                        }, children=[
-                            html.Div(style={
-                                'width': f"{efectividad:.1f}%",
-                                'height': '100%',
-                                'backgroundColor': '#22c55e' if efectividad > 95 else '#f59e0b' if efectividad > 90 else '#ef4444',
-                                'transition': 'width 0.5s ease'
-                            })
-                        ]),
-                        html.P(f"Devoluciones: {tasa_devolucion:.1f}%", style={
+                        html.Span(f"{resumen['num_devoluciones']} devoluciones", style={
+                            'fontSize': '12px',
+                            'color': '#ef4444',
+                            'fontWeight': 'bold'
+                        }),
+                        html.Br(),
+                        html.Span(f"{tasa_devolucion:.1f}% del total", style={
                             'fontSize': '11px',
-                            'color': '#ef4444' if tasa_devolucion > 10 else '#f59e0b' if tasa_devolucion > 5 else '#22c55e',
-                            'textAlign': 'center',
-                            'margin': '0'
+                            'color': '#6b7280'
                         })
-                    ])
-                ])
+                    ]),
+                ], style={'textAlign': 'center'})
             ], style={
                 'flex': '1',
                 'padding': '20px',
@@ -5280,7 +5297,7 @@ def update_summary_panel(session_data, dropdown_value, mes, data_store, theme):
                 'borderRight': f'1px solid {theme_styles["line_color"]}'
             }),
 
-            # Columna 3: Métricas Clave
+            # Columna 3: Métricas Clave (ajustado el ancho)
             html.Div([
                 html.H5("Métricas Clave", style={
                     'fontSize': '14px',
@@ -5334,7 +5351,7 @@ def update_summary_panel(session_data, dropdown_value, mes, data_store, theme):
                     ])
                 ])
             ], style={
-                'flex': '0 0 250px',
+                'flex': '0 0 200px',  # Reducido de 250px
                 'padding': '20px',
                 'borderRight': f'1px solid {theme_styles["line_color"]}'
             }),
@@ -5369,8 +5386,7 @@ def update_summary_panel(session_data, dropdown_value, mes, data_store, theme):
                 })
             ], style={
                 'flex': '1.5',
-                'padding': '20px',
-                'borderRight': f'1px solid {theme_styles["line_color"]}'
+                'padding': '20px'
             }),
 
         ], style={
@@ -5576,13 +5592,13 @@ def update_evaluation_table(session_data, metric, show_details, data_store, them
             main_row = html.Tr([
                 html.Td(str(row['ranking'])),
                 html.Td(row['vendedor'], style={'fontWeight': 'bold'}),
-                html.Td(f"{row['score_total']:.1f}"),
-                html.Td(f"{row['eficiencia']:.1f}"),
-                html.Td(f"{row['calidad']:.1f}"),
-                html.Td(f"{row['score']:.1f}", style={
+                html.Td(f"{row['score_total']:.1f}", style={
                     'fontWeight': 'bold',
                     'color': '#10b981' if row['score'] > 70 else '#f59e0b' if row['score'] > 50 else '#ef4444'
                 }),
+                html.Td(f"{row['eficiencia']:.1f}"),
+                html.Td(f"{row['calidad']:.1f}"),
+                html.Td(f"{row['score']:.1f}"),
                 html.Td(row['categoria_desempeno']),
                 html.Td(row['analisis_breve'], style={'fontSize': '11px'})
             ])

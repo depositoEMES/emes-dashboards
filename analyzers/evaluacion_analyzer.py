@@ -755,15 +755,7 @@ class EvaluacionAnalyzer:
         Metrics with new weights and corrections.
         """
         try:
-            # Obtener último mes cerrado
-            current_date = datetime.now()
-            if current_date.day < 5:
-                last_month_date = current_date.replace(
-                    day=1) - timedelta(days=32)
-            else:
-                last_month_date = current_date.replace(
-                    day=1) - timedelta(days=1)
-
+            last_month_date = datetime.now()
             last_month = last_month_date.strftime("%Y%m")
 
             # Aggregators
@@ -954,7 +946,7 @@ class EvaluacionAnalyzer:
 
             # Process each month
             # Start from 1 to skip current month
-            for month_offset in range(1, months + 1):
+            for month_offset in range(0, months):
                 month_date = current_date.replace(
                     day=1) - timedelta(days=month_offset * 30)
                 month_str = month_date.strftime("%Y%m")
