@@ -1978,18 +1978,14 @@ class VentasAnalyzer:
 
     def _calculate_enhanced_rfm_optimized(self, vendedor):
         """
-        OPTIMIZED VERSION OF THE ORIGINAL RFM CALCULATION.
+        Optimized version of RFM+ model.
         """
         try:
-            # CAMBIO 1: Calcular hasta el mes actual (no mes previo)
+            # Calcular hasta el mes actual (no mes previo)
             hoy = datetime.now()
 
-            if hoy.day <= 3:
-                ultimo_mes_finalizado = (hoy.replace(
-                    day=1) - timedelta(days=1)).replace(day=1)
-            else:
-                ultimo_mes_finalizado = (hoy.replace(
-                    day=1) - timedelta(days=1)).replace(day=1)
+            ultimo_mes_finalizado = (hoy.replace(
+                day=1) - timedelta(days=1)).replace(day=1)
 
             if ultimo_mes_finalizado.month == 12:
                 fecha_corte = ultimo_mes_finalizado.replace(
@@ -1998,21 +1994,35 @@ class VentasAnalyzer:
                 fecha_corte = ultimo_mes_finalizado.replace(
                     month=ultimo_mes_finalizado.month + 1, day=1) - timedelta(days=1)
 
-            fecha_corte = pd.Timestamp(fecha_corte)
-            fecha_corte_recency = pd.Timestamp(hoy)
+            fecha_cierre = pd.Timestamp(fecha_corte)
+            fecha_hoy = pd.Timestamp(hoy)
 
             # Obtener datos de ventas
             df = self.filter_data(vendedor, 'Todos')
-            ventas_totales = df[df['tipo'].str.contains(
-                'Remision', case=False, na=False)]
-            ventas_reales = \
-                ventas_totales[ventas_totales['fecha'] <= fecha_corte]
 
-            if ventas_reales.empty:
-                print(f"⚠️ No hay datos de ventas hasta {fecha_corte}")
+            ventas_totales = \
+                df[df['tipo'].str.contains('Remision', case=False, na=False)]
+            ventas_reales_cierre = \
+                ventas_totales[ventas_totales['fecha'] <= fecha_cierre]
+            ventas_reales = \
+                ventas_totales[ventas_totales['fecha'] <= fecha_hoy]
+
+            if ventas_reales_cierre.empty:
+                print(f"⚠️ No hay datos de ventas hasta {fecha_cierre}")
                 return pd.DataFrame()
 
-            # OPTIMIZACIÓN: Cálculo vectorizado de métricas base
+            if ventas_reales.empty:
+                print(f"⚠️ No hay datos de ventas hasta {fecha_hoy}")
+                return pd.DataFrame()
+
+            # Cálculo vectorizado de métricas base
+            rfm_data_cierre = \
+                ventas_reales_cierre.groupby('cliente_completo').agg({
+                    'fecha': ['max', 'min', 'count'],
+                    'documento_id': 'count',
+                    'valor_neto': ['sum', 'mean']
+                }).reset_index()
+
             rfm_data = \
                 ventas_reales.groupby('cliente_completo').agg({
                     'fecha': ['max', 'min', 'count'],
@@ -2027,47 +2037,23 @@ class VentasAnalyzer:
                     'monetary_promedio'
                 ]
 
+            rfm_data_cierre.columns = columns
             rfm_data.columns = columns
 
-            rfm_data_hoy = \
-                ventas_totales.groupby('cliente_completo').agg({
-                    'fecha': ['max', 'min', 'count'],
-                    'documento_id': 'count',
-                    'valor_neto': ['sum', 'mean']
-                }).reset_index()
-
-            rfm_data_hoy.columns = columns
-
-            rfm_data['recency_days'] = (
-                fecha_corte_recency - rfm_data_hoy['fecha_max']).dt.days
-
             # Renombrar para distinguir "a hoy"
-            rfm_data_hoy = \
-                rfm_data_hoy.rename(columns={
-                    'fecha_max': 'fecha_max_hoy',
-                    'fecha_min': 'fecha_min_hoy',
-                    'periodos_activos': 'periodos_activos_hoy',
-                    'frequency': 'frequency_hoy',
-                    'monetary_total': 'monetary_total_hoy',
-                    'monetary_promedio': 'monetary_promedio_hoy'
-                })
+            rfm_data['recency_days'] = (
+                fecha_hoy - rfm_data['fecha_max']).dt.days
 
             # OPTIMIZACIÓN: Calcular tendencias en batch (no uno por uno)
             trend_data = \
                 self._calculate_client_trends_batch(
-                    ventas_reales,
-                    fecha_corte
+                    ventas_reales_cierre,
+                    fecha_cierre
                 )
 
             # Merge con tendencias
             rfm_enhanced = pd.merge(
                 rfm_data, trend_data, on='cliente_completo', how='left')
-
-            rfm_enhanced = rfm_enhanced.merge(
-                rfm_data_hoy[['cliente_completo', 'frequency_hoy',
-                              'monetary_total_hoy', 'monetary_promedio_hoy', 'fecha_max_hoy']],
-                on='cliente_completo', how='left'
-            )
 
             # Rellenar valores faltantes con defaults
             rfm_enhanced['cagr_6m'] = rfm_enhanced['cagr_6m'].fillna(0)
@@ -2146,8 +2132,8 @@ class VentasAnalyzer:
 
             # Información adicional
             rfm_enhanced['valor_promedio_transaccion'] = (
-                rfm_enhanced['monetary_total_hoy'] /
-                rfm_enhanced['frequency_hoy']
+                rfm_enhanced['monetary_total'] /
+                rfm_enhanced['frequency']
             )
 
             # Renombrar para compatibilidad
@@ -2408,8 +2394,8 @@ class VentasAnalyzer:
             },
             'metricas': {
                 'dias_ultima_compra': int(client_info['recency_days']),
-                'total_compras': int(client_info['frequency_hoy']),
-                'valor_total': client_info['monetary_total_hoy'],
+                'total_compras': int(client_info['frequency']),
+                'valor_total': client_info['monetary'],
                 'valor_promedio': client_info['valor_promedio_transaccion'],
                 'meses_activos': int(client_info['meses_activos'])
             },
