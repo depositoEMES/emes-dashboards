@@ -1609,12 +1609,12 @@ def update_top_clientes(session_data, dropdown_value, mes, data_store, theme):
                     line=dict(color=border_colors[i %
                               len(border_colors)], width=1.5)
                 ),
-                text=[row['cliente_completo'][:100] +
-                      "..." if len(row['cliente_completo']) > 100 else row['cliente_completo']],
+                text=[row['cliente_completo'][:70] +
+                      "..." if len(row['cliente_completo']) > 70 else row['cliente_completo']],
                 textposition='inside',
                 textfont=dict(color=theme_styles['text_color'], size=10),
                 hovertemplate=(
-                    f"<b>{row['cliente_completo']}</b><br>"
+                    f"<b>{row['cliente_completo'][:70] + "..." if len(row['cliente_completo']) > 70 else row['cliente_completo']}</b><br>"
                     f"Ventas: {format_currency_int(row['valor_neto'])}<br>"
                     f"Facturas: {row['documento_id']}<extra></extra>"
                 ),
@@ -1844,6 +1844,9 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
             html.Th("Ventas", style={'padding': '12px', 'backgroundColor': '#34495e',
                     'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
                                      'position': 'sticky', 'top': '0', 'zIndex': '10'}),
+            html.Th("Ventas Esperadas", style={'padding': '12px', 'backgroundColor': '#34495e',
+                    'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
+                                               'position': 'sticky', 'top': '0', 'zIndex': '10'}),
             html.Th("Meta", style={'padding': '12px', 'backgroundColor': '#34495e',
                     'color': 'white', 'fontFamily': 'Inter', 'fontSize': '12px', 'textAlign': 'center',
                                    'position': 'sticky', 'top': '0', 'zIndex': '10'}),
@@ -1900,6 +1903,9 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
 
                 # Ventas
                 html.Td(format_currency_int(row['valor_neto']),
+                        style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'}),
+
+                html.Td(format_currency_int(row['ventas_esperadas']),
                         style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'}),
 
                 # Meta
@@ -5594,7 +5600,7 @@ def update_evaluation_table(session_data, metric, show_details, data_store, them
                 html.Td(row['vendedor'], style={'fontWeight': 'bold'}),
                 html.Td(f"{row['score_total']:.1f}", style={
                     'fontWeight': 'bold',
-                    'color': '#10b981' if row['score'] > 70 else '#f59e0b' if row['score'] > 50 else '#ef4444'
+                    'color': '#10b981' if row['score_total'] > 70 else '#f59e0b' if row['score_total'] > 50 else '#ef4444'
                 }),
                 html.Td(f"{row['eficiencia']:.1f}"),
                 html.Td(f"{row['calidad']:.1f}"),
