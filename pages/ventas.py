@@ -4755,27 +4755,6 @@ def update_cumplimiento_cuotas_chart(
                     annotation_font={'color': '#f59e0b', 'size': 12}
                 )
 
-            # Anotaciones de estado
-            text_mapping = {
-                "Cumplido": "CUMPLIDO",
-                "No Cumplió": "NO CUMPLIÓ",
-                "Cumpliendo": "CUMPLIENDO",
-                "Adelantado": "ADELANTADO",
-                "Atrasado": "ATRASADO",
-                "En Progreso": "EN PROGRESO"
-            }
-
-            for i, (vendedor_name, estado, cumpl) in enumerate(zip(vendedores, estados, cumplimiento_pct)):
-                fig.add_annotation(
-                    x=vendedor_name,
-                    y=cumpl + (max_y * 0.06),
-                    text=estado,
-                    showarrow=False,
-                    font=dict(size=11, weight='bold'),
-                    xanchor='center',
-                    yanchor='bottom'
-                )
-
             # Configurar rango Y mejorado
             fig.update_yaxes(range=[min_y, max_y])
 
@@ -5451,10 +5430,11 @@ def show_evaluation_container(session_data, theme):
     Output('ventas-eval-podium', 'children'),
     [Input('session-store', 'data'),
      Input('ventas-eval-metric-selector', 'value'),
+     Input('ventas-dropdown-mes', 'value'),
      Input('ventas-data-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_evaluation_podium(session_data, metric, data_store, theme):
+def update_evaluation_podium(session_data, metric, mes, data_store, theme):
     """
     Update podium display with new Score.
     """
@@ -5468,7 +5448,7 @@ def update_evaluation_podium(session_data, metric, data_store, theme):
                          style={'textAlign': 'center'})
 
         analyzer = EvaluacionAnalyzer()
-        df_ranking = analyzer.get_vendor_ranking(metric)
+        df_ranking = analyzer.get_vendor_ranking(metric, mes)
 
         if df_ranking.empty:
             return \
@@ -5551,10 +5531,11 @@ def update_evaluation_podium(session_data, metric, data_store, theme):
     [Input('session-store', 'data'),
      Input('ventas-eval-metric-selector', 'value'),
      Input('ventas-eval-show-details', 'value'),
+     Input('ventas-dropdown-mes', 'value'),
      Input('ventas-data-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_evaluation_table(session_data, metric, show_details, data_store, theme):
+def update_evaluation_table(session_data, metric, show_details, mes, data_store, theme):
     """
     Update evaluation table with Score column.
     """
@@ -5568,7 +5549,7 @@ def update_evaluation_table(session_data, metric, show_details, data_store, them
                          style={'textAlign': 'center'})
 
         analyzer = EvaluacionAnalyzer()
-        df_ranking = analyzer.get_vendor_ranking(metric)
+        df_ranking = analyzer.get_vendor_ranking(metric, mes)
 
         if df_ranking.empty:
             return html.Div("No hay datos disponibles")
@@ -5612,10 +5593,18 @@ def update_evaluation_table(session_data, metric, show_details, data_store, them
 
             # Expandable detail row
             if 'show' in show_details:
-                eff_breakdown = analyzer.get_metric_breakdown(
-                    row['vendedor'], 'eficiencia')
-                cal_breakdown = analyzer.get_metric_breakdown(
-                    row['vendedor'], 'calidad')
+                eff_breakdown = \
+                    analyzer.get_metric_breakdown(
+                        row['vendedor'],
+                        mes,
+                        'eficiencia'
+                    )
+                cal_breakdown = \
+                    analyzer.get_metric_breakdown(
+                        row['vendedor'],
+                        mes,
+                        'calidad'
+                    )
 
                 detail_content = html.Div([
                     html.Div([

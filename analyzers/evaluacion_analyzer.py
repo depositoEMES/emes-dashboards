@@ -175,8 +175,7 @@ class EvaluacionAnalyzer:
 
     def _calculate_metrics_for_month(self, vendor_data, vendor_name, month_str):
         """
-        Calculate metrics for a specific historical month
-        Similar to _calculate_current_metrics but for any month
+        Calculate metrics for a specific historical month.
         """
         try:
             unique_products = set()
@@ -470,7 +469,7 @@ class EvaluacionAnalyzer:
             print(f"❌ Error calculating month metrics: {e}")
             return None
 
-    def get_vendor_ranking(self, metric='score_total'):
+    def get_vendor_ranking(self, metric='score_total', mes="Todos"):
         """
         Get vendor ranking for podium display
 
@@ -481,7 +480,8 @@ class EvaluacionAnalyzer:
             DataFrame sorted by metric
         """
         try:
-            df_metrics = self.calculate_vendor_metrics('Todos', 'actual')
+            df_metrics = self.calculate_vendor_metrics('Todos', mes)
+
             if df_metrics.empty:
                 return pd.DataFrame()
 
@@ -561,7 +561,7 @@ class EvaluacionAnalyzer:
 
         return ". ".join(analysis_parts) + "."
 
-    def get_metric_breakdown(self, vendedor, metric_type='eficiencia'):
+    def get_metric_breakdown(self, vendedor, periodo="Todos", metric_type='eficiencia'):
         """
         Get detailed breakdown of a specific metric
 
@@ -573,7 +573,8 @@ class EvaluacionAnalyzer:
             Dict with breakdown details
         """
         try:
-            df_metrics = self.calculate_vendor_metrics(vendedor, 'actual')
+            df_metrics = self.calculate_vendor_metrics(vendedor, periodo)
+
             if df_metrics.empty:
                 return {}
 
@@ -644,10 +645,10 @@ class EvaluacionAnalyzer:
             print(f"❌ Error getting metric breakdown: {e}")
             return {}
 
-    def calculate_vendor_metrics(self, vendedor='Todos', periodo='actual'):
+    def calculate_vendor_metrics(self, vendedor='Todos', periodo='Todos'):
         """
         Calculate metrics for vendors that appear in cuotas_vendedores
-        Using last closed month, not current
+        Using last closed month, not current.
         """
         try:
             analisis_data = self.load_analisis_vendedores()
@@ -662,11 +663,13 @@ class EvaluacionAnalyzer:
 
             # Get vendors from cuotas_vendedores (last month with quotas)
             cuotas_data = db.get("cuotas_vendedores") or {}
+
             if not cuotas_data:
                 return pd.DataFrame()
 
             # Find the last month in cuotas
             months_in_cuotas = list(cuotas_data.keys())
+
             if not months_in_cuotas:
                 return pd.DataFrame()
 
@@ -676,7 +679,9 @@ class EvaluacionAnalyzer:
 
             # Get vendors from that month
             active_vendors = []
-            if last_quota_month in cuotas_data and isinstance(cuotas_data[last_quota_month], dict):
+
+            if last_quota_month in cuotas_data and \
+                    isinstance(cuotas_data[last_quota_month], dict):
                 active_vendors = list(cuotas_data[last_quota_month].keys())
 
             # Get vendor codes for active vendors
@@ -703,17 +708,32 @@ class EvaluacionAnalyzer:
 
             for vendor_code in vendors_to_analyze:
                 vendor_name = vendor_codes.get(vendor_code, vendor_code)
+
                 if vendor_name not in active_vendors:
                     continue
 
                 vendor_data = analisis_data.get(vendor_code, {})
 
-                if periodo == 'actual':
-                    metrics = self._calculate_current_metrics(
-                        vendor_data, vendor_name)
-                else:
-                    metrics = self._calculate_historical_metrics(
-                        vendor_data, vendor_name)
+                metrics = \
+                    self._calculate_current_metrics(
+                        vendor_data,
+                        vendor_name,
+                        periodo
+                    )
+
+                # if periodo == 'Todos':
+                #     metrics = \
+                #         self._calculate_current_metrics(
+                #             vendor_data,
+                #             vendor_name,
+                #             periodo
+                #         )
+                # else:
+                #     metrics = \
+                #         self._calculate_historical_metrics(
+                #             vendor_data,
+                #             vendor_name
+                #         )
 
                 if metrics:
                     results.append(metrics)
@@ -750,13 +770,16 @@ class EvaluacionAnalyzer:
             traceback.print_exc()
             return pd.DataFrame()
 
-    def _calculate_current_metrics(self, vendor_data, vendor_name):
+    def _calculate_current_metrics(self, vendor_data, vendor_name, periodo):
         """
         Metrics with new weights and corrections.
         """
         try:
-            last_month_date = datetime.now()
-            last_month = last_month_date.strftime("%Y%m")
+            if periodo == "Todos":
+                last_month_date = datetime.now()
+                last_month = last_month_date.strftime("%Y%m")
+            else:
+                last_month = periodo.replace("-", "")
 
             # Aggregators
             monthly_providers = {}
@@ -767,7 +790,7 @@ class EvaluacionAnalyzer:
 
             # Procesar datos del mes
             for date_key, date_data in vendor_data.items():
-                if not date_key.startswith(last_month):
+                if periodo != "Todos" and not date_key.startswith(last_month):
                     continue
 
                 if 'proveedores' in date_data:
