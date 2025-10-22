@@ -30,7 +30,7 @@ try:
         ventas,
         transferencias,
         # cotizaciones,
-        # proveedores_ventas,
+        proveedores_ventas,
         # proveedores_compras,
         # facturas,
         # facturas_proveedores
@@ -180,7 +180,7 @@ def load_page_content(pathname):
             '/cotizaciones/reportes': create_coming_soon_page("Reportes de Cotizaciones"),
             '/proveedores': create_coming_soon_page("Proveedores"),
             # proveedores_ventas.layout,
-            '/proveedores-ventas': create_coming_soon_page("Proveedores Ventas"),
+            '/proveedores-ventas': proveedores_ventas.layout,
             # proveedores_compras.layout,
             '/proveedores-compras': create_coming_soon_page("Proveedores Compras"),
             # facturas.layout,
