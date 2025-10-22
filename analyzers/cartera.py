@@ -562,15 +562,15 @@ class CarteraAnalyzer:
                 'forma_pago': forma_pago,
                 'documentos': documentos_df
             }
-            
+
     def get_todos_clientes_detalle(self, vendedor: str = 'Todos'):
         """
         Get detailed information for ALL clients with combined data.
         Similar to get_cliente_detalle but for all clients.
-        
+
         Args:
             vendedor: Salesperson name or 'Todos' for all
-            
+
         Returns:
             dict: Dictionary with combined documents from all clients
         """
@@ -585,12 +585,12 @@ class CarteraAnalyzer:
 
         # Prepare combined dataframe for ALL clients
         columns_tabla = ['documento_id', 'valor', 'aplicado',
-                         'saldo', 'fecha', 'vencimiento', 'dias_vencidos', 
+                         'saldo', 'fecha', 'vencimiento', 'dias_vencidos',
                          'cliente_completo', 'cliente_nombre']  # Incluir info del cliente
 
         # Add documents with overdue portfolio
         documentos_combined = []
-        
+
         vencida_docs = df[df['vencida'] > 0].copy()
         if not vencida_docs.empty:
             vencida_docs['tipo'] = 'vencida'
@@ -602,7 +602,8 @@ class CarteraAnalyzer:
         sin_vencer_docs = df[df['sin_vencer'] > 0].copy()
         if not sin_vencer_docs.empty:
             sin_vencer_docs['tipo'] = 'sin_vencer'
-            sin_vencer_docs['notas'] = sin_vencer_docs.get('notas', 'Sin notas')
+            sin_vencer_docs['notas'] = sin_vencer_docs.get(
+                'notas', 'Sin notas')
             documentos_combined.append(
                 sin_vencer_docs[columns_tabla + ['tipo', 'notas']])
 
@@ -611,7 +612,7 @@ class CarteraAnalyzer:
             documentos_df = pd.concat(documentos_combined, ignore_index=True)
             # Sort by client name, then by tipo (vencida first) then by dias_vencidos
             documentos_df = documentos_df.sort_values(
-                ['cliente_completo', 'tipo', 'dias_vencidos'], 
+                ['cliente_completo', 'tipo', 'dias_vencidos'],
                 ascending=[True, False, False])
         else:
             documentos_df = pd.DataFrame(
@@ -622,3 +623,359 @@ class CarteraAnalyzer:
                 'forma_pago': 'Múltiples',  # Multiple payment methods
                 'documentos': documentos_df
             }
+
+    def calculate_portfolio_indicator(self, vendedor='Todos'):
+        """
+        Calculate portfolio performance indicator for vendors.
+        Based on indicador_cartera_v4.py logic.
+
+        Returns:
+            dict or list: Indicator data for single vendor or all vendors
+        """
+        from datetime import datetime
+        from collections import defaultdict
+
+        # Constants
+        NON_CURRENT_SELLERS = {
+            "MONICA YANET DUQUE",
+            "MONICA BIBIANA HOLGUIN",
+            "MAURICIO ROJAS PERAZA",
+            "JERLY INFANTE RUEDA",
+            "GAVIS AGUIRRE RODRIGUEZ",
+            "DIANA CAROLINA LONDOÑO",
+            "JESUS IVAN GOMEZ VELASQUEZ",
+            "(Cartera)LUISA MARIA COSSIO ORTIZ",
+            "LUISA FERNANDA ZAPATA GALVIS",
+            "NIDIA BIBIANA TABORDA BETANCUR",
+            "JHONEVER ORTIZ"
+        }
+
+        WEIGHTS = {
+            'overdue_rate': 0.2,
+            'avg_days_overdue': 0.35,
+            'collection_efficiency': 0.1,
+            'portfolio_turnover': 0.2,
+            'risk_concentration': 0.15
+        }
+
+        TODAY = datetime.now()
+
+        # Get necessary data from Firebase
+        db = self._get_db()
+
+        if not db:
+            return [] if vendedor == 'Todos' else {}
+
+        try:
+            # Load collections
+            cartera_actual = db.get("cartera_actual")
+            recibos_caja = db.get("recibos_caja")
+            fac_ventas = db.get("fac_ventas")
+            codigos_vendedores = db.get_by_path("/maestros/codigos_vendedores")
+
+            if not all([cartera_actual, recibos_caja, fac_ventas]):
+                return [] if vendedor == 'Todos' else {}
+
+            # Process portfolio data by vendor
+            vendor_portfolio = defaultdict(lambda: {
+                'total_portfolio': 0,
+                'overdue_portfolio': 0,
+                'weighted_days_sum': 0,
+                'invoices': [],
+                'client_count': 0,
+                'clients_overdue': {},
+                'credit_notes_value': 0
+            })
+
+            for client_id, client_data in cartera_actual.items():
+                vendor_name = client_data.get('vendedor', 'UNKNOWN')
+
+                if vendor_name in NON_CURRENT_SELLERS:
+                    continue
+
+                # Filter by vendor if specified
+                if vendedor != 'Todos' and vendor_name != vendedor:
+                    continue
+
+                documents = client_data.get('documentos', {})
+                client_name = client_data.get('cliente', 'UNKNOWN')
+                doc_type = client_data.get('tipo', 'UNKNOWN')
+
+                if client_name not in vendor_portfolio[vendor_name]['clients_overdue']:
+                    has_valid_documents = False
+
+                for doc_num, doc_data in documents.items():
+                    saldo = doc_data.get('saldo', 0)
+
+                    vendor_portfolio[vendor_name]['total_portfolio'] += saldo
+
+                    # Valid invoices (6 digits starting with 7)
+                    if doc_type == "Remision de la FE":
+                        due_date = doc_data.get('vencimiento', '')
+
+                        if saldo <= 0:
+                            continue
+
+                        has_valid_documents = True
+                        days_overdue = self._calculate_days_overdue(
+                            due_date, TODAY)
+
+                        vendor_portfolio[vendor_name]['invoices'].append({
+                            'doc_num': doc_num,
+                            'saldo': saldo,
+                            'days_overdue': days_overdue,
+                            'client': client_name
+                        })
+
+                        if days_overdue > 0:
+                            vendor_portfolio[vendor_name]['overdue_portfolio'] += saldo
+                            vendor_portfolio[vendor_name]['weighted_days_sum'] += (
+                                saldo * days_overdue)
+
+                            if client_name not in vendor_portfolio[vendor_name]['clients_overdue']:
+                                vendor_portfolio[vendor_name]['clients_overdue'][client_name] = 0
+
+                            vendor_portfolio[vendor_name]['clients_overdue'][client_name] += saldo
+
+                    # Credit notes (4 digits)
+                    elif doc_type == "Nota Credito Clientes":
+                        vendor_portfolio[vendor_name]['total_portfolio'] += saldo
+                        vendor_portfolio[vendor_name]['credit_notes_value'] += saldo
+                        has_valid_documents = True
+
+                if has_valid_documents:
+                    vendor_portfolio[vendor_name]['client_count'] += 1
+
+            # Calculate collections by vendor
+            vendor_collections = defaultdict(float)
+
+            for receipt_id, receipt_data in recibos_caja.items():
+                vendor_name = receipt_data.get('vendedor', 'UNKNOWN')
+
+                if vendor_name not in NON_CURRENT_SELLERS:
+                    if vendedor == 'Todos' or vendor_name == vendedor:
+                        amount = receipt_data.get('valor_recibo', 0)
+                        vendor_collections[vendor_name] += amount
+
+            # Calculate sales by vendor
+            vendor_sales = defaultdict(float)
+
+            for invoice_id, invoice_data in fac_ventas.items():
+                vendor_code = invoice_data.get('vendedor', '')
+                vendor_name = codigos_vendedores.get(
+                    vendor_code, 'UNKNOWN') if codigos_vendedores else 'UNKNOWN'
+
+                if vendor_name not in NON_CURRENT_SELLERS:
+                    if vendedor == 'Todos' or vendor_name == vendedor:
+                        valor_bruto = invoice_data.get('valor_bruto', 0)
+                        descuento = invoice_data.get('descuento', 0)
+                        iva = invoice_data.get('iva', 0)
+                        net_value = valor_bruto - descuento + iva
+                        vendor_sales[vendor_name] += net_value
+
+            # Calculate indicators for each vendor
+            results = []
+
+            for vendor_name, data in vendor_portfolio.items():
+                if data['total_portfolio'] == 0:
+                    continue
+
+                # Calculate metrics
+                overdue_rate = (data['overdue_portfolio'] /
+                                data['total_portfolio']) * 100
+                overdue_rate_risk = min(1.0, overdue_rate / 100)
+
+                # WOF (Weighted Overdue Factor)
+                if data['total_portfolio'] > 0:
+                    wof = data['weighted_days_sum'] / data['total_portfolio']
+                    wof_risk = min(1.0, wof / 90)
+                else:
+                    wof = 0
+                    wof_risk = 0
+
+                avg_days_overdue = data['weighted_days_sum'] / \
+                    data['overdue_portfolio'] if data['overdue_portfolio'] > 0 else 0
+
+                # Collection efficiency
+                collections = vendor_collections.get(vendor_name, 0)
+                sales = vendor_sales.get(vendor_name, 0)
+
+                if sales > 0:
+                    collection_efficiency = (collections / sales) * 100
+                    collection_risk = max(
+                        0, 1.0 - (collection_efficiency / 100))
+                else:
+                    collection_efficiency = 0
+                    collection_risk = 0.5
+
+                # DSO (Days Sales Outstanding)
+                if sales > 0:
+                    daily_sales = sales / 365
+                    dso = data['total_portfolio'] / \
+                        daily_sales if daily_sales > 0 else 365
+                    dso_risk = min(1.0, max(0, (dso - 30) / 90))
+                else:
+                    dso = 0
+                    dso_risk = 0.5
+
+                # Risk concentration
+                if data['overdue_portfolio'] > 0 and data['clients_overdue']:
+                    sorted_clients = sorted(
+                        data['clients_overdue'].items(),
+                        key=lambda x: x[1],
+                        reverse=True
+                    )
+                    top_n = min(3, len(sorted_clients))
+                    top_clients_overdue = sum(
+                        [amount for _, amount in sorted_clients[:top_n]])
+
+                    concentration_pct = (
+                        top_clients_overdue / data['overdue_portfolio']) * 100
+                    concentration_risk = concentration_pct / 100
+                else:
+                    concentration_pct = 0
+                    concentration_risk = 0
+
+                # Calculate composite risk indicator with penalty factor
+                base_composite_risk = (
+                    overdue_rate_risk * WEIGHTS['overdue_rate'] +
+                    wof_risk * WEIGHTS['avg_days_overdue'] +
+                    collection_risk * WEIGHTS['collection_efficiency'] +
+                    dso_risk * WEIGHTS['portfolio_turnover'] +
+                    concentration_risk * WEIGHTS['risk_concentration']
+                )
+
+                # Apply exponential penalty for higher risks (makes it more strict)
+                # This makes the scale non-linear, penalizing higher risks
+                if base_composite_risk >= 0.5:
+                    # Apply exponential penalty for risks above 0.5
+                    # Exponential growth
+                    penalty_factor = 1.5 ** ((base_composite_risk - 0.5) * 4)
+                    composite_risk = min(
+                        1.0, 0.5 + (base_composite_risk - 0.5) * penalty_factor)
+                else:
+                    composite_risk = base_composite_risk
+
+                vendor_result = {
+                    'vendor': vendor_name,
+                    'risk_indicator': round(composite_risk, 4),
+                    'total_portfolio': round(data['total_portfolio'], 2),
+                    'overdue_portfolio': round(data['overdue_portfolio'], 2),
+                    'overdue_rate': round(overdue_rate, 2),
+                    'wof': round(wof, 2),
+                    'avg_days_overdue': round(avg_days_overdue, 2),
+                    'collection_efficiency': round(collection_efficiency, 2),
+                    'dso': round(dso, 2),
+                    'risk_concentration': round(concentration_pct, 2),
+                    'client_count': data['client_count'],
+                    'total_collections': round(collections, 2),
+                    'total_sales': round(sales, 2),
+                    'invoice_count': len(data['invoices']),
+                    'credit_notes_value': round(data['credit_notes_value'], 2),
+                    # Component risks for visualization
+                    'component_risks': {
+                        'overdue_rate_risk': round(overdue_rate_risk, 3),
+                        'wof_risk': round(wof_risk, 3),
+                        'collection_risk': round(collection_risk, 3),
+                        'dso_risk': round(dso_risk, 3),
+                        'concentration_risk': round(concentration_risk, 3)
+                    }
+                }
+
+                results.append(vendor_result)
+
+            # Sort by risk indicator (highest first)
+            results.sort(key=lambda x: x['risk_indicator'], reverse=True)
+
+            # Apply percentile-based categorization for stricter evaluation
+            if len(results) >= 5:  # Only apply if we have enough vendors
+                import numpy as np
+                risk_values = [r['risk_indicator'] for r in results]
+
+                # Calculate percentiles
+                p25 = np.percentile(risk_values, 25)
+                p50 = np.percentile(risk_values, 50)
+                p75 = np.percentile(risk_values, 75)
+                p90 = np.percentile(risk_values, 90)
+
+                # Add percentile information and adjusted risk level
+                for vendor_result in results:
+                    risk = vendor_result['risk_indicator']
+
+                    # Determine percentile category
+                    if risk >= p90:
+                        vendor_result['percentile'] = 90
+                        vendor_result['risk_category'] = 'CRÍTICO'
+                        vendor_result['adjusted_risk'] = min(
+                            1.0, 0.85 + (risk - p90) / (1 - p90) * 0.15) if p90 < 1 else risk
+                    elif risk >= p75:
+                        vendor_result['percentile'] = 75
+                        vendor_result['risk_category'] = 'ALTO'
+                        vendor_result['adjusted_risk'] = 0.70 + \
+                            (risk - p75) / (p90 - p75) * \
+                            0.15 if p90 > p75 else risk
+                    elif risk >= p50:
+                        vendor_result['percentile'] = 50
+                        vendor_result['risk_category'] = 'MEDIO'
+                        vendor_result['adjusted_risk'] = 0.45 + \
+                            (risk - p50) / (p75 - p50) * \
+                            0.25 if p75 > p50 else risk
+                    elif risk >= p25:
+                        vendor_result['percentile'] = 25
+                        vendor_result['risk_category'] = 'MODERADO'
+                        vendor_result['adjusted_risk'] = 0.25 + \
+                            (risk - p25) / (p50 - p25) * \
+                            0.20 if p50 > p25 else risk
+                    else:
+                        vendor_result['percentile'] = 0
+                        vendor_result['risk_category'] = 'BAJO'
+                        vendor_result['adjusted_risk'] = risk / \
+                            p25 * 0.25 if p25 > 0 else risk
+
+                    # Store percentile thresholds for reference
+                    vendor_result['percentile_thresholds'] = {
+                        'p25': round(p25, 4),
+                        'p50': round(p50, 4),
+                        'p75': round(p75, 4),
+                        'p90': round(p90, 4)
+                    }
+            else:
+                # If not enough vendors, use fixed thresholds
+                for vendor_result in results:
+                    risk = vendor_result['risk_indicator']
+                    vendor_result['adjusted_risk'] = risk
+                    if risk >= 0.8:
+                        vendor_result['risk_category'] = 'CRÍTICO'
+                    elif risk >= 0.6:
+                        vendor_result['risk_category'] = 'ALTO'
+                    elif risk >= 0.4:
+                        vendor_result['risk_category'] = 'MEDIO'
+                    elif risk >= 0.2:
+                        vendor_result['risk_category'] = 'MODERADO'
+                    else:
+                        vendor_result['risk_category'] = 'BAJO'
+                    vendor_result['percentile'] = None
+                    vendor_result['percentile_thresholds'] = {}
+
+            # Return single vendor data if specified
+            if vendedor != 'Todos':
+                return results[0] if results else {}
+
+            return results
+
+        except Exception as e:
+            print(f"Error calculating portfolio indicator: {e}")
+            return [] if vendedor == 'Todos' else {}
+
+    def _calculate_days_overdue(self, due_date_str, today):
+        """
+        Helper method to calculate days overdue
+        """
+        from datetime import datetime
+
+        try:
+            due_date = datetime.strptime(due_date_str, '%Y/%m/%d')
+            days_diff = (today - due_date).days
+            return max(0, days_diff)
+        except:
+            return 0

@@ -35,7 +35,9 @@ def can_see_all_vendors(session_data):
         [
             'JESUS IVAN GOMEZ VELASQUEZ',
             'YAMITH SCHNEIDER MESA ESCOBAR',
-            'DINA NARANJO'
+            'DINA NARANJO',
+            'DIEGO ALEJANDRO BOLIVAR ZAPATA',
+            'KATERINE VARGAS HURTADO'
         ]
 
 

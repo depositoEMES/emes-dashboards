@@ -131,8 +131,8 @@ def create_proveedores_card():
         html.Div([
             dcc.Link("Ventas", href="/proveedores-ventas",
                      className="card-button primary"),
-            dcc.Link("Compras", href="/proveedores-compras",
-                     className="card-button secondary")
+            # dcc.Link("Compras", href="/proveedores-compras",
+            #          className="card-button secondary")
         ], className="card-actions")
     ], className="dashboard-card proveedores-card")
 

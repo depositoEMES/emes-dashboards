@@ -34,7 +34,9 @@ class Database:
             "fac_ventas",
             "analisis_vendedores",
             "vendedores_activos",
-            "fletes_transportadoras"
+            "fletes_transportadoras",
+            "impactos",
+            "ventas_proveedores"
         ]
 
     def __init__(self):

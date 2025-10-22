@@ -1,598 +1,540 @@
-# import pandas as pd
-# from sqlalchemy import create_engine, text
-# from datetime import datetime
-# import os
-# from typing import Dict, List, Optional, Tuple
-# import logging
-
-# # Importar configuración
-# try:
-#     from server import SqlSqlDatabaseConfig
-# except ImportError:
-#     # Fallback si no existe el módulo config
-#     class SqlDatabaseConfig:
-#         @classmethod
-#         def get_database_url(cls):
-#             return (
-#                 f"postgresql://{os.getenv('DB_USER', 'postgres')}:"
-#                 f"{os.getenv('DB_PASSWORD', 'digital_emes1')}@"
-#                 f"{os.getenv('DB_HOST', 'localhost')}:"
-#                 f"{os.getenv('DB_PORT', '5432')}/"
-#                 f"{os.getenv('DB_NAME', 'emes')}"
-#             )
-
-#         @classmethod
-#         def get_engine_config(cls):
-#             return {
-#                 'pool_pre_ping': True,
-#                 'pool_recycle': 3600,
-#                 'echo': False
-#             }
-
-#         @classmethod
-#         def validate_config(cls):
-#             return True
-
-
-# class ProveedoresVentasAnalyzer:
-#     """
-#     Analyzer optimizado para datos de ventas de proveedores desde PostgreSQL usando SQLAlchemy
-#     """
-
-#     # Columnas esenciales que realmente necesitamos
-#     ESSENTIAL_COLUMNS = [
-#         'costo_total', 'valor_utilidad', 'pct_uti', 'valor_desc', 'pct_desc',
-#         'id_cliente', 'numero', 'id', 'nit', 'fecha_factura',
-#         'cantidad', 'porcentaje_iva', 'precio_neto',
-#         'costo_unidad', 'ciudad', 'subgrupo', 'codigo', 'descripcion',
-#         'cliente', 'tipo', 'vendedor', 'vendedor_operacion',
-#         'direccion', 'sigla', 'grupo'
-#     ]
-
-#     def __init__(self):
-#         self._df_ventas = None
-#         self._laboratorios_list = None
-#         self._periodos_list = None
-#         self._last_update = None
-#         self._engine = None
-
-#         # Configuración de logging
-#         logging.basicConfig(level=logging.INFO)
-#         self.logger = logging.getLogger(__name__)
-
-#         # Validar configuración
-#         try:
-#             SqlDatabaseConfig.validate_config()
-#         except ValueError as e:
-#             self.logger.warning(f"⚠️ Configuración de DB incompleta: {e}")
-
-#         # Crear engine de SQLAlchemy
-#         self._create_engine()
-
-#         # Cargar datos iniciales
-#         self._load_initial_data()
-
-#     def _create_engine(self):
-#         """
-#         Crear engine de SQLAlchemy usando configuración
-#         """
-#         try:
-#             db_url = SqlDatabaseConfig.get_database_url()
-#             engine_config = SqlDatabaseConfig.get_engine_config()
-
-#             self._engine = create_engine(db_url, **engine_config)
-
-#             # Probar conexión básica
-#             with self._engine.connect() as conn:
-#                 result = conn.execute(text("SELECT 1 as test"))
-#                 test_result = result.fetchone()
-
-#                 # Probar acceso al schema ventas
-#                 result = conn.execute(text("""
-#                     SELECT EXISTS (
-#                         SELECT FROM information_schema.schemata
-#                         WHERE schema_name = 'ventas'
-#                     )
-#                 """))
-#                 schema_exists = result.fetchone()[0]
-
-#                 if schema_exists:
-#                     # Probar acceso a la tabla diarias
-#                     result = conn.execute(text("""
-#                         SELECT EXISTS (
-#                             SELECT FROM information_schema.tables
-#                             WHERE table_schema = 'ventas'
-#                             AND table_name = 'diarias'
-#                         )
-#                     """))
-#                     table_exists = result.fetchone()[0]
-
-#                     if table_exists:
-#                         # Contar registros totales
-#                         result = conn.execute(
-#                             text("SELECT COUNT(*) FROM ventas.diarias"))
-
-#         except Exception as e:
-#             print(f"❌ Error creando engine de SQLAlchemy: {e}")
-#             print(f"   Tipo de error: {type(e)}")
-#             import traceback
-#             traceback.print_exc()
-#             self._engine = None
-
-#     def _get_db_engine(self):
-#         """
-#         Obtener engine de SQLAlchemy
-#         """
-#         if self._engine is None:
-#             self._create_engine()
-#         return self._engine
-
-#     def _load_initial_data(self):
-#         """
-#         Carga inicial de datos desde PostgreSQL
-#         """
-#         try:
-#             print("📄 Iniciando carga optimizada de datos...")
-#             self.reload_data()
-#             print("✅ Datos iniciales cargados desde PostgreSQL")
-#         except Exception as e:
-#             print(f"❌ Error en carga inicial: {e}")
-#             print("⚠️ Continuando con DataFrame vacío")
-#             self._df_ventas = pd.DataFrame()
-#             self._laboratorios_list = ['Todos']
-#             self._periodos_list = ['Todos']
-
-#     def _build_optimized_query(self, year=2025, limit_records=None):
-#         """
-#         Construir query optimizada con solo las columnas necesarias
-#         """
-#         # Crear lista de columnas para SELECT
-#         columns_str = ', '.join(self.ESSENTIAL_COLUMNS)
-
-#         # Query base optimizada
-#         base_query = f"""
-#         SELECT {columns_str}
-#         FROM ventas.diarias
-#         WHERE EXTRACT(YEAR FROM fecha_factura) = :year
-#         AND tipo IN ('Remision', 'Factura')
-#         AND fecha_factura IS NOT NULL
-#         ORDER BY fecha_factura DESC
-#         """
-
-#         # Agregar límite si se especifica
-#         if limit_records:
-#             base_query += f" LIMIT {limit_records}"
-
-#         return base_query
-
-#     def reload_data(self, year=2025, limit_records=None):
-#         """
-#         Recargar datos desde PostgreSQL usando SQLAlchemy con consulta optimizada
-#         """
-#         engine = self._get_db_engine()
-#         if not engine:
-#             print("❌ No hay engine disponible")
-#             raise Exception("No se pudo conectar a la base de datos")
-
-#         try:
-#             query = f"""
-#             SELECT
-#                 costo_total, valor_utilidad, pct_uti, valor_desc, pct_desc,
-#                 id_cliente, numero, id, nit, fecha_factura,
-#                 cantidad, porcentaje_iva, precio_neto,
-#                 costo_unidad, ciudad, subgrupo, codigo, descripcion,
-#                 cliente, tipo, vendedor, vendedor_operacion,
-#                 sigla, grupo
-#             FROM ventas.diarias
-#             WHERE EXTRACT(YEAR FROM fecha_factura) = {year}
-#             AND tipo IN ('Remision de la FE')
-#             AND fecha_factura IS NOT NULL
-#             ORDER BY fecha_factura DESC
-#             """
-
-#             # Agregar límite si se especifica
-#             if limit_records:
-#                 query += f" LIMIT {limit_records}"
-
-#             # CORRECCIÓN: pd.read_sql_query SIN text() y SIN params
-#             df = pd.read_sql_query(query, engine)
-
-#             if not df.empty:
-#                 # Procesar datos
-#                 df = self._process_data(df)
-
-#                 self._df_ventas = df
-#                 self._update_lists()
-#                 self._last_update = datetime.now()
-
-#                 # Mostrar estadísticas de memoria
-#                 memory_usage = df.memory_usage(
-#                     deep=True).sum() / (1024**2)  # MB
-#                 print(f"💾 Uso de memoria: {memory_usage:.1f} MB")
-#                 print(f"✅ Datos actualizados: {len(df):,} registros")
-#             else:
-#                 print("❌ pd.read_sql_query devolvió DataFrame vacío")
-#                 # Debug adicional
-#                 with engine.connect() as conn:
-#                     result = conn.execute(text(f"""
-#                         SELECT EXTRACT(YEAR FROM fecha_factura) as año, COUNT(*) as registros
-#                         FROM ventas.diarias
-#                         WHERE fecha_factura IS NOT NULL
-#                         GROUP BY EXTRACT(YEAR FROM fecha_factura)
-#                         ORDER BY año DESC
-#                     """))
-#                     años_disponibles = result.fetchall()
-#                     print(f"📅 Años disponibles: {años_disponibles}")
-
-#                     result = conn.execute(text(f"""
-#                         SELECT tipo, COUNT(*) as cantidad
-#                         FROM ventas.diarias
-#                         WHERE EXTRACT(YEAR FROM fecha_factura) = {year}
-#                         GROUP BY tipo
-#                         ORDER BY cantidad DESC
-#                     """))
-#                     tipos_disponibles = result.fetchall()
-#                     print(f"📋 Tipos disponibles {year}: {tipos_disponibles}")
-
-#                 self._df_ventas = pd.DataFrame()
-
-#         except Exception as e:
-#             print(f"❌ Error ejecutando query: {e}")
-#             print(f"   Tipo de error: {type(e)}")
-#             import traceback
-#             traceback.print_exc()
-#             raise
-
-#     def _process_data(self, df):
-#         """
-#         Procesar y limpiar datos de manera optimizada
-#         """
-#         # Convertir fecha usando método más eficiente
-#         df['fecha_factura'] = pd.to_datetime(
-#             df['fecha_factura'], errors='coerce')
-
-#         # Crear campos adicionales de manera vectorizada
-#         df['mes_nombre'] = df['fecha_factura'].dt.strftime('%Y-%m')
-#         df['trimestre'] = df['fecha_factura'].dt.to_period('Q').astype(str)
-#         df['anio'] = df['fecha_factura'].dt.year
-#         df['semana'] = df['fecha_factura'].dt.isocalendar().week
-#         df['dia_semana'] = df['fecha_factura'].dt.day_name()
-
-#         # Mapeo de días a español (más eficiente con .map)
-#         dias_map = {
-#             'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
-#             'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
-#         }
-#         df['dia_semana_es'] = df['dia_semana'].map(dias_map)
-
-#         # ⭐ CAMBIO IMPORTANTE: Usar 'sigla' como cliente principal, fallback a 'cliente'
-#         df['cliente_display'] = df['sigla'].fillna('').astype(str)
-#         # Si sigla está vacía, usar cliente
-#         mask_sigla_vacia = (df['cliente_display'] == '') | (
-#             df['cliente_display'] == 'nan')
-#         df.loc[mask_sigla_vacia, 'cliente_display'] = df.loc[mask_sigla_vacia,
-#                                                              'cliente'].fillna('Sin Cliente')
-
-#         # Para mantener compatibilidad, reemplazar la columna cliente
-#         df['cliente'] = df['cliente_display']
-#         df.drop('cliente_display', axis=1, inplace=True)
-
-#         # Limpiar valores nulos en campos importantes
-#         df['grupo'] = df['grupo'].fillna('Sin Laboratorio')
-#         df['descripcion'] = df['descripcion'].fillna('Sin Descripción')
-
-#         # Asegurar tipos numéricos de manera más eficiente
-#         numeric_cols = ['precio_neto', 'costo_total',
-#                         'valor_utilidad', 'cantidad', 'valor_desc']
-#         for col in numeric_cols:
-#             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-
-#         return df
-
-#     def _update_lists(self):
-#         """
-#         Actualizar listas de laboratorios y períodos de manera optimizada
-#         """
-#         if self._df_ventas.empty:
-#             print("⚠️ DataFrame vacío, usando listas por defecto")
-#             self._laboratorios_list = ['Todos']
-#             self._periodos_list = ['Todos']
-#             return
-
-#         # Lista de laboratorios (más eficiente)
-#         laboratorios_unicos = self._df_ventas['grupo'].dropna().unique()
-#         laboratorios = sorted(
-#             [lab for lab in laboratorios_unicos if lab and lab != 'Sin Laboratorio'])
-#         self._laboratorios_list = ['Todos'] + laboratorios
-
-#         # Lista de períodos (mes-año) - más eficiente
-#         periodos_unicos = self._df_ventas['mes_nombre'].dropna().unique()
-#         periodos = sorted(periodos_unicos, reverse=True)
-#         self._periodos_list = ['Todos'] + periodos
-
-#         print(
-#             f"📋 Listas actualizadas: {len(self._laboratorios_list)} laboratorios, {len(self._periodos_list)} períodos")
-
-#     def get_data_summary(self):
-#         """
-#         Obtener resumen de los datos cargados
-#         """
-#         if self._df_ventas.empty:
-#             return {
-#                 'total_records': 0,
-#                 'memory_usage_mb': 0,
-#                 'date_range': None,
-#                 'laboratorios_count': 0,
-#                 'periodos_count': 0
-#             }
-
-#         memory_usage = self._df_ventas.memory_usage(
-#             deep=True).sum() / (1024**2)
-#         date_range = {
-#             'min': self._df_ventas['fecha_factura'].min(),
-#             'max': self._df_ventas['fecha_factura'].max()
-#         }
-
-#         return {
-#             'total_records': len(self._df_ventas),
-#             'memory_usage_mb': round(memory_usage, 2),
-#             'date_range': date_range,
-#             # -1 por 'Todos'
-#             'laboratorios_count': len(self._laboratorios_list) - 1,
-#             'periodos_count': len(self._periodos_list) - 1,  # -1 por 'Todos'
-#             'columns_loaded': len(self._df_ventas.columns)
-#         }
-
-#     # ============ MÉTODOS EXISTENTES (sin cambios significativos) ============
-
-#     @property
-#     def laboratorios_list(self):
-#         """Lista de laboratorios disponibles"""
-#         return self._laboratorios_list or ['Todos']
-
-#     @property
-#     def periodos_list(self):
-#         """Lista de períodos disponibles"""
-#         return self._periodos_list or ['Todos']
-
-#     @property
-#     def df_ventas(self):
-#         """DataFrame de ventas"""
-#         return self._df_ventas if self._df_ventas is not None else pd.DataFrame()
-
-#     def filter_data(self, laboratorio='Todos', periodo='Todos'):
-#         """
-#         Filtrar datos por laboratorio y período de manera optimizada
-#         """
-#         df = self.df_ventas.copy()
-
-#         if df.empty:
-#             print("❌ DataFrame está vacío")
-#             return df
-
-#         # Filtrar por laboratorio
-#         if laboratorio != 'Todos':
-#             initial_count = len(df)
-#             df = df[df['grupo'] == laboratorio]
-
-#         # Filtrar por período
-#         if periodo != 'Todos':
-#             initial_count = len(df)
-#             df = df[df['mes_nombre'] == periodo]
-
-#         return df
-
-#     def get_resumen_ventas(self, laboratorio='Todos', periodo='Todos'):
-#         """
-#         Obtener resumen de ventas del laboratorio
-#         """
-#         df = self.filter_data(laboratorio, periodo)
-
-#         if df.empty:
-#             return {
-#                 'total_ventas': 0, 'total_costo': 0, 'total_utilidad': 0,
-#                 'total_descuentos': 0, 'margen_promedio': 0, 'num_facturas': 0,
-#                 'num_productos': 0, 'num_clientes': 0
-#             }
-
-#         # Calcular métricas de manera vectorizada (más eficiente)
-#         total_ventas = df['precio_neto'].sum()
-#         total_costo = df['costo_total'].sum()
-#         total_utilidad = df['valor_utilidad'].sum()
-#         total_descuentos = df['valor_desc'].sum()
-#         margen_promedio = (total_utilidad / total_ventas *
-#                            100) if total_ventas > 0 else 0
-
-#         return {
-#             'total_ventas': total_ventas,
-#             'total_costo': total_costo,
-#             'total_utilidad': total_utilidad,
-#             'total_descuentos': total_descuentos,
-#             'margen_promedio': margen_promedio,
-#             'num_facturas': df['numero'].nunique(),
-#             'num_productos': df['descripcion'].nunique(),
-#             'num_clientes': df['cliente'].nunique()
-#         }
-
-#     def diagnose_data(self):
-#         """
-#         Diagnóstico completo del analyzer
-#         """
-#         # Verificar engine
-#         engine_ok = self._engine is not None
-
-#         if engine_ok:
-#             try:
-#                 with self._engine.connect() as conn:
-#                     # Verificar conexión
-#                     result = conn.execute(text("SELECT 1"))
-#                     connection_ok = result.fetchone()[0] == 1
-
-#                     # Verificar tabla
-#                     result = conn.execute(text("""
-#                         SELECT COUNT(*) FROM ventas.diarias
-#                         WHERE EXTRACT(YEAR FROM fecha_factura) = 2025
-#                     """))
-#                     total_2025 = result.fetchone()[0]
-#                     print(f"📊 Registros 2025 disponibles: {total_2025:,}")
-
-#             except Exception as e:
-#                 print(f"❌ Error en diagnóstico de DB: {e}")
-
-#         # Verificar datos cargados
-#         data_loaded = not self._df_ventas.empty if self._df_ventas is not None else False
-
-#         if data_loaded:
-#             summary = self.get_data_summary()
-#             print(f"📈 Registros en memoria: {summary['total_records']:,}")
-#             print(f"💾 Uso de memoria: {summary['memory_usage_mb']} MB")
-#             print(
-#                 f"📅 Rango de fechas: {summary['date_range']['min']} - {summary['date_range']['max']}")
-#             print(f"🏭 Laboratorios: {summary['laboratorios_count']}")
-#             print(f"📆 Períodos: {summary['periodos_count']}")
-#             print(f"📋 Columnas cargadas: {summary['columns_loaded']}")
-
-#         print("="*60 + "\n")
-
-#         return {
-#             'engine_ok': engine_ok,
-#             'data_loaded': data_loaded,
-#             'record_count': len(self._df_ventas) if data_loaded else 0,
-#             'laboratorios_count': len(self._laboratorios_list) if self._laboratorios_list else 0,
-#             'periodos_count': len(self._periodos_list) if self._periodos_list else 0
-#         }
-
-#     def get_ventas_por_periodo(self, laboratorio='Todos', tipo_periodo='mensual'):
-#         """Obtener evolución de ventas por período"""
-#         df = self.filter_data(laboratorio, 'Todos')
-#         if df.empty:
-#             return pd.DataFrame()
-
-#         grupo_col = {'mensual': 'mes_nombre', 'trimestral': 'trimestre',
-#                      'anual': 'anio'}.get(tipo_periodo, 'mes_nombre')
-
-#         resultado = df.groupby(grupo_col).agg({
-#             'precio_neto': 'sum',
-#             'valor_utilidad': 'sum',
-#             'numero': 'nunique',
-#             'cliente': 'nunique'
-#         }).reset_index()
-
-#         resultado.columns = [grupo_col, 'ventas_netas',
-#                              'utilidad', 'num_facturas', 'num_clientes']
-#         return resultado.sort_values(grupo_col)
-
-#     def get_estacionalidad_semana(self, laboratorio='Todos', periodo='Todos'):
-#         """Obtener datos de estacionalidad por semana"""
-#         df = self.filter_data(laboratorio, periodo)
-#         if df.empty:
-#             return pd.DataFrame()
-
-#         resultado = df.groupby('semana').agg({
-#             'precio_neto': 'sum',
-#             'valor_utilidad': 'sum',
-#             'numero': 'nunique'
-#         }).reset_index()
-
-#         resultado.columns = ['semana', 'ventas_netas',
-#                              'utilidad', 'num_facturas']
-#         return resultado.sort_values('semana')
-
-#     def get_top_clientes(self, laboratorio='Todos', periodo='Todos', top_n=10):
-#         """Obtener top clientes del laboratorio"""
-#         df = self.filter_data(laboratorio, periodo)
-#         if df.empty:
-#             return pd.DataFrame()
-
-#         resultado = df.groupby('cliente').agg({
-#             'precio_neto': 'sum',
-#             'valor_utilidad': 'sum',
-#             'numero': 'nunique',
-#             'cantidad': 'sum'
-#         }).reset_index()
-
-#         resultado.columns = ['cliente', 'ventas_netas',
-#                              'utilidad', 'num_facturas', 'cantidad_total']
-#         return resultado.nlargest(top_n, 'ventas_netas')
-
-#     def get_top_productos(self, laboratorio='Todos', periodo='Todos', top_n=10):
-#         """Obtener top productos del laboratorio"""
-#         df = self.filter_data(laboratorio, periodo)
-#         if df.empty:
-#             return pd.DataFrame()
-
-#         resultado = df.groupby(['codigo', 'descripcion']).agg({
-#             'precio_neto': 'sum',
-#             'cantidad': 'sum',
-#             'numero': 'nunique'
-#         }).reset_index()
-
-#         resultado.columns = ['codigo', 'descripcion',
-#                              'ventas_netas', 'cantidad_total', 'num_facturas']
-#         return resultado.nlargest(top_n, 'ventas_netas')
-
-#     def get_matriz_ventas_clientes(self, laboratorio='Todos', fecha_inicio=None, fecha_fin=None, clientes_seleccionados=None):
-#         """Obtener matriz de ventas por cliente en rango de fechas"""
-#         df = self.filter_data(laboratorio, 'Todos')
-#         if df.empty:
-#             return pd.DataFrame()
-
-#         # Filtrar por rango de fechas
-#         if fecha_inicio and fecha_fin:
-#             df = df[(df['fecha_factura'] >= fecha_inicio)
-#                     & (df['fecha_factura'] <= fecha_fin)]
-
-#         # Filtrar por clientes seleccionados
-#         if clientes_seleccionados:
-#             df = df[df['cliente'].isin(clientes_seleccionados)]
-
-#         if df.empty:
-#             return pd.DataFrame()
-
-#         # Crear matriz pivote por mes
-#         matriz = df.groupby(['cliente', 'mes_nombre'])[
-#             'precio_neto'].sum().unstack(fill_value=0)
-#         return matriz
-
-#     def get_evolucion_cliente(self, cliente, laboratorio='Todos'):
-#         """Obtener evolución de ventas de un cliente específico"""
-#         df = self.filter_data(laboratorio, 'Todos')
-#         if df.empty or not cliente:
-#             return pd.DataFrame()
-
-#         cliente_data = df[df['cliente'] == cliente]
-#         if cliente_data.empty:
-#             return pd.DataFrame()
-
-#         resultado = cliente_data.groupby('mes_nombre').agg({
-#             'precio_neto': 'sum',
-#             'valor_utilidad': 'sum',
-#             'numero': 'nunique',
-#             'cantidad': 'sum'
-#         }).reset_index()
-
-#         resultado.columns = ['mes_nombre', 'ventas_netas',
-#                              'utilidad', 'num_facturas', 'cantidad_total']
-#         return resultado.sort_values('mes_nombre')
-
-#     def get_clientes_list(self, laboratorio='Todos'):
-#         """Obtener lista de clientes para dropdown"""
-#         df = self.filter_data(laboratorio, 'Todos')
-#         if df.empty:
-#             return ['Seleccione un cliente']
-
-#         clientes = sorted(df['cliente'].dropna().unique())
-#         return ['Seleccione un cliente'] + [c for c in clientes if c and c != 'Sin Cliente']
-
-#     def close_connection(self):
-#         """Cerrar conexión de SQLAlchemy"""
-#         if self._engine:
-#             self._engine.dispose()
-#             self.logger.info("🔌 Conexión a PostgreSQL cerrada")
-
-#     def __del__(self):
-#         """Destructor para cerrar conexiones"""
-#         try:
-#             self.close_connection()
-#         except:
-#             pass  # Evitar errores en destructor
+import pandas as pd
+from typing import Dict, List, Optional
+from datetime import datetime
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+
+class VentasProveedoresAnalyzer:
+
+    def __init__(self, db):
+        """
+        Inicializar analyzer con conexión a Firebase.
+        """
+        self.db = db
+        self.logger = logging.getLogger(__name__)
+
+        self._ventas_data = None
+        self._clientes_data = None
+        self._labs_data = None
+        self._codigos_vendedores = None
+
+        self._laboratorios_list = ['Todos']
+        self._vendedores_list = ['Todos']
+        self._meses_list = ['Todos']
+
+        self._last_update = None
+        self._load_initial_data()
+
+    def _load_initial_data(self):
+        """
+        Carga inicial de datos desde Firebase.
+        """
+        try:
+            self.reload_data()
+        except Exception as e:
+            self.logger.error(f"Error en carga inicial: {e}")
+
+    def reload_data(self):
+        """
+        Recargar datos desde Firebase.
+        """
+        try:
+            ventas_raw = self.db.get_by_path("ventas_proveedores")
+
+            if not ventas_raw:
+                raise Exception(
+                    "No se encontraron datos de ventas_proveedores")
+
+            clientes_raw = self.db.get_by_path("maestros/clientes_id")
+
+            if not clientes_raw:
+                raise Exception("No se encontraron datos de clientes_id")
+
+            labs_raw = self.db.get_by_path("maestros/codigos_labs")
+
+            if not labs_raw:
+                raise Exception("No se encontraron datos de codigos_labs")
+
+            codigos_vendedores_raw = self.db.get_by_path(
+                "maestros/codigos_vendedores")
+
+            if not codigos_vendedores_raw:
+                raise Exception(
+                    "No se encontraron datos de codigos_vendedores")
+
+            self._ventas_data = ventas_raw
+            self._clientes_data = clientes_raw
+            self._codigos_vendedores = codigos_vendedores_raw
+            self._labs_data = {k[:-3]: v for k, v in labs_raw.items()}
+
+            self._update_lists()
+            self._last_update = datetime.now()
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error recargando datos: {e}")
+            raise
+
+    def _update_lists(self):
+        """
+        Actualizar listas de laboratorios, vendedores y meses.
+        """
+        try:
+            vendedores_set = set()
+            meses_set = set()
+            labs_set = set()
+
+            for _, cliente_info in self._clientes_data.items():
+                vendedor = cliente_info.get('vendedor')
+
+                if vendedor:
+                    seller_name = \
+                        self._codigos_vendedores.get(
+                            str(vendedor), str(vendedor))
+
+                    vendedores_set.add(str(seller_name))
+
+            for fecha_str in self._ventas_data.keys():
+                try:
+                    if len(fecha_str) >= 6:
+                        year = fecha_str[:4]
+                        month = fecha_str[4:6]
+                        mes_nombre = f"{year}-{month}"
+                        meses_set.add(mes_nombre)
+                except:
+                    continue
+
+            for lab_code, lab_name in self._labs_data.items():
+                labs_set.add(f"{lab_code} - {lab_name}")
+
+            self._laboratorios_list = \
+                ['Todos'] + sorted(list(labs_set))
+            self._vendedores_list = \
+                ['Todos'] + sorted(list(vendedores_set))
+            self._meses_list = \
+                ['Todos'] + sorted(list(meses_set), reverse=True)
+
+        except Exception as e:
+            self.logger.error(f"Error actualizando listas: {e}")
+
+            if not self._laboratorios_list or len(self._laboratorios_list) == 0:
+                self._laboratorios_list = ['Todos']
+            if not self._vendedores_list or len(self._vendedores_list) == 0:
+                self._vendedores_list = ['Todos']
+            if not self._meses_list or len(self._meses_list) == 0:
+                self._meses_list = ['Todos']
+
+    @property
+    def laboratorios_list(self):
+        """
+        Lista de laboratorios disponibles
+        """
+        if not self._laboratorios_list or len(self._laboratorios_list) == 0:
+            return ['Todos']
+
+        return self._laboratorios_list
+
+    @property
+    def vendedores_list(self):
+        """
+        Lista de vendedores disponibles
+        """
+        if not self._vendedores_list or len(self._vendedores_list) == 0:
+            return ['Todos']
+
+        return self._vendedores_list
+
+    @property
+    def meses_list(self):
+        """
+        Lista de meses disponibles
+        """
+        if not self._meses_list or len(self._meses_list) == 0:
+            return ['Todos']
+
+        return self._meses_list
+
+    def _get_lab_from_codigo(self, codigo: str) -> str:
+        """
+        Obtener laboratorio desde código de producto
+        """
+        try:
+            codigo_lab = str(codigo)[:3]
+            lab_name = self._labs_data.get(codigo_lab, 'Desconocido')
+
+            return f"{codigo_lab} - {lab_name}"
+        except:
+            return 'Desconocido'
+
+    def _get_cliente_info(self, cliente_id: int) -> Dict:
+        """
+        Obtener información de cliente
+        """
+        try:
+            cliente_id_str = str(cliente_id)
+            return self._clientes_data.get(cliente_id_str, {})
+        except:
+            return {}
+
+    def get_ventas_dataframe(
+            self,
+            laboratorio: str = 'Todos',
+            mes: str = 'Todos',
+            vendedor: str = 'Todos') -> pd.DataFrame:
+        """
+        Obtener DataFrame procesado de ventas con filtros aplicados
+        """
+        try:
+            if not self._ventas_data:
+                return pd.DataFrame()
+
+            data_list = []
+
+            for fecha_str, ventas_dia in self._ventas_data.items():
+                if mes != 'Todos':
+                    try:
+                        fecha_mes = f"{fecha_str[:4]}-{fecha_str[4:6]}"
+                        if fecha_mes != mes:
+                            continue
+                    except:
+                        continue
+
+                if not isinstance(ventas_dia, list):
+                    continue
+
+                for venta in ventas_dia:
+                    try:
+                        if not isinstance(venta, list) or len(venta) < 6:
+                            continue
+
+                        codigo = str(venta[0])
+                        cliente_id = int(venta[1])
+                        factura = str(venta[2])  # Convertir a string
+                        precio_unit = float(venta[3])
+                        costo_unit = float(venta[4])
+                        cantidad = int(venta[5])
+
+                        lab = self._get_lab_from_codigo(codigo)
+
+                        if laboratorio != 'Todos' and lab != laboratorio:
+                            continue
+
+                        cliente_info = self._get_cliente_info(cliente_id)
+                        vendedor_codigo = \
+                            str(
+                                cliente_info.get('vendedor', 'Desconocido'))
+                        vendedor_nombre = \
+                            self._codigos_vendedores.get(
+                                vendedor_codigo,
+                                'Desconocido'
+                            )
+
+                        if vendedor != 'Todos' and vendedor_nombre != vendedor:
+                            continue
+
+                        valor_venta = precio_unit * cantidad
+                        valor_costo = costo_unit * cantidad
+                        utilidad = valor_venta - valor_costo
+                        margen = (utilidad / valor_venta *
+                                  100) if valor_venta > 0 else 0
+
+                        data_list.append({
+                            'fecha': fecha_str,
+                            'mes': f"{fecha_str[:4]}-{fecha_str[4:6]}",
+                            'laboratorio': lab,
+                            'codigo_producto': codigo,
+                            'cliente_id': str(cliente_id),
+                            'cliente_nombre': cliente_info.get('nombre', 'Desconocido'),
+                            'cliente_razon': cliente_info.get('razon', 'Desconocido'),
+                            'vendedor': vendedor_codigo,
+                            'zona': cliente_info.get('zona', 'Desconocida'),
+                            'ciudad': cliente_info.get('ciudad', 'Desconocida'),
+                            'factura': factura,
+                            'cantidad': cantidad,
+                            'precio_unitario': precio_unit,
+                            'costo_unitario': costo_unit,
+                            'valor_venta': valor_venta,
+                            'valor_costo': valor_costo,
+                            'utilidad': utilidad,
+                            'margen': margen
+                        })
+
+                    except Exception as e:
+                        continue
+
+            df = pd.DataFrame(data_list)
+
+            if not df.empty:
+                df['fecha_dt'] = pd.to_datetime(
+                    df['fecha'], format='%Y%m%d', errors='coerce')
+
+            return df
+
+        except Exception as e:
+            self.logger.error(f"Error creando DataFrame: {e}")
+            return pd.DataFrame()
+
+    def get_resumen_general(
+            self,
+            laboratorio: str = 'Todos',
+            mes: str = 'Todos',
+            vendedor: str = 'Todos') -> Dict:
+        """
+        Obtener resumen general de ventas
+        """
+        try:
+            df = self.get_ventas_dataframe(laboratorio, mes, vendedor)
+
+            if df.empty:
+                return {
+                    'total_ventas': 0,
+                    'total_unidades': 0,
+                    'total_utilidad': 0,
+                    'margen_promedio': 0,
+                    'num_facturas': 0,
+                    'num_clientes': 0,
+                    'num_productos': 0,
+                    'num_laboratorios': 0
+                }
+
+            return {
+                'total_ventas': float(df['valor_venta'].sum()),
+                'total_unidades': int(df['cantidad'].sum()),
+                'total_utilidad': float(df['utilidad'].sum()),
+                'margen_promedio': float((df['utilidad'].sum() / df['valor_venta'].sum() * 100) if df['valor_venta'].sum() > 0 else 0),
+                'num_facturas': int(df['factura'].nunique()),
+                'num_clientes': int(df['cliente_id'].nunique()),
+                'num_productos': int(df['codigo_producto'].nunique()),
+                'num_laboratorios': int(df['laboratorio'].nunique())
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error calculando resumen: {e}")
+            return {
+                'total_ventas': 0,
+                'total_unidades': 0,
+                'total_utilidad': 0,
+                'margen_promedio': 0,
+                'num_facturas': 0,
+                'num_clientes': 0,
+                'num_productos': 0,
+                'num_laboratorios': 0
+            }
+
+    def get_ventas_por_laboratorio(
+            self,
+            mes: str = 'Todos',
+            vendedor: str = 'Todos',
+            top_n: int = None) -> pd.DataFrame:
+        """
+        Obtener ventas agrupadas por laboratorio
+        """
+        try:
+            df = self.get_ventas_dataframe('Todos', mes, vendedor)
+
+            if df.empty:
+                return pd.DataFrame()
+
+            resultado = df.groupby('laboratorio').agg({
+                'valor_venta': 'sum',
+                'cantidad': 'sum',
+                'cliente_id': 'nunique',
+                'factura': 'nunique',
+                'utilidad': 'sum'
+            }).reset_index()
+
+            resultado.columns = ['laboratorio', 'valor_ventas', 'unidades',
+                                 'num_clientes', 'num_facturas', 'utilidad']
+
+            resultado['margen'] = (
+                resultado['utilidad'] / resultado['valor_ventas'] * 100).fillna(0)
+            resultado = resultado.sort_values('valor_ventas', ascending=False)
+            resultado = resultado[resultado['laboratorio'] != 'Desconocido']
+
+            if top_n:
+                resultado = resultado.head(top_n)
+
+            return resultado
+
+        except Exception as e:
+            self.logger.error(f"Error calculando ventas por laboratorio: {e}")
+            return pd.DataFrame()
+
+    def get_evolucion_mensual(
+            self,
+            laboratorio: str = 'Todos',
+            vendedor: str = 'Todos') -> pd.DataFrame:
+        """
+        Obtener evolución mensual de ventas
+        """
+        try:
+            df = self.get_ventas_dataframe(laboratorio, 'Todos', vendedor)
+
+            if df.empty:
+                return pd.DataFrame()
+
+            resultado = df.groupby('mes').agg({
+                'valor_venta': 'sum',
+                'cantidad': 'sum',
+                'cliente_id': 'nunique',
+                'utilidad': 'sum'
+            }).reset_index()
+
+            resultado.columns = ['mes', 'valor_ventas',
+                                 'unidades', 'num_clientes', 'utilidad']
+            resultado = resultado.sort_values('mes')
+
+            return resultado
+
+        except Exception as e:
+            self.logger.error(f"Error calculando evolución mensual: {e}")
+
+            return \
+                pd.DataFrame()
+
+    def get_evolucion_impactos_mensual(
+            self,
+            laboratorio: str = 'Todos',
+            vendedor: str = 'Todos') -> pd.DataFrame:
+        """
+        Obtener evolución mensual de impactos (clientes únicos)
+        """
+        try:
+            df = self.get_ventas_dataframe(laboratorio, 'Todos', vendedor)
+
+            if df.empty:
+                return pd.DataFrame()
+
+            resultado = df.groupby('mes').agg({
+                'cliente_id': 'nunique'
+            }).reset_index()
+
+            resultado.columns = ['mes', 'impactos']
+            resultado = resultado.sort_values('mes')
+
+            return resultado
+
+        except Exception as e:
+            self.logger.error(f"Error calculando evolución de impactos: {e}")
+
+            return \
+                pd.DataFrame()
+
+    def get_top_clientes(
+            self,
+            laboratorio: str = 'Todos',
+            mes: str = 'Todos',
+            vendedor: str = 'Todos',
+            top_n: int = 10) -> pd.DataFrame:
+        """
+        Obtener top clientes por ventas
+        """
+        try:
+            df = self.get_ventas_dataframe(laboratorio, mes, vendedor)
+
+            if df.empty:
+                return pd.DataFrame()
+
+            resultado = df.groupby(['cliente_id', 'cliente_razon', 'zona']).agg({
+                'valor_venta': 'sum',
+                'cantidad': 'sum',
+                'factura': 'nunique'
+            }).reset_index()
+
+            resultado.columns = ['cliente_id', 'cliente', 'zona',
+                                 'valor_ventas', 'unidades', 'num_facturas']
+
+            resultado = resultado.sort_values(
+                'valor_ventas', ascending=False).head(top_n)
+
+            return resultado
+
+        except Exception as e:
+            self.logger.error(f"Error calculando top clientes: {e}")
+
+            return \
+                pd.DataFrame()
+
+    def get_ventas_por_molecula(
+            self,
+            laboratorio: str = 'Todos',
+            mes: str = 'Todos',
+            vendedor: str = 'Todos',
+            periodo: str = 'mensual') -> pd.DataFrame:
+        """
+        Obtener ventas, unidades e impactos por molécula/producto
+        periodo: 'mensual', 'trimestral' o 'anual'
+        """
+        try:
+            df = self.get_ventas_dataframe(laboratorio, mes, vendedor)
+
+            if df.empty:
+                return pd.DataFrame()
+
+            if periodo == 'trimestral':
+                df['periodo'] = df['fecha_dt'].dt.to_period('Q').astype(str)
+            elif periodo == 'anual':
+                df['periodo'] = df['fecha_dt'].dt.year.astype(str)
+            else:
+                df['periodo'] = df['mes']
+
+            resultado = df.groupby(['codigo_producto', 'periodo', 'laboratorio']).agg({
+                'valor_venta': 'sum',
+                'cantidad': 'sum',
+                'cliente_id': 'nunique'
+            }).reset_index()
+
+            resultado.columns = [
+                'molecula', 'periodo', 'laboratorio', 'valor_ventas', 'unidades', 'impactos']
+            resultado = resultado.sort_values(
+                ['periodo', 'valor_ventas'], ascending=[True, False])
+
+            return resultado
+
+        except Exception as e:
+            self.logger.error(f"Error calculando ventas por molécula: {e}")
+            return pd.DataFrame()
+
+    def get_comparativo_laboratorios(
+            self,
+            mes: str = 'Todos',
+            vendedor: str = 'Todos') -> pd.DataFrame:
+        """
+        Obtener comparativo de valor, unidades e impactos por laboratorio
+        """
+        try:
+            df = \
+                self.get_ventas_dataframe('Todos', mes, vendedor)
+
+            if df.empty:
+                return pd.DataFrame()
+
+            resultado = df.groupby('laboratorio').agg({
+                'valor_venta': 'sum',
+                'cantidad': 'sum',
+                'cliente_id': 'nunique',
+                'utilidad': 'sum',
+                'margen': 'mean'
+            }).reset_index()
+
+            resultado.columns = \
+                [
+                    'laboratorio',
+                    'valor_ventas',
+                    'unidades',
+                    'impactos',
+                    'utilidad',
+                    'margen'
+                ]
+
+            resultado = resultado[resultado['laboratorio'] != 'Desconocido']
+            resultado = resultado.sort_values('valor_ventas', ascending=False)
+
+            return resultado
+
+        except Exception as e:
+            self.logger.error(f"Error calculando comparativo: {e}")
+            return pd.DataFrame()

@@ -1,4 +1,5 @@
 import time
+import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import List, Dict
@@ -190,6 +191,22 @@ class VentasAnalyzer:
 
         return resultado
 
+    # def get_clientes_list(self, vendedor='Todos'):
+    #     """
+    #     Get list of clients for dropdown.
+    #     """
+    #     df = self.filter_data(vendedor, 'Todos')
+
+    #     ventas_reales = \
+    #         df[df['tipo'].str.contains('Remision', case=False, na=False)]
+
+    #     if ventas_reales.empty:
+    #         return ['Seleccione un cliente']
+
+    #     clientes = ventas_reales['cliente_completo'].unique()
+
+    #     return ['Seleccione un cliente'] + sorted(clientes)
+
     def get_clientes_list(self, vendedor='Todos'):
         """
         Get list of clients for dropdown.
@@ -202,7 +219,16 @@ class VentasAnalyzer:
         if ventas_reales.empty:
             return ['Seleccione un cliente']
 
+        # FILTRAR CLIENTES VACÍOS, NONE O SOLO ESPACIOS
+        ventas_reales = ventas_reales[
+            ventas_reales['cliente_completo'].notna() &
+            (ventas_reales['cliente_completo'].str.strip() != '')
+        ]
+
         clientes = ventas_reales['cliente_completo'].unique()
+
+        # FILTRO ADICIONAL DE SEGURIDAD
+        clientes = [c for c in clientes if c and str(c).strip() != '']
 
         return ['Seleccione un cliente'] + sorted(clientes)
 
@@ -1244,7 +1270,7 @@ class VentasAnalyzer:
             return "⚠️ Campeones en Declive"
 
         # 🚀 CLIENTES ESTRELLA: Buenos indicadores + crecimiento fuerte
-        elif F >= 3 and M >= 3 and T >= 4 and cagr > 15:
+        elif F >= 4 and M >= 4 and T >= 4 and cagr > 15:
             return "🚀 Clientes Estrella"
 
         # 💎 CLIENTES LEALES ESTABLES: Buenos en F,M + tendencia estable
@@ -1264,7 +1290,7 @@ class VentasAnalyzer:
             return "🌱 Nuevos en Desarrollo"
 
         # 🔥 OPORTUNIDADES CALIENTES: Crecimiento fuerte reciente
-        elif T >= 4 and M >= 3:
+        elif T >= 4 and M >= 3 and F > 3:
             return "🔥 Oportunidades Calientes"
 
         # ⚠️ NECESITAN ATENCIÓN URGENTE: Buenos en M pero inactivos y decreciendo
@@ -2007,6 +2033,16 @@ class VentasAnalyzer:
             ventas_reales = \
                 ventas_totales[ventas_totales['fecha'] <= fecha_hoy]
 
+            ventas_reales_cierre = ventas_reales_cierre[
+                ventas_reales_cierre['cliente_completo'].notna() &
+                (ventas_reales_cierre['cliente_completo'].str.strip() != '')
+            ]
+
+            ventas_reales = ventas_reales[
+                ventas_reales['cliente_completo'].notna() &
+                (ventas_reales['cliente_completo'].str.strip() != '')
+            ]
+
             if ventas_reales_cierre.empty:
                 print(f"⚠️ No hay datos de ventas hasta {fecha_cierre}")
                 return pd.DataFrame()
@@ -2078,28 +2114,65 @@ class VentasAnalyzer:
             if rfm_enhanced.empty:
                 return pd.DataFrame()
 
+            # ============ SECCIÓN CORREGIDA: SCORES RFM ============
             # Calcular scores RFM tradicionales
             try:
                 # RECENCY: Menos días = mejor score
                 rfm_enhanced['R'] = pd.qcut(rfm_enhanced['recency_days'],
                                             q=5, labels=[5, 4, 3, 2, 1], duplicates='drop')
 
-                # FREQUENCY: Más transacciones = mejor score
-                rfm_enhanced['F'] = pd.qcut(rfm_enhanced['frequency'].rank(method='first'),
-                                            q=5, labels=[1, 2, 3, 4, 5], duplicates='drop')
+                # FREQUENCY: Más MESES activos = mejor score (CORREGIDO)
+                # Calcular dinámicamente según el mes actual del año
+                mes_actual = hoy.month
+                rfm_enhanced['porcentaje_meses'] = (
+                    rfm_enhanced['meses_activos'] / mes_actual) * 100
+
+                # Asignar scores basados en porcentaje (solo 100% obtiene score 5)
+                conditions_f = [
+                    # Score 5: Todos los meses del año
+                    (rfm_enhanced['porcentaje_meses'] == 100),
+                    (rfm_enhanced['porcentaje_meses']
+                     >= 75),       # Score 4: 75-99%
+                    (rfm_enhanced['porcentaje_meses']
+                     >= 50),       # Score 3: 50-74%
+                    (rfm_enhanced['porcentaje_meses']
+                     >= 25),       # Score 2: 25-49%
+                    (rfm_enhanced['porcentaje_meses']
+                     > 0)          # Score 1: 1-24%
+                ]
+                choices_f = [5, 4, 3, 2, 1]
+                rfm_enhanced['F'] = np.select(
+                    conditions_f, choices_f, default=1)
 
                 # MONETARY: Más valor = mejor score
                 rfm_enhanced['M'] = pd.qcut(rfm_enhanced['monetary_total'].rank(method='first'),
                                             q=5, labels=[1, 2, 3, 4, 5], duplicates='drop')
 
-            except:
+            except Exception as ex:
                 # Fallback con cut si qcut falla
+                print(f"⚠️ Usando fallback para scores RFM: {ex}")
+
                 rfm_enhanced['R'] = pd.cut(rfm_enhanced['recency_days'],
                                            bins=5, labels=[5, 4, 3, 2, 1], duplicates='drop')
-                rfm_enhanced['F'] = pd.cut(rfm_enhanced['frequency'],
-                                           bins=5, labels=[1, 2, 3, 4, 5], duplicates='drop')
+
+                # FREQUENCY: Usar la misma lógica de porcentajes como fallback (CORREGIDO)
+                mes_actual = hoy.month
+                rfm_enhanced['porcentaje_meses'] = (
+                    rfm_enhanced['meses_activos'] / mes_actual) * 100
+                conditions_f = [
+                    (rfm_enhanced['porcentaje_meses'] == 100),
+                    (rfm_enhanced['porcentaje_meses'] >= 75),
+                    (rfm_enhanced['porcentaje_meses'] >= 50),
+                    (rfm_enhanced['porcentaje_meses'] >= 25),
+                    (rfm_enhanced['porcentaje_meses'] > 0)
+                ]
+                choices_f = [5, 4, 3, 2, 1]
+                rfm_enhanced['F'] = np.select(
+                    conditions_f, choices_f, default=1)
+
                 rfm_enhanced['M'] = pd.cut(rfm_enhanced['monetary_total'],
                                            bins=5, labels=[1, 2, 3, 4, 5], duplicates='drop')
+            # ============ FIN SECCIÓN CORREGIDA ============
 
             # TREND Score basado en CAGR y variaciones (mantener lógica original)
             rfm_enhanced['T'] = rfm_enhanced.apply(
