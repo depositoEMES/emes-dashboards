@@ -4,11 +4,12 @@ from .ventas import *
 from .evaluacion_analyzer import *
 from .transferencias import *
 from .proveedores_ventas import *
-# from .proveedores_compras import *
+from .proveedores_compras import *
 # from .cotizaciones import *
 from .image_processor import *
 from .excel_processor import *
 from .facturas_proveedores import *
+from .impactos_analyzer import *
 
 # Para mantener compatibilidad con imports existentes
 __all__ = [
