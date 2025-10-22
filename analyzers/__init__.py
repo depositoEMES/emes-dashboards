@@ -3,7 +3,7 @@ from .ventas_unified import *
 from .ventas import *
 from .evaluacion_analyzer import *
 from .transferencias import *
-# from .proveedores_ventas import *
+from .proveedores_ventas import *
 # from .proveedores_compras import *
 # from .cotizaciones import *
 from .image_processor import *
@@ -15,7 +15,8 @@ __all__ = [
     'UnifiedVentasAnalyzer',
     'VentasAnalyzer',
     'TransferenciasAnalyzer',
-    'EvaluacionAnalyzer'
+    'EvaluacionAnalyzer',
+    'ImpactosAnalyzer'
 ]
 
 # Crear instancia global del analyzer unificado para uso compartido
