@@ -587,14 +587,14 @@ class EvaluacionAnalyzer:
                         {
                             'name': 'Cumplimiento de Cuota',
                             'value': row['cumplimiento_cuota'],
-                            'weight': 50,
-                            'contribution': row['cumplimiento_cuota'] * 0.5
+                            'weight': 30,
+                            'contribution': row['cumplimiento_cuota'] * 0.3
                         },
                         {
                             'name': 'Crecimiento en Ventas',
                             'value': row['crecimiento_ventas'],
-                            'weight': 30,
-                            'contribution': row['crecimiento_ventas'] * 0.3
+                            'weight': 50,
+                            'contribution': row['crecimiento_ventas'] * 0.5
                         },
                         {
                             'name': 'Cumplimiento de Convenios',
