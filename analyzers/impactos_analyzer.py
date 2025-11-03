@@ -1,9 +1,6 @@
 import pandas as pd
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
-import logging
-
-logging.basicConfig(level=logging.INFO)
 
 
 class ImpactosAnalyzer:
@@ -16,7 +13,6 @@ class ImpactosAnalyzer:
             db: Instancia de Database para Firebase
         """
         self.db = db
-        self.logger = logging.getLogger(__name__)
         self._data_impactos = None
         self._vendedores_list = None
         self._moleculas_list = None
@@ -31,7 +27,7 @@ class ImpactosAnalyzer:
             self.reload_data()
 
         except Exception as e:
-            self.logger.error(f"Error en carga inicial de impactos: {e}")
+            print(f"Error en carga inicial de impactos: {e}")
             self._data_impactos = {
                 'proyectadas': {},
                 'reales': {}
@@ -55,7 +51,7 @@ class ImpactosAnalyzer:
             return True
 
         except Exception as e:
-            self.logger.error(f"Error recargando datos de impactos: {e}")
+            print(f"Error recargando datos de impactos: {e}")
             raise
 
     def _update_lists(self):
@@ -82,7 +78,7 @@ class ImpactosAnalyzer:
             self._moleculas_list = sorted(list(moleculas_set))
 
         except Exception as e:
-            self.logger.error(f"Error actualizando listas: {e}")
+            print(f"Error actualizando listas: {e}")
             self._vendedores_list = ['Todos']
             self._moleculas_list = []
 
@@ -137,7 +133,7 @@ class ImpactosAnalyzer:
             return pd.DataFrame(data)
 
         except Exception as e:
-            self.logger.error(f"Error obteniendo proyectadas: {e}")
+            print(f"Error obteniendo proyectadas: {e}")
             return pd.DataFrame()
 
     def get_reales_vendedor(self, vendedor: str = 'Todos', quarter: str = None) -> pd.DataFrame:
@@ -192,7 +188,7 @@ class ImpactosAnalyzer:
             return pd.DataFrame(data)
 
         except Exception as e:
-            self.logger.error(f"Error obteniendo reales: {e}")
+            print(f"Error obteniendo reales: {e}")
             return pd.DataFrame()
 
     def get_progreso_vendedor(self, vendedor: str = 'Todos') -> Dict:
@@ -229,7 +225,7 @@ class ImpactosAnalyzer:
             }
 
         except Exception as e:
-            self.logger.error(f"Error calculando progreso: {e}")
+            print(f"Error calculando progreso: {e}")
             return {
                 'proyectado': 0,
                 'alcanzado': 0,
@@ -276,7 +272,7 @@ class ImpactosAnalyzer:
             return resultado.sort_values('porcentaje', ascending=False)
 
         except Exception as e:
-            self.logger.error(f"Error calculando progreso por molécula: {e}")
+            print(f"Error calculando progreso por molécula: {e}")
             return pd.DataFrame()
 
     def get_historico_quarters(self, vendedor: str = 'Todos') -> pd.DataFrame:
@@ -310,7 +306,7 @@ class ImpactosAnalyzer:
             return pd.DataFrame(data)
 
         except Exception as e:
-            self.logger.error(f"Error obteniendo histórico: {e}")
+            print(f"Error obteniendo histórico: {e}")
             return pd.DataFrame()
 
     def get_top_moleculas_historico(self, vendedor: str = 'Todos', top_n: int = 10) -> pd.DataFrame:
@@ -347,7 +343,7 @@ class ImpactosAnalyzer:
             return resultado
 
         except Exception as e:
-            self.logger.error(f"Error obteniendo top moléculas: {e}")
+            print(f"Error obteniendo top moléculas: {e}")
             return pd.DataFrame()
 
     def get_detalle_impactos_molecula(self, molecula: str, vendedor: str = 'Todos') -> pd.DataFrame:
@@ -376,7 +372,7 @@ class ImpactosAnalyzer:
             return df_filtrado[['vendedor', 'nit', 'cliente']]
 
         except Exception as e:
-            self.logger.error(f"Error obteniendo detalle de molécula: {e}")
+            print(f"Error obteniendo detalle de molécula: {e}")
             return pd.DataFrame()
 
     def get_quarters_disponibles(self) -> List[str]:

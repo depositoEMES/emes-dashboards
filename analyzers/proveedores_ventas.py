@@ -1,9 +1,6 @@
 import pandas as pd
-from typing import Dict, List, Optional
+from typing import Dict
 from datetime import datetime
-import logging
-
-logging.basicConfig(level=logging.INFO)
 
 
 class VentasProveedoresAnalyzer:
@@ -13,7 +10,6 @@ class VentasProveedoresAnalyzer:
         Inicializar analyzer con conexión a Firebase.
         """
         self.db = db
-        self.logger = logging.getLogger(__name__)
 
         self._ventas_data = None
         self._clientes_data = None
@@ -34,7 +30,7 @@ class VentasProveedoresAnalyzer:
         try:
             self.reload_data()
         except Exception as e:
-            self.logger.error(f"Error en carga inicial: {e}")
+            print(f"Error en carga inicial: {e}")
 
     def reload_data(self):
         """
@@ -75,7 +71,7 @@ class VentasProveedoresAnalyzer:
             return True
 
         except Exception as e:
-            self.logger.error(f"Error recargando datos: {e}")
+            print(f"Error recargando datos: {e}")
             raise
 
     def _update_lists(self):
@@ -118,7 +114,7 @@ class VentasProveedoresAnalyzer:
                 ['Todos'] + sorted(list(meses_set), reverse=True)
 
         except Exception as e:
-            self.logger.error(f"Error actualizando listas: {e}")
+            print(f"Error actualizando listas: {e}")
 
             if not self._laboratorios_list or len(self._laboratorios_list) == 0:
                 self._laboratorios_list = ['Todos']
@@ -274,7 +270,7 @@ class VentasProveedoresAnalyzer:
             return df
 
         except Exception as e:
-            self.logger.error(f"Error creando DataFrame: {e}")
+            print(f"Error creando DataFrame: {e}")
             return pd.DataFrame()
 
     def get_resumen_general(
@@ -312,7 +308,7 @@ class VentasProveedoresAnalyzer:
             }
 
         except Exception as e:
-            self.logger.error(f"Error calculando resumen: {e}")
+            print(f"Error calculando resumen: {e}")
             return {
                 'total_ventas': 0,
                 'total_unidades': 0,
@@ -360,7 +356,7 @@ class VentasProveedoresAnalyzer:
             return resultado
 
         except Exception as e:
-            self.logger.error(f"Error calculando ventas por laboratorio: {e}")
+            print(f"Error calculando ventas por laboratorio: {e}")
             return pd.DataFrame()
 
     def get_evolucion_mensual(
@@ -390,7 +386,7 @@ class VentasProveedoresAnalyzer:
             return resultado
 
         except Exception as e:
-            self.logger.error(f"Error calculando evolución mensual: {e}")
+            print(f"Error calculando evolución mensual: {e}")
 
             return \
                 pd.DataFrame()
@@ -418,7 +414,7 @@ class VentasProveedoresAnalyzer:
             return resultado
 
         except Exception as e:
-            self.logger.error(f"Error calculando evolución de impactos: {e}")
+            print(f"Error calculando evolución de impactos: {e}")
 
             return \
                 pd.DataFrame()
@@ -453,7 +449,7 @@ class VentasProveedoresAnalyzer:
             return resultado
 
         except Exception as e:
-            self.logger.error(f"Error calculando top clientes: {e}")
+            print(f"Error calculando top clientes: {e}")
 
             return \
                 pd.DataFrame()
@@ -495,7 +491,7 @@ class VentasProveedoresAnalyzer:
             return resultado
 
         except Exception as e:
-            self.logger.error(f"Error calculando ventas por molécula: {e}")
+            print(f"Error calculando ventas por molécula: {e}")
             return pd.DataFrame()
 
     def get_comparativo_laboratorios(
@@ -536,5 +532,5 @@ class VentasProveedoresAnalyzer:
             return resultado
 
         except Exception as e:
-            self.logger.error(f"Error calculando comparativo: {e}")
+            print(f"Error calculando comparativo: {e}")
             return pd.DataFrame()
