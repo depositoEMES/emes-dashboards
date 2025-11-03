@@ -1,4 +1,3 @@
-# login_page.py
 import dash
 from dash import dcc, html, Input, Output, State, callback
 from server import AuthManager
