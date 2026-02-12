@@ -20,11 +20,13 @@ DARK_THEME = {
     'border_color': 'rgba(59, 130, 246, 0.2)'
 }
 
+
 def get_theme_styles(theme):
     """
     Get theme-specific styles.
     """
     return DARK_THEME if theme == 'dark' else LIGHT_THEME
+
 
 def get_dropdown_style(theme):
     """
@@ -32,7 +34,8 @@ def get_dropdown_style(theme):
     """
     if theme == 'dark':
         return {
-            'backgroundColor': 'rgba(148, 163, 184, 0.15)',  # Efecto glass tenue
+            # Efecto glass tenue
+            'backgroundColor': 'rgba(148, 163, 184, 0.15)',
             'color': '#f8fafc',
             'border': '1px solid rgba(148, 163, 184, 0.25)',
             'borderRadius': '12px',                          # Bordes redondeados
@@ -43,7 +46,8 @@ def get_dropdown_style(theme):
         }
     else:
         return {
-            'backgroundColor': 'rgba(255, 255, 255, 0.8)',   # Glass effect light
+            # Glass effect light
+            'backgroundColor': 'rgba(255, 255, 255, 0.8)',
             'color': '#374151',
             'border': '1px solid rgba(203, 213, 225, 0.4)',
             'borderRadius': '12px',                          # Bordes redondeados
@@ -51,4 +55,4 @@ def get_dropdown_style(theme):
             'backdropFilter': 'blur(8px)',                   # Efecto glass
             'transition': 'all 0.3s ease',
             'boxShadow': '0 2px 8px rgba(0, 0, 0, 0.05)'
-        } 
+        }
