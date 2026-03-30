@@ -51,7 +51,8 @@ layout = html.Div([
     dcc.Store(id='ventas-data-store', data={'last_update': 0}),
     dcc.Store(id='ventas-rfm-cache-status', storage_type='memory'),
     dcc.Store(id='ventas-fletes-page', data=1),
-    dcc.Store(id='ventas-convenios-sort', data={'col': 'progreso_meta_pct', 'dir': 'desc'}),
+    dcc.Store(id='ventas-convenios-sort',
+              data={'col': 'progreso_meta_pct', 'dir': 'desc'}),
 
     # Notification area
     html.Div(id='ventas-notification-area', children=[], style={
@@ -256,7 +257,8 @@ layout = html.Div([
             ]),
 
             # Etiqueta resumen total de cumplimiento
-            html.Div(id='ventas-cumplimiento-total-label', style={'marginBottom': '20px'}),
+            html.Div(id='ventas-cumplimiento-total-label',
+                     style={'marginBottom': '20px'}),
 
             # Layout de dos columnas
             html.Div([
@@ -683,7 +685,8 @@ layout = html.Div([
                 'textAlign': 'center', 'marginBottom': '8px', 'fontFamily': 'Inter'}),
             html.P("(Clientes únicos impactados por día de venta)", style={
                 'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 16px 0'}),
-            dcc.Graph(id='ventas-grafico-impactos-dia', style={'height': '320px'})
+            dcc.Graph(id='ventas-grafico-impactos-dia',
+                      style={'height': '320px'})
         ], id='ventas-row-impactos-dia-container', style={
             'borderRadius': '16px',
             'padding': '24px',
@@ -694,12 +697,29 @@ layout = html.Div([
 
         # Fila Treemap: Composición de ventas por Transferencista (solo vendedores)
         html.Div([
-            html.H3("Composición de Ventas por Transferencista", style={
+            html.H3("Composición de Ventas", style={
                 'textAlign': 'center', 'marginBottom': '6px', 'fontFamily': 'Inter'}),
             html.P("(Participación de cada transferencista en tus ventas)", style={
                 'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 16px 0'}),
-            dcc.Graph(id='ventas-treemap-transferencistas', style={'height': '420px'})
+            dcc.Graph(id='ventas-treemap-transferencistas',
+                      style={'height': '420px'})
         ], id='ventas-row-treemap-transf-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
+        # Fila Cobertura: Heatmap clientes asignados × mes (solo vendedores)
+        html.Div([
+            html.H3("Cobertura de Clientes Asignados", style={
+                'textAlign': 'center', 'marginBottom': '6px', 'fontFamily': 'Inter'}),
+            html.P("(¿A cuáles de tus clientes asignados has impactado y cuántas veces en el período?)", style={
+                'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 16px 0'}),
+            dcc.Graph(id='ventas-treemap-cobertura-clientes',
+                      style={'height': '460px'})
+        ], id='ventas-row-cobertura-clientes-container', style={
             'borderRadius': '16px',
             'padding': '24px',
             'marginBottom': '24px',
@@ -721,16 +741,20 @@ layout = html.Div([
                 dcc.Dropdown(
                     id='ventas-convenios-sort-dropdown',
                     options=[
-                        {'label': '% Cumplimiento meta', 'value': 'progreso_meta_pct'},
+                        {'label': '% Cumplimiento meta',
+                            'value': 'progreso_meta_pct'},
                         {'label': 'Ventas reales',        'value': 'valor_neto'},
                         {'label': 'Meta',                 'value': 'target_value'},
                         {'label': 'Falta por cumplir',   'value': 'falta_cumplir'},
-                        {'label': 'Descuento aplicado',   'value': 'descuento_real_pct'},
-                        {'label': 'Cliente',              'value': 'cliente_completo'},
+                        {'label': 'Descuento aplicado',
+                            'value': 'descuento_real_pct'},
+                        {'label': 'Cliente',
+                            'value': 'cliente_completo'},
                     ],
                     value='progreso_meta_pct',
                     clearable=False,
-                    style={'width': '220px', 'fontSize': '12px', 'fontFamily': 'Inter'}
+                    style={'width': '220px', 'fontSize': '12px',
+                           'fontFamily': 'Inter'}
                 ),
                 dcc.Dropdown(
                     id='ventas-convenios-sort-dir',
@@ -740,7 +764,8 @@ layout = html.Div([
                     ],
                     value='desc',
                     clearable=False,
-                    style={'width': '160px', 'fontSize': '12px', 'fontFamily': 'Inter', 'marginLeft': '8px'}
+                    style={'width': '160px', 'fontSize': '12px',
+                           'fontFamily': 'Inter', 'marginLeft': '8px'}
                 )
             ], style={
                 'display': 'flex', 'alignItems': 'center',
@@ -1920,7 +1945,8 @@ def update_impactos_por_dia(session_data, dropdown_value, mes, data_store, theme
                 showarrow=False,
                 font=dict(size=16, color=theme_styles['text_color'])
             )
-            fig.update_layout(height=320, paper_bgcolor=theme_styles['plot_bg'])
+            fig.update_layout(
+                height=320, paper_bgcolor=theme_styles['plot_bg'])
             return fig
 
         # Calcular colores en orden cronológico (sube/baja de un día al siguiente)
@@ -1941,7 +1967,8 @@ def update_impactos_por_dia(session_data, dropdown_value, mes, data_store, theme
                     'rgba(255, 182, 193, 0.4)', 'rgba(255, 182, 193, 0.9)')
 
         # Ordenar ascendente por impactos para la visualización
-        data = data.sort_values('clientes_impactados', ascending=True).reset_index(drop=True)
+        data = data.sort_values('clientes_impactados',
+                                ascending=True).reset_index(drop=True)
         vals = data['clientes_impactados'].tolist()
         colors_fill = [color_map[f][0] for f in data['fecha_str']]
         colors_line = [color_map[f][1] for f in data['fecha_str']]
@@ -1972,7 +1999,8 @@ def update_impactos_por_dia(session_data, dropdown_value, mes, data_store, theme
             height=320,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Inter", size=11, color=theme_styles['text_color']),
+            font=dict(family="Inter", size=11,
+                      color=theme_styles['text_color']),
             xaxis=dict(
                 showgrid=False,
                 tickangle=-45,
@@ -2020,7 +2048,8 @@ def update_heatmap_vendedores_dia(session_data, mes, data_store, theme):
                 showarrow=False,
                 font=dict(size=16, color=theme_styles['text_color'])
             )
-            fig.update_layout(height=420, paper_bgcolor=theme_styles['plot_bg'])
+            fig.update_layout(
+                height=420, paper_bgcolor=theme_styles['plot_bg'])
             return fig
 
         z = pivot.values.tolist()
@@ -2054,8 +2083,9 @@ def update_heatmap_vendedores_dia(session_data, mes, data_store, theme):
             showscale=True,
             colorbar=dict(
                 title=dict(text='Clientes', font=dict(family='Inter', size=11,
-                                                       color=theme_styles['text_color'])),
-                tickfont=dict(family='Inter', size=10, color=theme_styles['text_color']),
+                                                      color=theme_styles['text_color'])),
+                tickfont=dict(family='Inter', size=10,
+                              color=theme_styles['text_color']),
                 thickness=14,
                 len=0.8
             ),
@@ -2076,7 +2106,8 @@ def update_heatmap_vendedores_dia(session_data, mes, data_store, theme):
             height=height,
             plot_bgcolor=theme_styles['plot_bg'],
             paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family='Inter', size=11, color=theme_styles['text_color']),
+            font=dict(family='Inter', size=11,
+                      color=theme_styles['text_color']),
             xaxis=dict(
                 showgrid=False,
                 tickangle=-45,
@@ -2131,7 +2162,8 @@ def update_treemap_transferencistas(session_data, dropdown_value, mes, data_stor
                 showarrow=False,
                 font=dict(size=15, color=theme_styles['text_color'])
             )
-            fig.update_layout(height=420, paper_bgcolor=theme_styles['plot_bg'])
+            fig.update_layout(
+                height=420, paper_bgcolor=theme_styles['plot_bg'])
             return fig
 
         total = data['valor_neto'].sum()
@@ -2141,15 +2173,145 @@ def update_treemap_transferencistas(session_data, dropdown_value, mes, data_stor
         facturas = data['num_facturas'].tolist()
         clientes = data['num_clientes'].tolist()
 
-        # Texto visible dentro de cada celda
+        bg_colors = [
+            "#0077B680", "#00B4D880", "#90E0EF80", "#CAF0F880",
+            "#023E8A80", "#03045E80", "#0096C780", "#48CAE480",
+            "#ADE8F480", "#61A5C280",
+        ]
+        border_colors = [
+            "#0077B6", "#00B4D8", "#90E0EF", "#CAF0F8",
+            "#023E8A", "#03045E", "#0096C7", "#48CAE4",
+            "#ADE8F4", "#61A5C2",
+        ]
+        n = len(labels)
+        slice_bg = [bg_colors[i % len(bg_colors)] for i in range(n)]
+        slice_border = [border_colors[i %
+                                      len(border_colors)] for i in range(n)]
+
+        # Customdata como string pre-formateado (go.Pie no soporta índices en customdata)
+        custom = [
+            f"Ventas: {format_currency_int(v)}<br>Participación: {p:.1f}%<br>Facturas: {f}<br>Clientes: {c}"
+            for v, p, f, c in zip(values, pcts, facturas, clientes)
+        ]
+
+        fig.add_trace(go.Pie(
+            labels=labels,
+            values=values,
+            hole=0.55,
+            opacity=0.85,
+            marker=dict(
+                colors=slice_bg,
+                line=dict(color=slice_border, width=1.5)
+            ),
+            textinfo='none',
+            hovertemplate="<b>%{label}</b><br>%{customdata}<extra></extra>",
+            customdata=custom,
+        ))
+
+        fig.update_layout(
+            height=420,
+            paper_bgcolor=theme_styles['plot_bg'],
+            plot_bgcolor=theme_styles['plot_bg'],
+            font=dict(family='Inter', size=12,
+                      color=theme_styles['text_color']),
+            showlegend=True,
+            legend=dict(
+                orientation='v', yanchor='middle', y=0.5,
+                xanchor='left', x=1.05,
+                bgcolor='rgba(0,0,0,0)',
+            ),
+            margin=dict(t=0, b=0, l=0, r=150),
+            annotations=[dict(
+                text=f"<b>{format_currency_int(total)}</b><br>Total ventas",
+                x=0.5, y=0.5, xref='paper', yref='paper',
+                showarrow=False,
+                font=dict(family='Inter', size=12,
+                          color=theme_styles['text_color'])
+            )],
+        )
+
+        return fig
+
+    except Exception as e:
+        print(f"❌ [update_treemap_transferencistas] Error: {e}")
+        return go.Figure()
+
+
+@callback(
+    Output('ventas-treemap-cobertura-clientes', 'figure'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),
+     Input('ventas-theme-store', 'data')]
+)
+def update_treemap_cobertura_clientes(session_data, dropdown_value, mes, data_store, theme):
+    """
+    Treemap de cobertura de clientes asignados para el período seleccionado.
+    Tamaño = facturas; gris = no impactado, gradiente azul-verde = impactado.
+    Solo visible para cuentas vendedor (no admin).
+    """
+    try:
+        theme_styles = get_theme_styles(theme)
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+
+        fig = go.Figure()
+
+        if not vendedor or vendedor == 'Todos':
+            fig.add_annotation(
+                text="Selecciona un vendedor para ver su cobertura",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                xanchor='center', yanchor='middle', showarrow=False,
+                font=dict(size=14, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=460, paper_bgcolor=theme_styles['plot_bg'])
+            return fig
+
+        data = analyzer.get_clientes_asignados_cobertura(vendedor, mes)
+
+        if data is None or data.empty:
+            fig.add_annotation(
+                text="No se encontraron clientes asignados",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                xanchor='center', yanchor='middle', showarrow=False,
+                font=dict(size=14, color=theme_styles['text_color'])
+            )
+            fig.update_layout(
+                height=460, paper_bgcolor=theme_styles['plot_bg'])
+            return fig
+
+        total_asignados = len(data)
+        total_impactados = int(data['impactado'].sum())
+        cobertura_pct = total_impactados / total_asignados * 100 if total_asignados else 0
+
+        labels = data['cliente'].tolist()
+        # Clientes no impactados reciben valor 1 para que aparezcan en el treemap
+        values = [max(int(n), 1) for n in data['impactos']]
+        impactos_raw = data['impactos'].tolist()
+        impactado = data['impactado'].tolist()
+
+        # Color: gris para no impactados, escala Teal para impactados según facturas
+        max_imp = max((n for n in impactos_raw if n > 0), default=1)
+        colors = []
+        for n, imp in zip(impactos_raw, impactado):
+            if not imp:
+                colors.append('rgba(190,190,190,0.55)')
+            else:
+                t = n / max_imp  # 0..1
+                r = int(30 + (6 - 30) * t)
+                g = int(100 + (148 - 100) * t)
+                b = int(180 + (60 - 180) * t)
+                colors.append(f'rgba({max(r, 0)},{g},{b},0.88)')
+
         text_inside = [
-            f"<b>{lbl}</b><br>{format_currency_int(v)}<br>{p:.1f}%"
-            for lbl, v, p in zip(labels, values, pcts)
+            f"<b>{lbl[:28]}</b><br>{int(n)} fact." if imp else f"<b>{lbl[:28]}</b><br>Sin impacto"
+            for lbl, n, imp in zip(labels, impactos_raw, impactado)
         ]
 
         custom = [
-            [format_currency_int(v), f"{p:.1f}%", f, c]
-            for v, p, f, c in zip(values, pcts, facturas, clientes)
+            [int(n), '✅' if imp else '⭕', lbl]
+            for n, imp, lbl in zip(impactos_raw, impactado, labels)
         ]
 
         fig.add_trace(go.Treemap(
@@ -2158,34 +2320,37 @@ def update_treemap_transferencistas(session_data, dropdown_value, mes, data_stor
             parents=[''] * len(data),
             text=text_inside,
             textinfo='text',
-            textfont=dict(family='Inter', size=13),
+            textfont=dict(family='Inter', size=11, color='white'),
             marker=dict(
-                colors=values,
-                colorscale='Tealgrn',
-                showscale=False,
-                line=dict(width=2),
-                pad=dict(t=6, l=6, r=6, b=6)
+                colors=colors,
+                line=dict(width=1.5, color='white'),
+                pad=dict(t=5, l=5, r=5, b=5)
             ),
             hovertemplate=(
-                "<b>%{label}</b><br>"
-                "Ventas: %{customdata[0]}<br>"
-                "Participación: %{customdata[1]}<br>"
-                "Facturas: %{customdata[2]}<br>"
-                "Clientes: %{customdata[3]}<extra></extra>"
+                "<b>%{customdata[2]}</b><br>"
+                "Facturas: %{customdata[0]}<br>"
+                "Estado: %{customdata[1]}<extra></extra>"
             ),
             customdata=custom,
         ))
 
+        periodo_txt = mes if mes and mes != 'Todos' else 'todos los períodos'
         fig.update_layout(
-            height=420,
+            height=460,
             paper_bgcolor=theme_styles['plot_bg'],
-            margin=dict(t=10, b=10, l=10, r=10),
+            margin=dict(t=36, b=10, l=10, r=10),
+            title=dict(
+                text=f"Cobertura: {total_impactados}/{total_asignados} clientes impactados ({cobertura_pct:.1f}%) · {periodo_txt}",
+                font=dict(family='Inter', size=12,
+                          color=theme_styles['text_color']),
+                x=0.5, xanchor='center'
+            )
         )
 
         return fig
 
     except Exception as e:
-        print(f"❌ [update_treemap_transferencistas] Error: {e}")
+        print(f"❌ [update_treemap_cobertura_clientes] Error: {e}")
         return go.Figure()
 
 
@@ -2211,7 +2376,8 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme,
         theme_styles = get_theme_styles(theme)
         # Columna calculada para sorting
         if not data.empty:
-            data['falta_cumplir'] = (data['target_value'] - data['valor_neto']).clip(lower=0)
+            data['falta_cumplir'] = (
+                data['target_value'] - data['valor_neto']).clip(lower=0)
         # Apply sort
         if not data.empty and sort_col and sort_col in data.columns:
             data = data.sort_values(sort_col, ascending=(sort_dir == 'asc'))
@@ -2724,19 +2890,21 @@ def update_devoluciones(session_data, dropdown_value, mes, perspectiva, data_sto
         total_cant = int(data['cantidad'].sum())
 
         is_dark = theme == 'dark'
-        bg_header  = '#1e3a5f' if is_dark else '#2563eb'
-        bg_paper   = theme_styles.get('paper_color', '#ffffff')
-        text_main  = theme_styles['text_color']
+        bg_header = '#34495e'
+        bg_paper = theme_styles.get('paper_color', '#ffffff')
+        text_main = theme_styles['text_color']
         border_col = '#4b5563' if is_dark else '#e5e7eb'
-        bg_even    = 'rgba(239,68,68,0.07)' if not is_dark else 'rgba(239,68,68,0.13)'
+        bg_even = 'rgba(239,68,68,0.07)' if not is_dark else 'rgba(239,68,68,0.13)'
 
         table_data = [
             {
-                'cliente': str(row['cliente_completo']),
-                'agente':  str(row['agente']),
-                'valor':   round(float(row['valor_devuelto']), 0),
-                'cantidad': int(row['cantidad']),
-                'fecha':    str(row['ultima_fecha'])
+                'cliente':    str(row['cliente_completo']),
+                'agente':     str(row['agente']),
+                'valor':      round(float(row['valor_devuelto']), 0),
+                'cantidad':   int(row['cantidad']),
+                'fecha':      str(row['ultima_fecha']),
+                'causal':     str(row.get('causal', '') or ''),
+                'causal_key': str(row.get('causal_key', '') or ''),
             }
             for _, row in data.iterrows()
         ]
@@ -2748,6 +2916,7 @@ def update_devoluciones(session_data, dropdown_value, mes, perspectiva, data_sto
              'format': {'specifier': '$,.0f'}},
             {'name': 'Cant.',        'id': 'cantidad', 'type': 'numeric'},
             {'name': 'Última Fecha', 'id': 'fecha',    'type': 'text'},
+            {'name': 'Causal',       'id': 'causal',   'type': 'text'},
         ]
 
         tbl = dash_table.DataTable(
@@ -2789,6 +2958,15 @@ def update_devoluciones(session_data, dropdown_value, mes, perspectiva, data_sto
                  'textAlign': 'center'},
                 {'if': {'column_id': 'fecha'},
                  'color': '#6b7280', 'textAlign': 'center'},
+                # Fila roja: CD3=Error del vendedor, CD9=Producto no pedido
+                {'if': {'filter_query': '{causal_key} = "CD3" || {causal_key} = "CD9"'},
+                 'backgroundColor': 'rgba(255,182,193,0.22)'},
+                # Fila verde: CD4=Faltante inventario, CD10=Próximo vencimiento
+                {'if': {'filter_query': '{causal_key} = "CD4" || {causal_key} = "CD10"'},
+                 'backgroundColor': 'rgba(144,238,144,0.18)'},
+                # Fila azul neutro: resto de causales con valor
+                {'if': {'filter_query': '{causal_key} != "CD3" && {causal_key} != "CD9" && {causal_key} != "CD4" && {causal_key} != "CD10" && {causal_key} != ""'},
+                 'backgroundColor': 'rgba(173,216,230,0.13)'},
             ],
             style_header_conditional=[],
             style_cell={
@@ -2799,11 +2977,12 @@ def update_devoluciones(session_data, dropdown_value, mes, perspectiva, data_sto
                 'maxWidth': '280px',
             },
             style_cell_conditional=[
-                {'if': {'column_id': 'cliente'},  'width': '38%'},
-                {'if': {'column_id': 'agente'},   'width': '24%'},
-                {'if': {'column_id': 'valor'},    'width': '16%'},
-                {'if': {'column_id': 'cantidad'}, 'width': '8%'},
-                {'if': {'column_id': 'fecha'},    'width': '14%'},
+                {'if': {'column_id': 'cliente'},  'width': '28%'},
+                {'if': {'column_id': 'agente'},   'width': '20%'},
+                {'if': {'column_id': 'valor'},    'width': '13%'},
+                {'if': {'column_id': 'cantidad'}, 'width': '7%'},
+                {'if': {'column_id': 'fecha'},    'width': '12%'},
+                {'if': {'column_id': 'causal'},   'width': '20%'},
             ],
             tooltip_data=[
                 {'cliente': {'value': row['cliente'], 'type': 'text'}}
@@ -4136,6 +4315,7 @@ def update_card_styles(theme):
      Output('ventas-row4-container', 'style'),
      Output('ventas-row5-container', 'style'),
      Output('ventas-row-treemap-transf-container', 'style'),
+     Output('ventas-row-cobertura-clientes-container', 'style'),
      Output('ventas-row-heatmap-container', 'style'),
      Output('ventas-row6-container', 'style'),
      Output('ventas-fletes-container', 'style')],
@@ -4252,6 +4432,8 @@ def update_container_styles_simple(theme, session_data):
         # ventas-row5-container (siempre visible)
         base_style,
         # ventas-row-treemap-transf-container (solo vendedores, no admin)
+        hidden_completely if is_admin else base_style,
+        # ventas-row-cobertura-clientes-container (solo vendedores, no admin)
         hidden_completely if is_admin else base_style,
         # ventas-row-heatmap-container (solo admin)
         base_style if is_admin else hidden_completely,
@@ -5730,10 +5912,12 @@ def update_cumplimiento_total_label(session_data, dropdown_value, mes, data_stor
         total_cuota = data['cuota'].sum()
         # Usar el mismo cálculo que el Resumen General del panel
         data_activos = data[data['cumplimiento_pct'] > 0]
-        pct = data_activos['cumplimiento_pct'].mean() if not data_activos.empty else 0
+        pct = data_activos['cumplimiento_pct'].mean(
+        ) if not data_activos.empty else 0
 
         progreso_esp = data['progreso_esperado_pct'].iloc[0]
-        color = '#22c55e' if pct >= 100 else ('#3b82f6' if pct >= progreso_esp else ('#f59e0b' if pct >= progreso_esp - 10 else '#ef4444'))
+        color = '#22c55e' if pct >= 100 else ('#3b82f6' if pct >= progreso_esp else (
+            '#f59e0b' if pct >= progreso_esp - 10 else '#ef4444'))
 
         return html.Div([
             html.Div([
@@ -5745,7 +5929,8 @@ def update_cumplimiento_total_label(session_data, dropdown_value, mes, data_stor
                     'fontSize': '16px', 'fontWeight': 'bold', 'color': '#3b82f6',
                     'fontFamily': 'Inter', 'marginRight': '6px'
                 }),
-                html.Span("/ ", style={'color': '#6b7280', 'marginRight': '6px'}),
+                html.Span(
+                    "/ ", style={'color': '#6b7280', 'marginRight': '6px'}),
                 html.Span(f"{format_currency_int(total_cuota)}", style={
                     'fontSize': '16px', 'fontWeight': 'bold', 'color': '#6b7280',
                     'fontFamily': 'Inter', 'marginRight': '12px'

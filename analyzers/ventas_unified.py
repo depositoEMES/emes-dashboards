@@ -30,6 +30,7 @@ class UnifiedVentasAnalyzer:
         self._maestro_tipos = {}
         self._maestros_forma_pago = {}
         self._maestro_vendedores = {}
+        self._maestro_causales_dev = {}
         self._clientes_id_cache = {}
 
         # Control de actualizaciones
@@ -59,6 +60,7 @@ class UnifiedVentasAnalyzer:
             self._maestro_tipos = {}
             self._maestros_forma_pago = {}
             self._maestro_vendedores = {}
+            self._maestro_causales_dev = {}
             self._clientes_id_cache = {}
 
             self.vendedores_list = ['Todos']
@@ -117,8 +119,9 @@ class UnifiedVentasAnalyzer:
             # Si ya tenemos datos y no es recarga forzada, usar cache
             if not force_reload and \
                 self._maestro_tipos and \
-                    self._maestro_vendedores and \
-                    self._maestros_forma_pago:
+                self._maestro_vendedores and \
+                self._maestros_forma_pago and \
+                self._maestro_causales_dev:
                 return True
 
             db = self._get_db()
@@ -151,6 +154,14 @@ class UnifiedVentasAnalyzer:
                 self._maestros_forma_pago = forma_pago_data
             else:
                 print("⚠️ No se encontraron datos en maestros/forma_pago_clientes")
+
+            # Cargar causales de devolución
+            causales_data = db.get_by_path("maestros/causales_dev")
+
+            if causales_data:
+                self._maestro_causales_dev = causales_data
+            else:
+                print("⚠️ No se encontraron datos en maestros/causales_dev")
 
             self._last_maestros_update = datetime.now()
 
@@ -440,7 +451,8 @@ class UnifiedVentasAnalyzer:
                     'zona': cliente_data.get('zona', ''),
                     'subzona': cliente_data.get('subzona', ''),
                     'cupo_credito': float(cliente_data.get('cupo_credito', 0) or 0),
-                    'id1': id1
+                    'id1': id1,
+                    'causal': doc_info.get('causal', None)
                 }
 
             ventas_list.append(doc_row)
@@ -1042,8 +1054,31 @@ class UnifiedVentasAnalyzer:
             ultima_fecha=('fecha', 'max')
         ).reset_index()
 
+        # Causal de la devolución más reciente por grupo
+        idx_latest = devoluciones.groupby(['cliente_completo', 'transferencista'])['fecha'].idxmax()
+        causal_raw = devoluciones.loc[idx_latest].set_index(
+            ['cliente_completo', 'transferencista']
+        )['causal']
+        resultado = resultado.join(
+            causal_raw.rename('causal_raw'),
+            on=['cliente_completo', 'transferencista']
+        )
+
+        # Mapear int → CDx → texto
+        def _causal_key(val):
+            try:
+                return f"CD{int(val)}" if val is not None and str(val) != 'nan' else ''
+            except (ValueError, TypeError):
+                return ''
+
+        resultado['causal_key'] = resultado['causal_raw'].apply(_causal_key)
+        resultado['causal'] = resultado['causal_key'].map(
+            lambda k: self._maestro_causales_dev.get(k, k) if k else ''
+        )
+        resultado.drop(columns=['causal_raw'], inplace=True)
+
         resultado.rename(columns={'transferencista': 'agente'}, inplace=True)
-        resultado['ultima_fecha'] = pd.to_datetime(resultado['ultima_fecha']).dt.strftime('%Y-%m-%d')
+        resultado['ultima_fecha'] = pd.to_datetime(resultado['ultima_fecha']).dt.strftime('%d/%m/%Y')
         resultado = resultado[resultado['valor_devuelto'] > 0]
         return resultado.sort_values('valor_devuelto', ascending=False)
 
@@ -1076,3 +1111,69 @@ class UnifiedVentasAnalyzer:
         ).reset_index().sort_values('valor_neto', ascending=False)
 
         return resultado
+
+    def get_clientes_asignados_cobertura(self, vendedor: str, mes: str = 'Todos') -> pd.DataFrame:
+        """
+        Cobertura de clientes asignados al vendedor en el período seleccionado.
+        Retorna DataFrame con columnas: cliente, impactos, impactado (bool).
+        Usa los mismos filtros que _count_active_clients_by_vendor:
+          - estado_maestro == 'Activo'
+          - tipo in {'Cliente', 'Cliente proveedor'}
+        Si mes='Todos' usa todos los registros; si no, filtra por mes.
+        """
+        if not vendedor or vendedor == 'Todos':
+            return pd.DataFrame()
+
+        try:
+            # Código del vendedor
+            vendedor_code = None
+            for code, nombre in self._maestro_vendedores.items():
+                if nombre == vendedor:
+                    vendedor_code = str(code)
+                    break
+
+            if not vendedor_code:
+                print(f"⚠️ No se encontró código para vendedor: {vendedor}")
+                return pd.DataFrame()
+
+            # Usar cache ya cargado (misma fuente y filtros que get_clientes_impactados_por_periodo)
+            valid_types = {"Cliente", "Cliente proveedor"}
+            clientes_asignados = {}
+            for id1, cinfo in self._clientes_id_cache.items():
+                if str(cinfo.get('vendedor', '')) != vendedor_code:
+                    continue
+                if cinfo.get('estado_maestro') != 'Activo':
+                    continue
+                if cinfo.get('tipo') not in valid_types:
+                    continue
+                razon = cinfo.get('razon', '') or cinfo.get('nombre', '') or id1
+                clientes_asignados[str(id1)] = razon
+
+            if not clientes_asignados:
+                return pd.DataFrame()
+
+            # Ventas del período
+            df = self.filter_ventas_data(vendedor, mes)
+            ventas = df[df['tipo'].str.contains('Remision', case=False, na=False)].copy()
+
+            # Contar facturas por cliente id1
+            if not ventas.empty:
+                conteo = ventas.groupby('id1').size().reset_index(name='impactos')
+                conteo_dict = dict(zip(conteo['id1'].astype(str), conteo['impactos']))
+            else:
+                conteo_dict = {}
+
+            # Construir resultado para todos los clientes asignados
+            rows = []
+            for cid, nombre in clientes_asignados.items():
+                n = conteo_dict.get(cid, 0)
+                rows.append({'cliente': nombre, 'impactos': n, 'impactado': n > 0})
+
+            if not rows:
+                return pd.DataFrame()
+
+            return pd.DataFrame(rows).sort_values('impactos', ascending=False)
+
+        except Exception as e:
+            print(f"❌ [get_clientes_asignados_cobertura] Error: {e}")
+            return pd.DataFrame()

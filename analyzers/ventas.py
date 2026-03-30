@@ -2569,3 +2569,9 @@ class VentasAnalyzer:
         Ventas agrupadas por transferencista — para Funnel chart en vista vendedor.
         """
         return self._unified_analyzer.get_ventas_por_transferencista(vendedor, mes)
+
+    def get_clientes_asignados_cobertura(self, vendedor: str, mes: str = 'Todos') -> object:
+        """
+        Treemap de cobertura: clientes asignados al vendedor en el período dado.
+        """
+        return self._unified_analyzer.get_clientes_asignados_cobertura(vendedor, mes)
