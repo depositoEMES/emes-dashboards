@@ -2538,3 +2538,34 @@ class VentasAnalyzer:
         except Exception as e:
             print(f"❌ Error cargando fletes: {e}")
             return pd.DataFrame()
+
+    def get_impactos_heatmap(self, mes='Todos'):
+        """
+        Pivot: vendedores × dates → unique clients impacted.
+        """
+        return self._unified_analyzer.get_impactos_heatmap(mes)
+
+    def get_impactos_por_dia(self, vendedor='Todos', mes='Todos'):
+        """
+        Get number of unique clients impacted per day.
+        """
+        return self._unified_analyzer.get_impactos_por_dia(vendedor, mes)
+
+    def get_devoluciones(self, vendedor='Todos', mes='Todos'):
+        """
+        Get returns split by vendedor and transferencista.
+        """
+        return self._unified_analyzer.get_devoluciones(vendedor, mes)
+
+    def get_devoluciones_detalle(self, vendedor='Todos', mes='Todos', perspectiva='vendedor'):
+        """
+        Get individual devolution records grouped by client for table display.
+        perspectiva: 'vendedor' o 'transferencista'
+        """
+        return self._unified_analyzer.get_devoluciones_detalle(vendedor, mes, perspectiva)
+
+    def get_ventas_por_transferencista(self, vendedor='Todos', mes='Todos'):
+        """
+        Ventas agrupadas por transferencista — para Funnel chart en vista vendedor.
+        """
+        return self._unified_analyzer.get_ventas_por_transferencista(vendedor, mes)

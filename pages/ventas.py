@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 
 import dash
-from dash import dcc, html, Input, Output, State, callback
+from dash import dcc, html, Input, Output, State, callback, dash_table
 import plotly.graph_objects as go
 import pandas as pd
 
@@ -51,6 +51,7 @@ layout = html.Div([
     dcc.Store(id='ventas-data-store', data={'last_update': 0}),
     dcc.Store(id='ventas-rfm-cache-status', storage_type='memory'),
     dcc.Store(id='ventas-fletes-page', data=1),
+    dcc.Store(id='ventas-convenios-sort', data={'col': 'progreso_meta_pct', 'dir': 'desc'}),
 
     # Notification area
     html.Div(id='ventas-notification-area', children=[], style={
@@ -253,6 +254,9 @@ layout = html.Div([
                     'lineHeight': '1.5'
                 })
             ]),
+
+            # Etiqueta resumen total de cumplimiento
+            html.Div(id='ventas-cumplimiento-total-label', style={'marginBottom': '20px'}),
 
             # Layout de dos columnas
             html.Div([
@@ -673,14 +677,92 @@ layout = html.Div([
             'width': '100%'
         }),
 
+        # Fila 4.5: Impactos por Día
+        html.Div([
+            html.H3("Impactos por Día", style={
+                'textAlign': 'center', 'marginBottom': '8px', 'fontFamily': 'Inter'}),
+            html.P("(Clientes únicos impactados por día de venta)", style={
+                'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 16px 0'}),
+            dcc.Graph(id='ventas-grafico-impactos-dia', style={'height': '320px'})
+        ], id='ventas-row-impactos-dia-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
+        # Fila Treemap: Composición de ventas por Transferencista (solo vendedores)
+        html.Div([
+            html.H3("Composición de Ventas por Transferencista", style={
+                'textAlign': 'center', 'marginBottom': '6px', 'fontFamily': 'Inter'}),
+            html.P("(Participación de cada transferencista en tus ventas)", style={
+                'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 16px 0'}),
+            dcc.Graph(id='ventas-treemap-transferencistas', style={'height': '420px'})
+        ], id='ventas-row-treemap-transf-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
         # Fila 5: Análisis de Convenios
         html.Div([
             html.H3("Análisis de Cumplimiento de Convenios", style={
-                    'textAlign': 'center', 'marginBottom': '20px', 'fontFamily': 'Inter'}),
+                    'textAlign': 'center', 'marginBottom': '8px', 'fontFamily': 'Inter'}),
             html.P("(Comparación entre metas vs. ventas reales y descuentos acordados vs. descuentos aplicados)", style={
-                   'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 20px 0'}),
+                   'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 14px 0'}),
+            # Sort selector
+            html.Div([
+                html.Label("Ordenar por:", style={
+                    'fontSize': '12px', 'fontFamily': 'Inter', 'marginRight': '8px', 'color': '#6b7280'
+                }),
+                dcc.Dropdown(
+                    id='ventas-convenios-sort-dropdown',
+                    options=[
+                        {'label': '% Cumplimiento meta', 'value': 'progreso_meta_pct'},
+                        {'label': 'Ventas reales',        'value': 'valor_neto'},
+                        {'label': 'Meta',                 'value': 'target_value'},
+                        {'label': 'Falta por cumplir',   'value': 'falta_cumplir'},
+                        {'label': 'Descuento aplicado',   'value': 'descuento_real_pct'},
+                        {'label': 'Cliente',              'value': 'cliente_completo'},
+                    ],
+                    value='progreso_meta_pct',
+                    clearable=False,
+                    style={'width': '220px', 'fontSize': '12px', 'fontFamily': 'Inter'}
+                ),
+                dcc.Dropdown(
+                    id='ventas-convenios-sort-dir',
+                    options=[
+                        {'label': '↓ Mayor a menor', 'value': 'desc'},
+                        {'label': '↑ Menor a mayor', 'value': 'asc'},
+                    ],
+                    value='desc',
+                    clearable=False,
+                    style={'width': '160px', 'fontSize': '12px', 'fontFamily': 'Inter', 'marginLeft': '8px'}
+                )
+            ], style={
+                'display': 'flex', 'alignItems': 'center',
+                'justifyContent': 'flex-end', 'marginBottom': '16px'
+            }),
             html.Div(id='ventas-tabla-convenios')
         ], id='ventas-row5-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
+        # Fila Heatmap: Vendedores × Día (después de convenios para evitar z-index con dropdowns)
+        html.Div([
+            html.H3("Heatmap de Impactos: Vendedores × Día", style={
+                'textAlign': 'center', 'marginBottom': '6px', 'fontFamily': 'Inter'}),
+            html.P("(Clientes únicos impactados por vendedor por día — color: rojo=pocos, verde=muchos)", style={
+                'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 16px 0'}),
+            dcc.Graph(id='ventas-heatmap-vendedores-dia')
+        ], id='ventas-row-heatmap-container', style={
             'borderRadius': '16px',
             'padding': '24px',
             'marginBottom': '24px',
@@ -738,7 +820,47 @@ layout = html.Div([
             'width': '100%'
         }),
 
-        # Agregar esta sección después del contenedor de cumplimiento de cuotas
+        # Fila de Devoluciones
+        html.Div([
+            html.H3("Análisis de Devoluciones por Cliente", style={
+                'textAlign': 'center', 'marginBottom': '8px', 'fontFamily': 'Inter'}),
+            html.P("(Devoluciones agrupadas por cliente según perspectiva seleccionada)", style={
+                'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 16px 0'}),
+
+            # Toggle de perspectiva
+            html.Div([
+                dcc.RadioItems(
+                    id='ventas-devoluciones-perspectiva',
+                    options=[
+                        {'label': ' Vendedor', 'value': 'transferencista'},
+                        {'label': ' Vendedor Asignado', 'value': 'vendedor'}
+                    ],
+                    value='transferencista',
+                    inline=True,
+                    inputStyle={'marginRight': '6px', 'cursor': 'pointer'},
+                    labelStyle={
+                        'marginRight': '24px',
+                        'fontFamily': 'Inter',
+                        'fontSize': '13px',
+                        'fontWeight': '500',
+                        'cursor': 'pointer'
+                    }
+                )
+            ], style={
+                'display': 'flex',
+                'justifyContent': 'center',
+                'marginBottom': '20px'
+            }),
+
+            html.Div(id='ventas-tabla-devoluciones-detalle')
+        ], id='ventas-row-devoluciones-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
         # Fila de Evaluación de Desempeño
         html.Div([
             html.H3("🏆 Evaluación de Desempeño Integral", style={
@@ -1772,14 +1894,313 @@ def update_clientes_impactados(session_data, dropdown_value, data_store, theme):
 
 
 @callback(
-    Output('ventas-tabla-convenios', 'children'),
+    Output('ventas-grafico-impactos-dia', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
      Input('ventas-data-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme):
+def update_impactos_por_dia(session_data, dropdown_value, mes, data_store, theme):
+    """
+    Bar chart: número de clientes únicos impactados por día.
+    """
+    try:
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        theme_styles = get_theme_styles(theme)
+        data = analyzer.get_impactos_por_dia(vendedor, mes)
+
+        fig = go.Figure()
+
+        if data.empty:
+            fig.add_annotation(
+                text="No hay datos de impactos por día",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(height=320, paper_bgcolor=theme_styles['plot_bg'])
+            return fig
+
+        # Calcular colores en orden cronológico (sube/baja de un día al siguiente)
+        data_crono = data.sort_values('fecha_str').reset_index(drop=True)
+        vals_crono = data_crono['clientes_impactados'].tolist()
+        color_map = {}
+        for i, row_c in data_crono.iterrows():
+            v = vals_crono[i]
+            prev = vals_crono[i - 1] if i > 0 else None
+            if prev is None or v == prev:
+                color_map[row_c['fecha_str']] = (
+                    'rgba(173, 216, 230, 0.4)', 'rgba(173, 216, 230, 0.9)')
+            elif v > prev:
+                color_map[row_c['fecha_str']] = (
+                    'rgba(144, 238, 144, 0.4)', 'rgba(144, 238, 144, 0.9)')
+            else:
+                color_map[row_c['fecha_str']] = (
+                    'rgba(255, 182, 193, 0.4)', 'rgba(255, 182, 193, 0.9)')
+
+        # Ordenar ascendente por impactos para la visualización
+        data = data.sort_values('clientes_impactados', ascending=True).reset_index(drop=True)
+        vals = data['clientes_impactados'].tolist()
+        colors_fill = [color_map[f][0] for f in data['fecha_str']]
+        colors_line = [color_map[f][1] for f in data['fecha_str']]
+
+        fig.add_trace(go.Bar(
+            x=data['fecha_str'],
+            y=vals,
+            text=vals,
+            textposition='outside',
+            textfont=dict(size=10, color=theme_styles['text_color']),
+            marker=dict(
+                color=colors_fill,
+                line=dict(color=colors_line, width=1.5)
+            ),
+            hovertemplate=(
+                "<b>%{x}</b><br>"
+                "Clientes: %{y}<br>"
+                "Facturas: %{customdata[0]}<br>"
+                "Ventas: %{customdata[1]}<extra></extra>"
+            ),
+            customdata=[
+                [row['num_facturas'], format_currency_int(row['valor_neto'])]
+                for _, row in data.iterrows()
+            ]
+        ))
+
+        fig.update_layout(
+            height=320,
+            plot_bgcolor=theme_styles['plot_bg'],
+            paper_bgcolor=theme_styles['plot_bg'],
+            font=dict(family="Inter", size=11, color=theme_styles['text_color']),
+            xaxis=dict(
+                showgrid=False,
+                tickangle=-45,
+                tickfont=dict(size=9),
+                title="Día (ordenado por impactos ↑)"
+            ),
+            yaxis=dict(
+                title="Clientes únicos",
+                showgrid=True,
+                gridcolor=theme_styles['grid_color'],
+                range=[0, max(vals) * 1.18] if vals else None
+            ),
+            margin=dict(t=30, b=80, l=60, r=20),
+            bargap=0.15
+        )
+
+        return fig
+    except Exception as e:
+        print(f"❌ [update_impactos_por_dia] Error: {e}")
+        return go.Figure()
+
+
+@callback(
+    Output('ventas-heatmap-vendedores-dia', 'figure'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),
+     Input('ventas-theme-store', 'data')]
+)
+def update_heatmap_vendedores_dia(session_data, mes, data_store, theme):
+    """
+    Heatmap moderno: vendedores (Y) × días (X), intensidad = clientes únicos impactados.
+    """
+    try:
+        theme_styles = get_theme_styles(theme)
+        pivot, dates, vendedores = analyzer.get_impactos_heatmap(mes)
+
+        fig = go.Figure()
+
+        if pivot.empty:
+            fig.add_annotation(
+                text="No hay datos para el heatmap",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False,
+                font=dict(size=16, color=theme_styles['text_color'])
+            )
+            fig.update_layout(height=420, paper_bgcolor=theme_styles['plot_bg'])
+            return fig
+
+        z = pivot.values.tolist()
+
+        # Texto dentro de cada celda: número de impactos (vacío si 0)
+        text_z = [
+            [str(int(v)) if v > 0 else '' for v in row]
+            for row in z
+        ]
+
+        # Colorscale personalizada: gris(0) → rojo → amarillo → verde
+        colorscale = [
+            [0.00, 'rgba(200,200,200,0.25)'],
+            [0.01, '#D32F2F'],
+            [0.15, '#FF5722'],
+            [0.30, '#FF9800'],
+            [0.50, '#FFEB3B'],
+            [0.70, '#9CCC65'],
+            [0.85, '#4CAF50'],
+            [1.00, '#1B5E20'],
+        ]
+
+        fig.add_trace(go.Heatmap(
+            z=z,
+            x=dates,
+            y=vendedores,
+            text=text_z,
+            texttemplate='%{text}',
+            textfont=dict(size=9, color='white'),
+            colorscale=colorscale,
+            showscale=True,
+            colorbar=dict(
+                title=dict(text='Clientes', font=dict(family='Inter', size=11,
+                                                       color=theme_styles['text_color'])),
+                tickfont=dict(family='Inter', size=10, color=theme_styles['text_color']),
+                thickness=14,
+                len=0.8
+            ),
+            hovertemplate=(
+                "<b>%{y}</b><br>"
+                "Fecha: %{x}<br>"
+                "Clientes impactados: %{z}<extra></extra>"
+            ),
+            xgap=2,
+            ygap=2,
+        ))
+
+        # Ajustar altura dinámica según número de vendedores
+        row_h = max(28, min(52, 420 // max(len(vendedores), 1)))
+        height = max(280, row_h * len(vendedores) + 120)
+
+        fig.update_layout(
+            height=height,
+            plot_bgcolor=theme_styles['plot_bg'],
+            paper_bgcolor=theme_styles['plot_bg'],
+            font=dict(family='Inter', size=11, color=theme_styles['text_color']),
+            xaxis=dict(
+                showgrid=False,
+                tickangle=-45,
+                tickfont=dict(size=9, color=theme_styles['text_color']),
+                title='',
+                type='category',
+                constrain='domain',
+            ),
+            yaxis=dict(
+                showgrid=False,
+                tickfont=dict(size=10, color=theme_styles['text_color']),
+                title='',
+                automargin=True,
+                constrain='domain',
+            ),
+            margin=dict(t=20, b=80, l=160, r=60),
+        )
+
+        return fig
+
+    except Exception as e:
+        print(f"❌ [update_heatmap_vendedores_dia] Error: {e}")
+        return go.Figure()
+
+
+@callback(
+    Output('ventas-treemap-transferencistas', 'figure'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),
+     Input('ventas-theme-store', 'data')]
+)
+def update_treemap_transferencistas(session_data, dropdown_value, mes, data_store, theme):
+    """
+    Treemap: composición de ventas del vendedor por transferencista.
+    Solo visible para cuentas vendedor (no admin).
+    """
+    try:
+        theme_styles = get_theme_styles(theme)
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+
+        data = analyzer.get_ventas_por_transferencista(vendedor, mes)
+
+        fig = go.Figure()
+
+        if data.empty:
+            fig.add_annotation(
+                text="No hay datos de ventas por transferencista",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False,
+                font=dict(size=15, color=theme_styles['text_color'])
+            )
+            fig.update_layout(height=420, paper_bgcolor=theme_styles['plot_bg'])
+            return fig
+
+        total = data['valor_neto'].sum()
+        labels = data['transferencista'].tolist()
+        values = data['valor_neto'].tolist()
+        pcts = [v / total * 100 if total > 0 else 0 for v in values]
+        facturas = data['num_facturas'].tolist()
+        clientes = data['num_clientes'].tolist()
+
+        # Texto visible dentro de cada celda
+        text_inside = [
+            f"<b>{lbl}</b><br>{format_currency_int(v)}<br>{p:.1f}%"
+            for lbl, v, p in zip(labels, values, pcts)
+        ]
+
+        custom = [
+            [format_currency_int(v), f"{p:.1f}%", f, c]
+            for v, p, f, c in zip(values, pcts, facturas, clientes)
+        ]
+
+        fig.add_trace(go.Treemap(
+            labels=labels,
+            values=values,
+            parents=[''] * len(data),
+            text=text_inside,
+            textinfo='text',
+            textfont=dict(family='Inter', size=13),
+            marker=dict(
+                colors=values,
+                colorscale='Tealgrn',
+                showscale=False,
+                line=dict(width=2),
+                pad=dict(t=6, l=6, r=6, b=6)
+            ),
+            hovertemplate=(
+                "<b>%{label}</b><br>"
+                "Ventas: %{customdata[0]}<br>"
+                "Participación: %{customdata[1]}<br>"
+                "Facturas: %{customdata[2]}<br>"
+                "Clientes: %{customdata[3]}<extra></extra>"
+            ),
+            customdata=custom,
+        ))
+
+        fig.update_layout(
+            height=420,
+            paper_bgcolor=theme_styles['plot_bg'],
+            margin=dict(t=10, b=10, l=10, r=10),
+        )
+
+        return fig
+
+    except Exception as e:
+        print(f"❌ [update_treemap_transferencistas] Error: {e}")
+        return go.Figure()
+
+
+@callback(
+    Output('ventas-tabla-convenios', 'children'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),
+     Input('ventas-theme-store', 'data'),
+     Input('ventas-convenios-sort-dropdown', 'value'),
+     Input('ventas-convenios-sort-dir', 'value')]
+)
+def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme,
+                           sort_col, sort_dir):
     """
     Update convenios analysis table with enhanced design and expected sales.
     CORREGIDO: Agregar columna "Falta para Cumplir"
@@ -1788,6 +2209,12 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
         vendedor = get_selected_vendor(session_data, dropdown_value)
         data = analyzer.get_analisis_convenios(vendedor, mes="Todos")
         theme_styles = get_theme_styles(theme)
+        # Columna calculada para sorting
+        if not data.empty:
+            data['falta_cumplir'] = (data['target_value'] - data['valor_neto']).clip(lower=0)
+        # Apply sort
+        if not data.empty and sort_col and sort_col in data.columns:
+            data = data.sort_values(sort_col, ascending=(sort_dir == 'asc'))
 
         if data.empty:
             return html.Div([
@@ -1891,14 +2318,14 @@ def update_tabla_convenios(session_data, dropdown_value, mes, data_store, theme)
             table_row = html.Tr([
                 # Cliente (left aligned)
                 html.Td([
-                    html.Div(row['client_name'][:50] + "..." if len(row['client_name']) > 50 else row['client_name'],
+                    html.Div((lambda n: n[:50] + "..." if len(n) > 50 else n)(str(row.get('client_name', '') or '')),
                              style={'fontWeight': 'bold', 'fontSize': '11px'}),
                     html.Div(f"NIT: {row['nit']}", style={
                              'fontSize': '9px', 'color': '#7f8c8d'})
                 ], style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'textAlign': 'left'}),
 
                 # Vendedor
-                html.Td(row['seller_name'][:30] + "..." if len(row['seller_name']) > 30 else row['seller_name'],
+                html.Td((lambda n: n[:30] + "..." if len(n) > 30 else n)(str(row.get('seller_name', '') or '')),
                         style={'padding': '8px', 'borderBottom': '1px solid #ddd', 'fontFamily': 'Inter', 'fontSize': '10px', 'textAlign': 'center'}),
 
                 # Ventas
@@ -2262,6 +2689,143 @@ def update_grafico_recaudo_vendedor(mes, data_store, theme):
     except Exception as e:
         print(f"❌ [update_grafico_recaudo_vendedor] Error: {e}")
         return go.Figure()
+
+
+@callback(
+    Output('ventas-tabla-devoluciones-detalle', 'children'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-devoluciones-perspectiva', 'value'),
+     Input('ventas-data-store', 'data'),
+     Input('ventas-theme-store', 'data')]
+)
+def update_devoluciones(session_data, dropdown_value, mes, perspectiva, data_store, theme):
+    """
+    Tabla de devoluciones por cliente con sorting nativo (DataTable).
+    """
+    try:
+        perspectiva = perspectiva or 'transferencista'
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        theme_styles = get_theme_styles(theme)
+        data = analyzer.get_devoluciones_detalle(vendedor, mes, perspectiva)
+
+        label_agente = 'Vendedor'  # siempre muestra transferencista
+
+        if data.empty:
+            return html.Div(
+                html.P(f"No hay devoluciones para el período — perspectiva: {label_agente}", style={
+                    'textAlign': 'center', 'color': '#6b7280',
+                    'fontFamily': 'Inter', 'fontSize': '14px', 'padding': '30px'
+                })
+            )
+
+        total_valor = data['valor_devuelto'].sum()
+        total_cant = int(data['cantidad'].sum())
+
+        is_dark = theme == 'dark'
+        bg_header  = '#1e3a5f' if is_dark else '#2563eb'
+        bg_paper   = theme_styles.get('paper_color', '#ffffff')
+        text_main  = theme_styles['text_color']
+        border_col = '#4b5563' if is_dark else '#e5e7eb'
+        bg_even    = 'rgba(239,68,68,0.07)' if not is_dark else 'rgba(239,68,68,0.13)'
+
+        table_data = [
+            {
+                'cliente': str(row['cliente_completo']),
+                'agente':  str(row['agente']),
+                'valor':   round(float(row['valor_devuelto']), 0),
+                'cantidad': int(row['cantidad']),
+                'fecha':    str(row['ultima_fecha'])
+            }
+            for _, row in data.iterrows()
+        ]
+
+        columns = [
+            {'name': 'Cliente',      'id': 'cliente',  'type': 'text'},
+            {'name': label_agente,   'id': 'agente',   'type': 'text'},
+            {'name': 'Valor',        'id': 'valor',    'type': 'numeric',
+             'format': {'specifier': '$,.0f'}},
+            {'name': 'Cant.',        'id': 'cantidad', 'type': 'numeric'},
+            {'name': 'Última Fecha', 'id': 'fecha',    'type': 'text'},
+        ]
+
+        tbl = dash_table.DataTable(
+            data=table_data,
+            columns=columns,
+            sort_action='native',
+            sort_mode='single',
+            page_size=20,
+            style_as_list_view=True,
+            style_table={
+                'borderRadius': '10px',
+                'overflow': 'hidden',
+                'border': f'1px solid {border_col}'
+            },
+            style_header={
+                'backgroundColor': bg_header,
+                'color': 'white',
+                'fontFamily': 'Inter',
+                'fontSize': '12px',
+                'fontWeight': '600',
+                'padding': '10px 12px',
+                'textAlign': 'center',
+                'borderBottom': f'2px solid {border_col}',
+                'whiteSpace': 'nowrap',
+                'cursor': 'pointer'
+            },
+            style_data={
+                'backgroundColor': bg_paper,
+                'color': text_main,
+                'fontFamily': 'Inter',
+                'fontSize': '12px',
+                'borderBottom': f'1px solid {border_col}',
+            },
+            style_data_conditional=[
+                {'if': {'row_index': 'odd'}, 'backgroundColor': bg_even},
+                {'if': {'column_id': 'valor'},
+                 'color': '#ef4444', 'fontWeight': '600', 'textAlign': 'center'},
+                {'if': {'column_id': 'cantidad'},
+                 'textAlign': 'center'},
+                {'if': {'column_id': 'fecha'},
+                 'color': '#6b7280', 'textAlign': 'center'},
+            ],
+            style_header_conditional=[],
+            style_cell={
+                'padding': '9px 12px',
+                'verticalAlign': 'middle',
+                'overflow': 'hidden',
+                'textOverflow': 'ellipsis',
+                'maxWidth': '280px',
+            },
+            style_cell_conditional=[
+                {'if': {'column_id': 'cliente'},  'width': '38%'},
+                {'if': {'column_id': 'agente'},   'width': '24%'},
+                {'if': {'column_id': 'valor'},    'width': '16%'},
+                {'if': {'column_id': 'cantidad'}, 'width': '8%'},
+                {'if': {'column_id': 'fecha'},    'width': '14%'},
+            ],
+            tooltip_data=[
+                {'cliente': {'value': row['cliente'], 'type': 'text'}}
+                for row in table_data
+            ],
+            tooltip_duration=None,
+        )
+
+        return html.Div([
+            html.Div(
+                f"{len(data)} clientes · {total_cant} devoluciones · Total: {format_currency_int(total_valor)}",
+                style={
+                    'fontSize': '12px', 'color': '#6b7280', 'fontFamily': 'Inter',
+                    'marginBottom': '10px', 'textAlign': 'right'
+                }
+            ),
+            tbl
+        ])
+
+    except Exception as e:
+        print(f"❌ [update_devoluciones] Error: {e}")
+        return html.Div(html.P(f"Error: {str(e)}", style={'color': '#ef4444', 'fontFamily': 'Inter'}))
 
 
 @callback(
@@ -3571,6 +4135,8 @@ def update_card_styles(theme):
      Output('ventas-row2-5-container', 'style'),
      Output('ventas-row4-container', 'style'),
      Output('ventas-row5-container', 'style'),
+     Output('ventas-row-treemap-transf-container', 'style'),
+     Output('ventas-row-heatmap-container', 'style'),
      Output('ventas-row6-container', 'style'),
      Output('ventas-fletes-container', 'style')],
     [Input('ventas-theme-store', 'data'),
@@ -3685,6 +4251,10 @@ def update_container_styles_simple(theme, session_data):
         base_style,
         # ventas-row5-container (siempre visible)
         base_style,
+        # ventas-row-treemap-transf-container (solo vendedores, no admin)
+        hidden_completely if is_admin else base_style,
+        # ventas-row-heatmap-container (solo admin)
+        base_style if is_admin else hidden_completely,
         # ventas-row6-container (siempre visible)
         base_style,
         base_style if not is_admin else {'display': 'none'}
@@ -5132,8 +5702,77 @@ def update_panel_cumplimiento_style(theme):
         'backgroundColor': theme_styles['paper_color'],
         'borderRadius': '12px',
         'border': f'1px solid {theme_styles["line_color"]}',
-        'color': theme_styles['text_color']  # Asegurar color de texto correcto
+        'color': theme_styles['text_color']
     }
+
+
+@callback(
+    Output('ventas-cumplimiento-total-label', 'children'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-vendedor', 'value'),
+     Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),
+     Input('ventas-theme-store', 'data')]
+)
+def update_cumplimiento_total_label(session_data, dropdown_value, mes, data_store, theme):
+    """
+    Etiqueta/badge con el cumplimiento total consolidado: valor vendido vs cuota total.
+    """
+    try:
+        vendedor = get_selected_vendor(session_data, dropdown_value)
+        theme_styles = get_theme_styles(theme)
+        data = analyzer.get_cumplimiento_cuotas(vendedor, mes)
+
+        if data.empty:
+            return html.Div()
+
+        total_ventas = data['ventas_reales'].sum()
+        total_cuota = data['cuota'].sum()
+        # Usar el mismo cálculo que el Resumen General del panel
+        data_activos = data[data['cumplimiento_pct'] > 0]
+        pct = data_activos['cumplimiento_pct'].mean() if not data_activos.empty else 0
+
+        progreso_esp = data['progreso_esperado_pct'].iloc[0]
+        color = '#22c55e' if pct >= 100 else ('#3b82f6' if pct >= progreso_esp else ('#f59e0b' if pct >= progreso_esp - 10 else '#ef4444'))
+
+        return html.Div([
+            html.Div([
+                html.Span("Cumplimiento Total: ", style={
+                    'fontSize': '14px', 'color': theme_styles['text_color'],
+                    'fontFamily': 'Inter', 'marginRight': '8px'
+                }),
+                html.Span(f"{format_currency_int(total_ventas)}", style={
+                    'fontSize': '16px', 'fontWeight': 'bold', 'color': '#3b82f6',
+                    'fontFamily': 'Inter', 'marginRight': '6px'
+                }),
+                html.Span("/ ", style={'color': '#6b7280', 'marginRight': '6px'}),
+                html.Span(f"{format_currency_int(total_cuota)}", style={
+                    'fontSize': '16px', 'fontWeight': 'bold', 'color': '#6b7280',
+                    'fontFamily': 'Inter', 'marginRight': '12px'
+                }),
+                html.Span(f"{pct:.1f}%", style={
+                    'fontSize': '18px', 'fontWeight': 'bold', 'color': color,
+                    'fontFamily': 'Inter',
+                    'backgroundColor': f"{color}20",
+                    'padding': '4px 12px',
+                    'borderRadius': '20px',
+                    'border': f'1px solid {color}'
+                })
+            ], style={
+                'display': 'flex',
+                'alignItems': 'center',
+                'justifyContent': 'center',
+                'padding': '12px 20px',
+                'borderRadius': '10px',
+                'backgroundColor': theme_styles.get('paper_color', 'rgba(59,130,246,0.05)'),
+                'border': f'1px solid {color}40',
+                'marginBottom': '4px'
+            })
+        ])
+
+    except Exception as e:
+        print(f"❌ [update_cumplimiento_total_label] Error: {e}")
+        return html.Div()
 
 
 @callback(

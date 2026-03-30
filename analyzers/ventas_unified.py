@@ -554,14 +554,27 @@ class UnifiedVentasAnalyzer:
         total_notas_credito = abs(notas_credito['valor_neto'].sum())
         ventas_netas = total_ventas - total_devoluciones
 
+        # Devoluciones directas: filtradas por transferencista (operaciones directas)
+        df_tot = self.df_ventas_totales.copy()
+        if mes != 'Todos':
+            df_tot = df_tot[df_tot['mes_nombre'] == mes]
+        dev_directas = df_tot[df_tot['tipo'].str.contains(
+            'Devolución|Devolucion', case=False, na=False)]
+        if vendedor != 'Todos':
+            dev_directas = dev_directas[
+                dev_directas['transferencista'].notna() &
+                (dev_directas['transferencista'] == vendedor)
+            ]
+        num_devoluciones_directo = len(dev_directas)
+
         return {
             'total_ventas': total_ventas,
             'total_devoluciones': total_devoluciones,
             'total_notas_credito': total_notas_credito,
             'ventas_netas': ventas_netas,
             'num_facturas': len(ventas_reales),
-            'num_clientes': ventas_reales['cliente_completo'].nunique() if not ventas_reales.empty else 0,
-            'num_devoluciones': len(devoluciones),
+            'num_clientes': ventas_reales['id1'].nunique() if not ventas_reales.empty else 0,
+            'num_devoluciones': num_devoluciones_directo,
             'ticket_promedio': total_ventas / len(ventas_reales) if len(ventas_reales) > 0 else 0,
             'total_descuentos': abs(ventas_reales['descuento'].sum()),
             'porcentaje_descuento': (abs(ventas_reales['descuento'].sum()) / ventas_reales['valor_bruto'].sum() * 100) if ventas_reales['valor_bruto'].sum() > 0 else 0
@@ -661,7 +674,7 @@ class UnifiedVentasAnalyzer:
             'total_notas_credito': total_notas_credito,
             'transferencias_netas': transferencias_netas,
             'num_facturas': len(ventas_reales),
-            'num_clientes': ventas_reales['cliente'].nunique() if not ventas_reales.empty else 0,
+            'num_clientes': ventas_reales['id1'].nunique() if not ventas_reales.empty else 0,
             'num_devoluciones': len(devoluciones),
             'ticket_promedio': total_transferencias / len(ventas_reales) if len(ventas_reales) > 0 else 0,
             'total_descuentos': abs(ventas_reales['descuento'].sum()),
@@ -871,3 +884,195 @@ class UnifiedVentasAnalyzer:
             self._maestro_vendedores.get(vendedor_code, "")
 
         return vendedor
+
+    def get_impactos_heatmap(self, mes='Todos'):
+        """
+        Pivot table: vendedores (rows) × dates (cols), value = unique clients impacted.
+        Returns (pivot_df, dates_sorted, vendedores_sorted).
+        """
+        df = self.df_ventas.copy()
+
+        if df.empty:
+            return pd.DataFrame(), [], []
+
+        if mes != 'Todos':
+            df = df[df['mes_nombre'] == mes]
+
+        ventas_reales = df[df['tipo'].str.contains('Remision', case=False, na=False)]
+
+        if ventas_reales.empty:
+            return pd.DataFrame(), [], []
+
+        ventas_reales = ventas_reales.copy()
+        ventas_reales['fecha_str'] = ventas_reales['fecha'].dt.strftime('%Y-%m-%d')
+
+        grouped = ventas_reales.groupby(['vendedor', 'fecha_str']).agg(
+            clientes=('cliente_completo', 'nunique')
+        ).reset_index()
+
+        pivot = grouped.pivot(index='vendedor', columns='fecha_str', values='clientes').fillna(0)
+
+        # Sort vendedores by total descending (most active on top)
+        pivot['_total'] = pivot.sum(axis=1)
+        pivot = pivot.sort_values('_total', ascending=True).drop(columns='_total')
+
+        dates = sorted(pivot.columns.tolist())
+        pivot = pivot[dates]
+        vendedores = pivot.index.tolist()
+
+        return pivot, dates, vendedores
+
+    def get_impactos_por_dia(self, vendedor='Todos', mes='Todos'):
+        """
+        Get number of unique clients impacted per day (bar chart data).
+        """
+        df = self.filter_ventas_data(vendedor, mes)
+        ventas_reales = df[df['tipo'].str.contains('Remision', case=False, na=False)]
+
+        if ventas_reales.empty:
+            return pd.DataFrame()
+
+        ventas_reales = ventas_reales.copy()
+        ventas_reales['fecha_str'] = ventas_reales['fecha'].dt.strftime('%Y-%m-%d')
+
+        resultado = ventas_reales.groupby('fecha_str').agg(
+            clientes_impactados=('cliente_completo', 'nunique'),
+            valor_neto=('valor_neto', 'sum'),
+            num_facturas=('documento_id', 'count')
+        ).reset_index()
+
+        return resultado.sort_values('fecha_str')
+
+    def get_devoluciones(self, vendedor='Todos', mes='Todos'):
+        """
+        Get returns analysis split by vendedor (asignado) and transferencista (directo).
+        Returns two DataFrames: (por_vendedor, por_transferencista).
+        """
+        df = self.df_ventas_totales.copy()
+
+        if df.empty:
+            return pd.DataFrame(), pd.DataFrame()
+
+        devoluciones = df[df['tipo'].str.contains('Devolución|Devolucion', case=False, na=False)]
+
+        if mes != 'Todos':
+            devoluciones = devoluciones[devoluciones['mes_nombre'] == mes]
+
+        if devoluciones.empty:
+            return pd.DataFrame(), pd.DataFrame()
+
+        # Por vendedor asignado
+        dev_v = devoluciones[
+            devoluciones['vendedor'].notna() &
+            (devoluciones['vendedor'] != '') &
+            (devoluciones['vendedor'] != 'N/A')
+        ]
+        if vendedor != 'Todos':
+            dev_v = dev_v[dev_v['vendedor'] == vendedor]
+
+        por_vendedor = dev_v.groupby('vendedor').agg(
+            valor=('valor_neto', lambda x: abs(x.sum())),
+            cantidad=('documento_id', 'count')
+        ).reset_index().sort_values('valor', ascending=False) if not dev_v.empty else pd.DataFrame()
+
+        # Por transferencista (devoluciones directas)
+        dev_t = devoluciones[
+            devoluciones['transferencista'].notna() &
+            (devoluciones['transferencista'] != '') &
+            (devoluciones['transferencista'] != 'N/A')
+        ]
+        if vendedor != 'Todos':
+            dev_t = dev_t[dev_t['transferencista'] == vendedor]
+
+        por_transferencista = dev_t.groupby('transferencista').agg(
+            valor=('valor_neto', lambda x: abs(x.sum())),
+            cantidad=('documento_id', 'count')
+        ).reset_index().sort_values('valor', ascending=False) if not dev_t.empty else pd.DataFrame()
+
+        return por_vendedor, por_transferencista
+
+    def get_devoluciones_detalle(self, vendedor='Todos', mes='Todos', perspectiva='transferencista'):
+        """
+        Devolution records grouped by client.
+        perspectiva controla el FILTRO:
+          'transferencista' → incluye devoluciones donde transferencista está presente
+          'vendedor'        → incluye devoluciones del vendedor asignado
+        La columna 'agente' SIEMPRE muestra el transferencista (operador directo).
+        """
+        df = self.df_ventas_totales.copy()
+
+        if df.empty:
+            return pd.DataFrame()
+
+        devoluciones = df[df['tipo'].str.contains('Devolución|Devolucion', case=False, na=False)]
+
+        if mes != 'Todos':
+            devoluciones = devoluciones[devoluciones['mes_nombre'] == mes]
+
+        # Columna de filtro según perspectiva
+        col_filtro = perspectiva  # 'vendedor' o 'transferencista'
+
+        # Filtrar registros donde la columna de filtro tiene valor válido
+        devoluciones = devoluciones[
+            devoluciones[col_filtro].notna() &
+            (devoluciones[col_filtro] != '') &
+            (devoluciones[col_filtro] != 'N/A')
+        ]
+
+        if vendedor != 'Todos':
+            devoluciones = devoluciones[devoluciones[col_filtro] == vendedor]
+
+        if devoluciones.empty:
+            return pd.DataFrame()
+
+        # Siempre agrupar por transferencista (agente operativo directo)
+        # Asegurar que transferencista tenga valor
+        devoluciones = devoluciones[
+            devoluciones['transferencista'].notna() &
+            (devoluciones['transferencista'] != '') &
+            (devoluciones['transferencista'] != 'N/A')
+        ]
+
+        if devoluciones.empty:
+            return pd.DataFrame()
+
+        resultado = devoluciones.groupby(['cliente_completo', 'transferencista']).agg(
+            valor_devuelto=('valor_neto', lambda x: abs(x.sum())),
+            cantidad=('documento_id', 'count'),
+            ultima_fecha=('fecha', 'max')
+        ).reset_index()
+
+        resultado.rename(columns={'transferencista': 'agente'}, inplace=True)
+        resultado['ultima_fecha'] = pd.to_datetime(resultado['ultima_fecha']).dt.strftime('%Y-%m-%d')
+        resultado = resultado[resultado['valor_devuelto'] > 0]
+        return resultado.sort_values('valor_devuelto', ascending=False)
+
+    def get_ventas_por_transferencista(self, vendedor='Todos', mes='Todos'):
+        """
+        Ventas agrupadas por transferencista para un vendedor dado.
+        Usado en el Funnel chart de composición de ventas (vista vendedor).
+        Retorna DataFrame con columnas: transferencista, valor_neto, num_facturas, num_clientes.
+        """
+        df = self.filter_ventas_data(vendedor, mes)
+        ventas = df[df['tipo'].str.contains('Remision', case=False, na=False)].copy()
+
+        if ventas.empty:
+            return pd.DataFrame()
+
+        ventas = ventas[
+            ventas['transferencista'].notna() &
+            (ventas['transferencista'] != '') &
+            (ventas['transferencista'] != 'N/A') &
+            (~ventas['transferencista'].str.contains('Transferencista \\d+', na=False))
+        ]
+
+        if ventas.empty:
+            return pd.DataFrame()
+
+        resultado = ventas.groupby('transferencista').agg(
+            valor_neto=('valor_neto', 'sum'),
+            num_facturas=('documento_id', 'count'),
+            num_clientes=('cliente_completo', 'nunique')
+        ).reset_index().sort_values('valor_neto', ascending=False)
+
+        return resultado
