@@ -16,7 +16,7 @@ Update repository
 git status 
 git add .
 git commit -m "Ej. includes paths"
-git push
+git push -u origin main
 
 # Open setting .json
 Ctrl + Shift + P -> Open User Settings (UI)
