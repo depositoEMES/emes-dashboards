@@ -566,7 +566,7 @@ class UnifiedVentasAnalyzer:
         total_notas_credito = abs(notas_credito['valor_neto'].sum())
         ventas_netas = total_ventas - total_devoluciones
 
-        # Devoluciones directas: filtradas por transferencista (operaciones directas)
+        # Devoluciones por transferencista (operador que tomó la operación)
         df_tot = self.df_ventas_totales.copy()
         if mes != 'Todos':
             df_tot = df_tot[df_tot['mes_nombre'] == mes]
@@ -578,10 +578,12 @@ class UnifiedVentasAnalyzer:
                 (dev_directas['transferencista'] == vendedor)
             ]
         num_devoluciones_directo = len(dev_directas)
+        total_devoluciones_transf = abs(dev_directas['valor_neto'].sum())
 
         return {
             'total_ventas': total_ventas,
             'total_devoluciones': total_devoluciones,
+            'total_devoluciones_transf': total_devoluciones_transf,
             'total_notas_credito': total_notas_credito,
             'ventas_netas': ventas_netas,
             'num_facturas': len(ventas_reales),
