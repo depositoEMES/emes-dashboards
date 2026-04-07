@@ -5951,10 +5951,11 @@ def update_summary_panel(session_data, dropdown_value, mes, data_store, theme):
     theme_styles = get_theme_styles(theme)
     resumen = analyzer.get_resumen_ventas(vendedor, mes)
 
-    # Calcular efectividad
-    efectividad = ((resumen['total_ventas'] - resumen['total_devoluciones']) /
+    # Calcular efectividad (basado en devoluciones por transferencista)
+    dev_transf = resumen['total_devoluciones_transf']
+    efectividad = ((resumen['total_ventas'] - dev_transf) /
                    resumen['total_ventas'] * 100) if resumen['total_ventas'] > 0 else 0
-    tasa_devolucion = (resumen['total_devoluciones'] / resumen['total_ventas']
+    tasa_devolucion = (dev_transf / resumen['total_ventas']
                        * 100) if resumen['total_ventas'] > 0 else 0
 
     # Calcular variación ajustada
@@ -6052,7 +6053,7 @@ def update_summary_panel(session_data, dropdown_value, mes, data_store, theme):
                             'textAlign': 'center'
                         })
                     ]),
-                    html.H4(format_currency_int(resumen['total_devoluciones']), style={
+                    html.H4(format_currency_int(resumen['total_devoluciones_transf']), style={
                         'margin': '5px 0 0 0',
                         'fontSize': '28px',
                         'fontWeight': 'bold',
