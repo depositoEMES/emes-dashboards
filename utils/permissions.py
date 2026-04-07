@@ -14,9 +14,9 @@ def get_user_vendor_filter(session_data):
     return \
         'Todos' if seller in \
         [
-            'JESUS IVAN GOMEZ VELASQUEZ',
-            'YAMITH SCHNEIDER MESA ESCOBAR',
-            'DINA NARANJO'
+            'Jesus Ivan Gomez Velasquez',
+            'Yamith Schneider Mesa Escobar',
+            'Ventas - Dionny Ctaño'
         ] else seller
 
 
@@ -33,11 +33,11 @@ def can_see_all_vendors(session_data):
     return \
         seller in \
         [
-            'JESUS IVAN GOMEZ VELASQUEZ',
-            'YAMITH SCHNEIDER MESA ESCOBAR',
-            'DINA NARANJO',
-            'DIEGO ALEJANDRO BOLIVAR ZAPATA',
-            'KATERINE VARGAS HURTADO'
+            'Jesus Ivan Gomez Velasquez',
+            'Yamith Schneider Mesa Escobar',
+            'Ventas - Dionny Ctaño',
+            'Compras - Diego A. Bolivar Zapata',
+            'Compras - Katerine Vargas Hurtado'
         ]
 
 

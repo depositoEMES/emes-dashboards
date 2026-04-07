@@ -1642,9 +1642,10 @@ class VentasAnalyzer:
 
             # Cargar datos de cuotas
             data = db.get("cuotas_vendedores")
+            codigos_vendedores = db.get_by_path("/maestros/codigos_vendedores")
 
             if data:
-                result = self.process_cuotas_data(data)
+                result = self.process_cuotas_data(data, codigos_vendedores)
 
                 # Guardar en caché
                 self._df_cuotas = result
@@ -1663,7 +1664,12 @@ class VentasAnalyzer:
             self._df_cuotas = pd.DataFrame()
             return pd.DataFrame()
 
-    def process_cuotas_data(self, data):
+    def __get_seller_by_code(self, seller_codes, seller_code):
+        for k, v in seller_codes.items():
+            if v in seller_code:
+                return k
+
+    def process_cuotas_data(self, data, codigos_vendedores):
         """
         Procesar datos de cuotas desde Firebase.
         """
@@ -1675,11 +1681,14 @@ class VentasAnalyzer:
         # Iterar sobre los meses
         for mes, vendedores_data in data.items():
             if isinstance(vendedores_data, dict):
-                for vendedor, cuota in vendedores_data.items():
+                for codigo_vendedor, cuota in vendedores_data.items():
                     try:
+                        seller_name = \
+                            codigos_vendedores.get(str(codigo_vendedor), "N/A")
+
                         cuotas_list.append({
                             'mes': mes,
-                            'vendedor': vendedor,
+                            'vendedor': seller_name,
                             'cuota': float(cuota) if cuota else 0
                         })
                     except (ValueError, TypeError):
