@@ -1915,6 +1915,89 @@ class VentasAnalyzer:
             traceback.print_exc()
             return pd.DataFrame()
 
+    def get_tabla_comparativa_admin(self, mes='Todos'):
+        """
+        Tabla comparativa de todos los vendedores para vista admin.
+        Columnas: vendedor, cuota, ventas_netas, cumplimiento_pct, diferencia,
+                  devoluciones, pct_dev, total_clientes, impactados, pct_cobertura,
+                  color (basado en progreso relativo a días hábiles transcurridos).
+        """
+        try:
+            ua = self._unified_analyzer
+
+            # 1. Cuota + cumplimiento (incluye progreso esperado por días hábiles)
+            data_cuotas = self.get_cumplimiento_cuotas('Todos', mes)
+            if data_cuotas.empty:
+                return pd.DataFrame()
+
+            # 2. Total clientes activos por vendedor (misma lógica que _count_active_clients_by_vendor)
+            valid_types = {"Cliente", "Cliente proveedor"}
+            total_cli_map = {}
+            for id1, cinfo in ua._clientes_id_cache.items():
+                if cinfo.get('estado_maestro') != 'Activo':
+                    continue
+                if cinfo.get('tipo') not in valid_types:
+                    continue
+                v_code = str(cinfo.get('vendedor', ''))
+                v_name = ua._maestro_vendedores.get(v_code, '')
+                if v_name:
+                    total_cli_map[v_name] = total_cli_map.get(v_name, 0) + 1
+
+            # 3. Devoluciones e impactados del período
+            # Usar el mes real analizado por get_cumplimiento_cuotas (puede diferir de 'Todos')
+            # ventas_netas (neta = Remisiones - Devoluciones) ya viene calculada en
+            # data_cuotas['ventas_reales'] con la misma lógica que get_ventas_por_mes.
+            mes_analizado = data_cuotas['mes'].iloc[0] if not data_cuotas.empty else mes
+            df = ua.filter_ventas_data('Todos', mes_analizado)
+            ventas_brutas_df = df[df['tipo'].str.contains('Remision', case=False, na=False)]
+            dev_df           = df[df['tipo'].str.contains('Devolución|Devolucion', case=False, na=False)]
+
+            vendedores_lista  = data_cuotas['vendedor'].tolist()
+            ventas_brutas_map = {}   # Remisiones brutas — denominador para % devoluciones
+            dev_map           = {}
+            impactados_map    = {}
+            for v in vendedores_lista:
+                vv = ventas_brutas_df[ventas_brutas_df['vendedor'] == v]
+                vd = dev_df[dev_df['vendedor'] == v]
+                ventas_brutas_map[v] = vv['valor_neto'].sum()
+                dev_map[v]           = abs(vd['valor_neto'].sum())
+                impactados_map[v]    = vv['id1'].nunique() if not vv.empty else 0
+
+            # 4. Construir resultado
+            rows = []
+            for _, row in data_cuotas.iterrows():
+                v          = row['vendedor']
+                # ventas_reales en data_cuotas = Remisiones − Devoluciones (igual que cuotas)
+                ventas_net = row.get('ventas_reales', 0)
+                ventas_bruto = ventas_brutas_map.get(v, 0)
+                dev        = dev_map.get(v, 0)
+                tot_cli    = total_cli_map.get(v, 0)
+                impactados = impactados_map.get(v, 0)
+                # % devoluciones sobre venta bruta para no distorsionar con la propia devolución
+                pct_dev    = (dev / ventas_bruto * 100) if ventas_bruto > 0 else 0
+                pct_cob    = (impactados / tot_cli * 100) if tot_cli > 0 else 0
+
+                rows.append({
+                    'vendedor':          v,
+                    'cuota':             row['cuota'],
+                    'ventas_netas':      ventas_net,
+                    'cumplimiento_pct':  row['cumplimiento_pct'],
+                    'diferencia':        row['diferencia_cuota'],
+                    'devoluciones':      dev,
+                    'pct_dev':           pct_dev,
+                    'total_clientes':    tot_cli,
+                    'impactados':        impactados,
+                    'pct_cobertura':     pct_cob,
+                    'progreso_esperado': row['progreso_esperado_pct'],
+                    'color':             row['color'],
+                })
+
+            return pd.DataFrame(rows).sort_values('ventas_netas', ascending=False)
+
+        except Exception as e:
+            print(f"❌ [get_tabla_comparativa_admin] Error: {e}")
+            return pd.DataFrame()
+
     def get_cuotas_data(self, force_reload=False):
         """
         Acceso conveniente a datos de cuotas con auto-carga.

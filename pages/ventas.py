@@ -301,6 +301,21 @@ layout = html.Div([
             'width': '100%'
         }),
 
+        # Tabla comparativa de vendedores (solo admin)
+        html.Div([
+            html.H3("Comparativa de Vendedores", style={
+                'textAlign': 'center', 'marginBottom': '6px', 'fontFamily': 'Inter'}),
+            html.P("Resumen de desempeño por vendedor · colores según avance vs. días hábiles transcurridos", style={
+                'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 16px 0'}),
+            html.Div(id='ventas-tabla-comparativa-admin'),
+        ], id='ventas-row-tabla-comparativa-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
         html.Div([
             html.Div([
                 html.H3("Evolución de Ventas por Mes", style={
@@ -4284,6 +4299,7 @@ def update_card_styles(theme):
     [Output('ventas-row1-container', 'style'),
      Output('ventas-row1-2-container', 'style'),
      Output('ventas-row-cumplimiento-container', 'style'),
+     Output('ventas-row-tabla-comparativa-container', 'style'),
      Output('ventas-row-nueva-treemap', 'style'),
      Output('ventas-row1-5-container', 'style'),
      Output('ventas-row2-container', 'style'),
@@ -4396,6 +4412,7 @@ def update_container_styles_simple(theme, session_data):
         base_style,
         comparativa_style,             # ventas-row1-2-container (solo admin)
         cumplimiento_style,            # ventas-row-cumplimiento-container
+        base_style if is_admin else hidden_completely,  # ventas-row-tabla-comparativa-container
         base_style,                    # ventas-row-nueva-treemap
         # ventas-row1-5-container (siempre visible)
         base_style,
@@ -5932,6 +5949,201 @@ def update_cumplimiento_total_label(session_data, dropdown_value, mes, data_stor
     except Exception as e:
         print(f"❌ [update_cumplimiento_total_label] Error: {e}")
         return html.Div()
+
+
+@callback(
+    Output('ventas-tabla-comparativa-admin', 'children'),
+    [Input('session-store', 'data'),
+     Input('ventas-dropdown-mes', 'value'),
+     Input('ventas-data-store', 'data'),
+     Input('ventas-theme-store', 'data')]
+)
+def update_tabla_comparativa_admin(session_data, mes, data_store, theme):
+    """
+    Tabla comparativa de todos los vendedores (solo admin).
+    3 colores: verde (>=esperado), naranja (cerca), rojo (lejos).
+    Sorting nativo. Fila de totales dentro de la misma tabla.
+    """
+    try:
+        from utils import can_see_all_vendors
+        if not can_see_all_vendors(session_data):
+            return html.Div()
+
+        theme_styles = get_theme_styles(theme)
+        is_dark = theme == 'dark'
+        data = analyzer.get_tabla_comparativa_admin(mes)
+
+        if data.empty:
+            return html.Div(html.P("No hay datos disponibles", style={
+                'textAlign': 'center', 'color': '#6b7280', 'fontFamily': 'Inter'}))
+
+        prog_esp = data['progreso_esperado'].iloc[0]
+
+        # Misma lógica de colores que el gráfico de puntos (get_cumplimiento_cuotas),
+        # pero fusionando azul (#3b82f6, "adelantado") con verde ("cumpliendo").
+        # Umbrales: rojo = < progreso_esperado-10, naranja = < progreso_esperado, verde = el resto.
+        COLOR_MAP = {
+            '#22c55e': 'verde',   # cumpliendo / cumplió
+            '#3b82f6': 'verde',   # adelantado  → también verde
+            '#f59e0b': 'naranja', # en progreso / cerca
+            '#ef4444': 'rojo',    # atrasado
+        }
+
+        def _estado3(color_hex):
+            return COLOR_MAP.get(color_hex, 'naranja')
+
+        # Construir filas de datos
+        table_rows = []
+        for _, r in data.iterrows():
+            table_rows.append({
+                'vendedor':     r['vendedor'],
+                'cuota':        round(r['cuota'], 0),
+                'ventas_netas': round(r['ventas_netas'], 0),
+                'cumpl_pct':    round(r['cumplimiento_pct'], 1),
+                'diferencia':   round(r['diferencia'], 0),
+                'devoluciones': round(r['devoluciones'], 0),
+                'pct_dev':      round(r['pct_dev'], 1),
+                'tot_clientes': int(r['total_clientes']),
+                'impactados':   int(r['impactados']),
+                'pct_cob':      round(r['pct_cobertura'], 1),
+                'estado':       _estado3(r['color']),
+            })
+
+        bg_paper  = theme_styles['paper_color']
+        text_main = theme_styles['text_color']
+        border    = '#4b5563' if is_dark else '#e5e7eb'
+        bg_even   = 'rgba(255,255,255,0.03)' if is_dark else 'rgba(0,0,0,0.015)'
+
+        data_rows = table_rows
+
+        # Columnas con formato correcto para sorting numérico
+        from dash.dash_table.Format import Format, Scheme, Group, Symbol
+
+        fmt_currency = Format(scheme=Scheme.fixed, precision=0,
+                              group=Group.yes, groups=3,
+                              group_delimiter=',', decimal_delimiter='.',
+                              symbol=Symbol.yes, symbol_prefix='$')
+        fmt_pct      = Format(scheme=Scheme.fixed, precision=1)
+
+        col_widths = [
+            ('vendedor',     'Vendedor',       'text',    None,         '18%', '140px'),
+            ('cuota',        'Cuota',          'numeric', fmt_currency, '11%', None),
+            ('ventas_netas', 'Venta Neta',     'numeric', fmt_currency, '11%', None),
+            ('cumpl_pct',    '% Cumpl.',       'numeric', fmt_pct,      '8%',  None),
+            ('diferencia',   'Diferencia',     'numeric', fmt_currency, '11%', None),
+            ('devoluciones', 'Devoluciones',   'numeric', fmt_currency, '11%', None),
+            ('pct_dev',      '% Dev',          'numeric', fmt_pct,      '7%',  None),
+            ('tot_clientes', 'Total Clientes', 'numeric', None,         '9%',  None),
+            ('impactados',   'Impactados',     'numeric', None,         '8%',  None),
+            ('pct_cob',      '% Cobertura',    'numeric', fmt_pct,      '7%',  None),
+        ]
+
+        columns = [
+            {'name': label, 'id': cid, 'type': typ,
+             **(({'format': fmt}) if fmt else {})}
+            for cid, label, typ, fmt, _, _ in col_widths
+        ]
+
+        cell_cond = [
+            {'if': {'column_id': cid}, 'width': w,
+             **({'minWidth': mw} if mw else {})}
+            for cid, _, _, _, w, mw in col_widths
+        ]
+
+        shared_style_data_conditional = [
+            # Filas alternas base
+            {'if': {'row_index': 'odd'}, 'backgroundColor': bg_even},
+            # ── Colores de fila por estado ──
+            {'if': {'filter_query': '{estado} = "verde"'},
+             'backgroundColor': 'rgba(34,197,94,0.12)'},
+            {'if': {'filter_query': '{estado} = "naranja"'},
+             'backgroundColor': 'rgba(249,115,22,0.12)'},
+            {'if': {'filter_query': '{estado} = "rojo"'},
+             'backgroundColor': 'rgba(239,68,68,0.12)'},
+            # ── % Cumplimiento: color de texto ──
+            {'if': {'filter_query': '{estado} = "verde"',   'column_id': 'cumpl_pct'},
+             'color': '#22c55e', 'fontWeight': '700'},
+            {'if': {'filter_query': '{estado} = "naranja"', 'column_id': 'cumpl_pct'},
+             'color': '#f97316', 'fontWeight': '700'},
+            {'if': {'filter_query': '{estado} = "rojo"',    'column_id': 'cumpl_pct'},
+             'color': '#ef4444', 'fontWeight': '700'},
+            # ── Diferencia ──
+            {'if': {'filter_query': '{diferencia} >= 0', 'column_id': 'diferencia'},
+             'color': '#22c55e', 'fontWeight': '600'},
+            {'if': {'filter_query': '{diferencia} < 0',  'column_id': 'diferencia'},
+             'color': '#ef4444', 'fontWeight': '600'},
+            # ── Devoluciones ──
+            {'if': {'column_id': 'devoluciones'}, 'color': '#ef4444'},
+            # ── % Dev semáforo ──
+            {'if': {'filter_query': '{pct_dev} < 3',               'column_id': 'pct_dev'},
+             'color': '#22c55e', 'fontWeight': '600'},
+            {'if': {'filter_query': '{pct_dev} >= 3 && {pct_dev} < 6', 'column_id': 'pct_dev'},
+             'color': '#f97316', 'fontWeight': '600'},
+            {'if': {'filter_query': '{pct_dev} >= 6',              'column_id': 'pct_dev'},
+             'color': '#ef4444', 'fontWeight': '600'},
+            # ── % Cobertura semáforo ──
+            {'if': {'filter_query': '{pct_cob} >= 70',              'column_id': 'pct_cob'},
+             'color': '#22c55e', 'fontWeight': '600'},
+            {'if': {'filter_query': '{pct_cob} >= 50 && {pct_cob} < 70', 'column_id': 'pct_cob'},
+             'color': '#f97316', 'fontWeight': '600'},
+            {'if': {'filter_query': '{pct_cob} < 50',               'column_id': 'pct_cob'},
+             'color': '#ef4444', 'fontWeight': '600'},
+            # ── Alineaciones ──
+            {'if': {'column_id': 'vendedor'}, 'textAlign': 'left'},
+            {'if': {'column_id': ['cuota', 'ventas_netas', 'diferencia', 'devoluciones']},
+             'textAlign': 'right'},
+            {'if': {'column_id': ['cumpl_pct', 'pct_dev', 'tot_clientes', 'impactados', 'pct_cob']},
+             'textAlign': 'center'},
+        ]
+
+        shared_style = dict(
+            style_as_list_view=True,
+            style_data={
+                'backgroundColor': bg_paper, 'color': text_main,
+                'fontFamily': 'Inter', 'fontSize': '11px',
+                'borderBottom': f'1px solid {border}',
+            },
+            style_cell={
+                'padding': '8px 12px', 'verticalAlign': 'middle', 'whiteSpace': 'nowrap',
+            },
+            style_cell_conditional=cell_cond,
+        )
+
+        # ── DataTable principal (con sorting) ──
+        tbl_data = dash_table.DataTable(
+            data=data_rows,
+            columns=columns,
+            sort_action='native',
+            sort_mode='single',
+            style_table={
+                'border': f'1px solid {border}',
+                'borderRadius': '10px',
+                'overflow': 'hidden',
+            },
+            style_header={
+                'backgroundColor': '#34495e', 'color': 'white',
+                'fontFamily': 'Inter', 'fontSize': '11px', 'fontWeight': '600',
+                'textAlign': 'center', 'padding': '10px 12px',
+                'borderBottom': f'2px solid {border}',
+                'whiteSpace': 'nowrap', 'cursor': 'pointer',
+            },
+            style_data_conditional=shared_style_data_conditional,
+            **shared_style,
+        )
+
+        return html.Div([
+            html.Div([tbl_data], style={'overflowX': 'auto'}),
+            html.Div(
+                f"Progreso esperado hoy: {prog_esp:.1f}%  ·  "
+                f"Verde ≥ {prog_esp:.0f}%  ·  Naranja ≥ {prog_esp - 10:.0f}%  ·  Rojo < {prog_esp - 10:.0f}%",
+                style={'fontSize': '11px', 'color': '#6b7280', 'marginTop': '8px',
+                       'textAlign': 'right', 'fontFamily': 'Inter'}
+            )
+        ])
+
+    except Exception as e:
+        print(f"❌ [update_tabla_comparativa_admin] Error: {e}")
+        return html.Div(html.P(f"Error: {e}", style={'color': '#ef4444', 'fontFamily': 'Inter'}))
 
 
 @callback(
