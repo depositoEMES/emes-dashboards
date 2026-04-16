@@ -713,7 +713,7 @@ layout = html.Div([
                 'textAlign': 'center', 'marginBottom': '6px', 'fontFamily': 'Inter'}),
             html.P("(Participación de cada transferencista en tus ventas)", style={
                 'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 16px 0'}),
-            dcc.Graph(id='ventas-treemap-transferencistas', style={'height': '420px'})
+            html.Div(id='ventas-treemap-transferencistas')
         ], id='ventas-row-treemap-transf-container', style={
             'borderRadius': '16px',
             'padding': '24px',
@@ -2133,7 +2133,7 @@ def update_heatmap_vendedores_dia(session_data, mes, data_store, theme):
 
 
 @callback(
-    Output('ventas-treemap-transferencistas', 'figure'),
+    Output('ventas-treemap-transferencistas', 'children'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
      Input('ventas-dropdown-mes', 'value'),
@@ -2142,94 +2142,95 @@ def update_heatmap_vendedores_dia(session_data, mes, data_store, theme):
 )
 def update_treemap_transferencistas(session_data, dropdown_value, mes, data_store, theme):
     """
-    Treemap: composición de ventas del vendedor por transferencista.
-    Solo visible para cuentas vendedor (no admin).
+    Tabla: composición de ventas del vendedor por transferencista.
     """
     try:
         theme_styles = get_theme_styles(theme)
+        is_dark  = theme == 'dark'
         vendedor = get_selected_vendor(session_data, dropdown_value)
 
         data = analyzer.get_ventas_por_transferencista(vendedor, mes)
 
-        fig = go.Figure()
-
         if data.empty:
-            fig.add_annotation(
-                text="No hay datos de ventas por transferencista",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, xanchor='center', yanchor='middle',
-                showarrow=False,
-                font=dict(size=15, color=theme_styles['text_color'])
-            )
-            fig.update_layout(height=420, paper_bgcolor=theme_styles['plot_bg'])
-            return fig
+            return html.P("No hay datos de ventas por transferencista",
+                          style={'textAlign': 'center', 'color': '#7f8c8d',
+                                 'fontFamily': 'Inter', 'fontSize': '13px'})
 
         total = data['valor_neto'].sum()
-        labels = data['transferencista'].tolist()
-        values = data['valor_neto'].tolist()
-        pcts = [v / total * 100 if total > 0 else 0 for v in values]
-        facturas = data['num_facturas'].tolist()
-        clientes = data['num_clientes'].tolist()
 
-        bg_colors = [
-            "#0077B680", "#00B4D880", "#90E0EF80", "#CAF0F880",
-            "#023E8A80", "#03045E80", "#0096C780", "#48CAE480",
-            "#ADE8F480", "#61A5C280",
+        from dash.dash_table.Format import Format, Scheme, Group, Symbol
+        fmt_currency = Format(scheme=Scheme.fixed, precision=0,
+                              group=Group.yes, groups=3,
+                              group_delimiter=',', decimal_delimiter='.',
+                              symbol=Symbol.yes, symbol_prefix='$')
+        fmt_pct = Format(scheme=Scheme.fixed, precision=1)
+
+        rows = []
+        for _, r in data.iterrows():
+            pct = r['valor_neto'] / total * 100 if total > 0 else 0
+            rows.append({
+                'transferencista': r['transferencista'],
+                'ventas':          round(r['valor_neto'], 0),
+                'pct':             round(pct, 1),
+                'facturas':        int(r['num_facturas']),
+                'clientes':        int(r['num_clientes']),
+            })
+
+        bg_paper  = theme_styles['paper_color']
+        text_main = theme_styles['text_color']
+        border    = '#4b5563' if is_dark else '#e5e7eb'
+        bg_even   = 'rgba(255,255,255,0.03)' if is_dark else 'rgba(0,0,0,0.015)'
+
+        columns = [
+            {'name': 'Transferencista', 'id': 'transferencista', 'type': 'text'},
+            {'name': 'Ventas',          'id': 'ventas',          'type': 'numeric', 'format': fmt_currency},
+            {'name': '% Participación', 'id': 'pct',             'type': 'numeric', 'format': fmt_pct},
+            {'name': 'Facturas',        'id': 'facturas',        'type': 'numeric'},
+            {'name': 'Clientes',        'id': 'clientes',        'type': 'numeric'},
         ]
-        border_colors = [
-            "#0077B6", "#00B4D8", "#90E0EF", "#CAF0F8",
-            "#023E8A", "#03045E", "#0096C7", "#48CAE4",
-            "#ADE8F4", "#61A5C2",
-        ]
-        n = len(labels)
-        slice_bg     = [bg_colors[i % len(bg_colors)] for i in range(n)]
-        slice_border = [border_colors[i % len(border_colors)] for i in range(n)]
 
-        # Customdata como string pre-formateado (go.Pie no soporta índices en customdata)
-        custom = [
-            f"Ventas: {format_currency_int(v)}<br>Participación: {p:.1f}%<br>Facturas: {f}<br>Clientes: {c}"
-            for v, p, f, c in zip(values, pcts, facturas, clientes)
-        ]
-
-        fig.add_trace(go.Pie(
-            labels=labels,
-            values=values,
-            hole=0.55,
-            opacity=0.85,
-            marker=dict(
-                colors=slice_bg,
-                line=dict(color=slice_border, width=1.5)
-            ),
-            textinfo='none',
-            hovertemplate="<b>%{label}</b><br>%{customdata}<extra></extra>",
-            customdata=custom,
-        ))
-
-        fig.update_layout(
-            height=420,
-            paper_bgcolor=theme_styles['plot_bg'],
-            plot_bgcolor=theme_styles['plot_bg'],
-            font=dict(family='Inter', size=12, color=theme_styles['text_color']),
-            showlegend=True,
-            legend=dict(
-                orientation='v', yanchor='middle', y=0.5,
-                xanchor='left', x=1.05,
-                bgcolor='rgba(0,0,0,0)',
-            ),
-            margin=dict(t=0, b=0, l=0, r=150),
-            annotations=[dict(
-                text=f"<b>{format_currency_int(total)}</b><br>Total ventas",
-                x=0.5, y=0.5, xref='paper', yref='paper',
-                showarrow=False,
-                font=dict(family='Inter', size=12, color=theme_styles['text_color'])
-            )],
+        tbl = dash_table.DataTable(
+            data=rows,
+            columns=columns,
+            sort_action='native',
+            sort_mode='single',
+            style_as_list_view=True,
+            style_table={'border': f'1px solid {border}', 'borderRadius': '10px', 'overflow': 'hidden'},
+            style_header={
+                'backgroundColor': '#34495e', 'color': 'white',
+                'fontFamily': 'Inter', 'fontSize': '12px', 'fontWeight': '600',
+                'textAlign': 'center', 'padding': '10px 14px',
+                'borderBottom': f'2px solid {border}',
+            },
+            style_data={
+                'backgroundColor': bg_paper, 'color': text_main,
+                'fontFamily': 'Inter', 'fontSize': '12px',
+                'borderBottom': f'1px solid {border}',
+            },
+            style_cell={'padding': '9px 14px', 'verticalAlign': 'middle', 'whiteSpace': 'nowrap'},
+            style_cell_conditional=[
+                {'if': {'column_id': 'transferencista'}, 'textAlign': 'left', 'width': '35%'},
+                {'if': {'column_id': 'ventas'},          'textAlign': 'right', 'width': '25%'},
+                {'if': {'column_id': 'pct'},             'textAlign': 'center', 'width': '15%'},
+                {'if': {'column_id': 'facturas'},        'textAlign': 'center', 'width': '12%'},
+                {'if': {'column_id': 'clientes'},        'textAlign': 'center', 'width': '13%'},
+            ],
+            style_data_conditional=[
+                {'if': {'row_index': 'odd'}, 'backgroundColor': bg_even},
+            ],
         )
 
-        return fig
+        # total_label = html.Div(
+        #     f"Total: {format_currency_int(total)}",
+        #     style={'textAlign': 'right', 'fontSize': '12px', 'color': '#7f8c8d',
+        #            'fontFamily': 'Inter', 'marginTop': '8px'}
+        # )
+
+        return html.Div([tbl])
 
     except Exception as e:
         print(f"❌ [update_treemap_transferencistas] Error: {e}")
-        return go.Figure()
+        return html.P("Error cargando datos", style={'color': '#ef4444', 'fontFamily': 'Inter'})
 
 
 @callback(
