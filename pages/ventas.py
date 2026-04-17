@@ -6007,6 +6007,7 @@ def update_tabla_comparativa_admin(session_data, mes, data_store, theme):
                 'tot_clientes': int(r['total_clientes']),
                 'impactados':   int(r['impactados']),
                 'pct_cob':      round(r['pct_cobertura'], 1),
+                'ritmo':        round(r.get('ritmo_necesario', 0), 0),
                 'estado':       _estado3(r['color']),
             })
 
@@ -6027,15 +6028,16 @@ def update_tabla_comparativa_admin(session_data, mes, data_store, theme):
         fmt_pct      = Format(scheme=Scheme.fixed, precision=1)
 
         col_widths = [
-            ('vendedor',     'Vendedor',       'text',    None,         '18%', '140px'),
-            ('cuota',        'Cuota',          'numeric', fmt_currency, '11%', None),
-            ('ventas_netas', 'Venta Neta',     'numeric', fmt_currency, '11%', None),
-            ('cumpl_pct',    '% Cumpl.',       'numeric', fmt_pct,      '8%',  None),
-            ('diferencia',   'Diferencia',     'numeric', fmt_currency, '11%', None),
-            ('devoluciones', 'Devoluciones',   'numeric', fmt_currency, '11%', None),
-            ('pct_dev',      '% Dev',          'numeric', fmt_pct,      '7%',  None),
-            ('tot_clientes', 'Total Clientes', 'numeric', None,         '9%',  None),
-            ('impactados',   'Impactados',     'numeric', None,         '8%',  None),
+            ('vendedor',     'Vendedor',       'text',    None,         '16%', '130px'),
+            ('cuota',        'Cuota',          'numeric', fmt_currency, '10%', None),
+            ('ventas_netas', 'Venta Neta',     'numeric', fmt_currency, '10%', None),
+            ('cumpl_pct',    '% Cumpl.',       'numeric', fmt_pct,      '7%',  None),
+            ('diferencia',   'Diferencia',     'numeric', fmt_currency, '10%', None),
+            ('ritmo',        'Ritmo/día',      'numeric', fmt_currency, '10%', None),
+            ('devoluciones', 'Devoluciones',   'numeric', fmt_currency, '10%', None),
+            ('pct_dev',      '% Dev',          'numeric', fmt_pct,      '6%',  None),
+            ('tot_clientes', 'Total Clientes', 'numeric', None,         '7%',  None),
+            ('impactados',   'Impactados',     'numeric', None,         '7%',  None),
             ('pct_cob',      '% Cobertura',    'numeric', fmt_pct,      '7%',  None),
         ]
 
@@ -6056,35 +6058,35 @@ def update_tabla_comparativa_admin(session_data, mes, data_store, theme):
             {'if': {'row_index': 'odd'}, 'backgroundColor': bg_even},
             # ── Colores de fila por estado ──
             {'if': {'filter_query': '{estado} = "verde"'},
-             'backgroundColor': 'rgba(34,197,94,0.12)'},
+             'backgroundColor': 'rgba(34,197,94,0.42)'},
             {'if': {'filter_query': '{estado} = "naranja"'},
-             'backgroundColor': 'rgba(249,115,22,0.12)'},
+             'backgroundColor': 'rgba(249,205,22,0.42)'},
             {'if': {'filter_query': '{estado} = "rojo"'},
-             'backgroundColor': 'rgba(239,68,68,0.12)'},
+             'backgroundColor': 'rgba(239,68,68,0.42)'},
             # ── % Cumplimiento: color de texto ──
             {'if': {'filter_query': '{estado} = "verde"',   'column_id': 'cumpl_pct'},
-             'color': '#22c55e', 'fontWeight': '700'},
+             'color': '#22a046', 'fontWeight': '700'},
             {'if': {'filter_query': '{estado} = "naranja"', 'column_id': 'cumpl_pct'},
              'color': '#f97316', 'fontWeight': '700'},
             {'if': {'filter_query': '{estado} = "rojo"',    'column_id': 'cumpl_pct'},
              'color': '#ef4444', 'fontWeight': '700'},
             # ── Diferencia ──
             {'if': {'filter_query': '{diferencia} >= 0', 'column_id': 'diferencia'},
-             'color': '#22c55e', 'fontWeight': '600'},
+             'color': '#22a046', 'fontWeight': '600'},
             {'if': {'filter_query': '{diferencia} < 0',  'column_id': 'diferencia'},
              'color': '#ef4444', 'fontWeight': '600'},
             # ── Devoluciones ──
             {'if': {'column_id': 'devoluciones'}, 'color': '#ef4444'},
             # ── % Dev semáforo ──
             {'if': {'filter_query': '{pct_dev} < 3',               'column_id': 'pct_dev'},
-             'color': '#22c55e', 'fontWeight': '600'},
+             'color': '#22a046', 'fontWeight': '600'},
             {'if': {'filter_query': '{pct_dev} >= 3 && {pct_dev} < 6', 'column_id': 'pct_dev'},
              'color': '#f97316', 'fontWeight': '600'},
             {'if': {'filter_query': '{pct_dev} >= 6',              'column_id': 'pct_dev'},
              'color': '#ef4444', 'fontWeight': '600'},
             # ── % Cobertura semáforo ──
             {'if': {'filter_query': '{pct_cob} >= 70',              'column_id': 'pct_cob'},
-             'color': '#22c55e', 'fontWeight': '600'},
+             'color': '#22a046', 'fontWeight': '600'},
             {'if': {'filter_query': '{pct_cob} >= 50 && {pct_cob} < 70', 'column_id': 'pct_cob'},
              'color': '#f97316', 'fontWeight': '600'},
             {'if': {'filter_query': '{pct_cob} < 50',               'column_id': 'pct_cob'},
@@ -6109,6 +6111,8 @@ def update_tabla_comparativa_admin(session_data, mes, data_store, theme):
             },
             style_cell_conditional=cell_cond,
         )
+
+        data_rows = sorted(data_rows, key=lambda r: r['cumpl_pct'], reverse=True)
 
         # ── DataTable principal (con sorting) ──
         tbl_data = dash_table.DataTable(

@@ -1976,6 +1976,11 @@ class VentasAnalyzer:
                 # % devoluciones sobre venta bruta para no distorsionar con la propia devolución
                 pct_dev    = (dev / ventas_bruto * 100) if ventas_bruto > 0 else 0
                 pct_cob    = (impactados / tot_cli * 100) if tot_cli > 0 else 0
+                dias_restantes = max(1, row['dias_mes'] - row['dias_transcurridos'])
+                mes_finalizado = row.get('mes_finalizado', False)
+                faltante = row['cuota'] - ventas_net
+                ritmo_necesario = (faltante / dias_restantes
+                                   if faltante > 0 and not mes_finalizado else 0)
 
                 rows.append({
                     'vendedor':          v,
@@ -1988,6 +1993,7 @@ class VentasAnalyzer:
                     'total_clientes':    tot_cli,
                     'impactados':        impactados,
                     'pct_cobertura':     pct_cob,
+                    'ritmo_necesario':   ritmo_necesario,
                     'progreso_esperado': row['progreso_esperado_pct'],
                     'color':             row['color'],
                 })
