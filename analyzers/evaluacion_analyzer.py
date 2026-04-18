@@ -677,21 +677,14 @@ class EvaluacionAnalyzer:
             months_in_cuotas.sort(reverse=True)
             last_quota_month = months_in_cuotas[0]
 
-            # Get vendors from that month
-            active_vendors = []
+            # cuotas_vendedores[month] keys son códigos de vendedor (no nombres)
+            active_vendor_codes = []
 
             if last_quota_month in cuotas_data and \
                     isinstance(cuotas_data[last_quota_month], dict):
-                active_vendors = list(cuotas_data[last_quota_month].keys())
+                active_vendor_codes = list(cuotas_data[last_quota_month].keys())
 
-            # Get vendor codes for active vendors
-            active_vendor_codes = []
             vendor_name_to_code = {v: k for k, v in vendor_codes.items()}
-
-            for vendor_name in active_vendors:
-                if vendor_name in vendor_name_to_code:
-                    active_vendor_codes.append(
-                        vendor_name_to_code[vendor_name])
 
             # Determine vendors to analyze
             if vendedor == 'Todos':
@@ -708,9 +701,6 @@ class EvaluacionAnalyzer:
 
             for vendor_code in vendors_to_analyze:
                 vendor_name = vendor_codes.get(vendor_code, vendor_code)
-
-                if vendor_name not in active_vendors:
-                    continue
 
                 vendor_data = analisis_data.get(vendor_code, {})
 
