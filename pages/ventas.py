@@ -316,6 +316,71 @@ layout = html.Div([
             'width': '100%'
         }),
 
+        # ── Análisis de Fidelización (solo admin) ────────────────────────────
+        html.Div([
+            html.H3("Análisis de Fidelización de Clientes", style={
+                'textAlign': 'center', 'marginBottom': '4px', 'fontFamily': 'Inter'}),
+            html.P("Índice 0–1 compuesto por regularidad, recencia, consistencia y tendencia de compra",
+                   style={'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 16px 0'}),
+
+            # Filtros
+            html.Div([
+                html.Div([
+                    html.Label("Vendedor", style={'fontSize': '11px', 'color': '#7f8c8d', 'fontFamily': 'Inter'}),
+                    dcc.Dropdown(id='fidel-dropdown-vendedor', options=[], value='Todos',
+                                 clearable=False, style={'fontSize': '12px'}),
+                ], style={'width': '220px', 'marginRight': '16px'}),
+                html.Div([
+                    html.Label("Clasificación", style={'fontSize': '11px', 'color': '#7f8c8d', 'fontFamily': 'Inter'}),
+                    dcc.Dropdown(id='fidel-dropdown-clasificacion', options=[], value='Todos',
+                                 clearable=False, style={'fontSize': '12px'}),
+                ], style={'width': '180px'}),
+            ], style={'display': 'flex', 'alignItems': 'flex-end', 'marginBottom': '20px'}),
+
+            # KPI cards + distribución de categorías (centrados)
+            html.Div(id='fidel-kpi-cards', style={'marginBottom': '20px'}),
+
+            # Fila 1: Scatter ancho completo
+            html.Div([
+                html.H4("Mapa de Fidelización vs Valor",
+                        style={'textAlign': 'center', 'fontSize': '13px', 'fontFamily': 'Inter', 'marginBottom': '4px'}),
+                html.P("Clientes por cuadrante: lealtad vs valor económico",
+                       style={'textAlign': 'center', 'fontSize': '11px', 'color': '#7f8c8d', 'margin': '0 0 8px 0', 'fontFamily': 'Inter'}),
+                dcc.Graph(id='fidel-scatter', style={'height': '400px'}),
+            ], style={'marginBottom': '20px'}),
+
+
+            # Fila 3: Clientes críticos (Dormidos con alto ticket histórico)
+            html.Div([
+                html.H4("Clientes Críticos — Dormidos con Alto Ticket Histórico",
+                        style={'textAlign': 'center', 'fontSize': '13px', 'fontFamily': 'Inter', 'marginBottom': '4px'}),
+                html.P("Clientes que compraban bien y dejaron de hacerlo · prioridad de reactivación",
+                       style={'textAlign': 'center', 'fontSize': '11px', 'color': '#7f8c8d', 'margin': '0 0 12px 0', 'fontFamily': 'Inter'}),
+                html.Div(id='fidel-clientes-criticos'),
+            ], style={'marginBottom': '20px'}),
+
+            # Fila 4: Detalle cliente individual
+            html.Div([
+                html.H4("Evolución Mensual — Cliente Individual",
+                        style={'textAlign': 'center', 'fontSize': '13px', 'fontFamily': 'Inter', 'marginBottom': '8px'}),
+                dcc.Dropdown(id='fidel-dropdown-cliente', options=[], placeholder='Selecciona un cliente…',
+                             style={'fontSize': '12px', 'marginBottom': '12px'}),
+                html.Div([
+                    html.Div([
+                        dcc.Graph(id='fidel-evolucion-cliente', style={'height': '340px'}),
+                    ], style={'width': '65%', 'paddingRight': '16px'}),
+                    html.Div(id='fidel-panel-analisis', style={'width': '35%'}),
+                ], style={'display': 'flex', 'alignItems': 'flex-start'}),
+            ]),
+
+        ], id='ventas-row-fidelizacion-container', style={
+            'borderRadius': '16px',
+            'padding': '24px',
+            'marginBottom': '24px',
+            'boxShadow': '0 8px 32px rgba(0, 0, 0, 0.1)',
+            'width': '100%'
+        }),
+
         html.Div([
             html.Div([
                 html.H3("Evolución de Ventas por Mes", style={
@@ -672,9 +737,11 @@ layout = html.Div([
         # Fila 4: Top Clientes y Clientes Impactados
         html.Div([
             html.Div([
-                html.H3("Top 10 - Clientes por Ventas ($)", style={'textAlign': 'center',
-                        'marginBottom': '20px', 'fontFamily': 'Inter'}),
-                dcc.Graph(id='ventas-top-clientes')
+                html.H3("Comparación de Ventas por Mes del Año", style={'textAlign': 'center',
+                        'marginBottom': '6px', 'fontFamily': 'Inter'}),
+                html.P("Mismo mes comparado entre años · estacionalidad y crecimiento", style={
+                       'textAlign': 'center', 'color': '#7f8c8d', 'fontSize': '12px', 'margin': '0 0 14px 0'}),
+                dcc.Graph(id='ventas-comparacion-mensual')
             ], style={'width': '48%', 'display': 'inline-block', 'margin': '1%'}),
 
             html.Div([
@@ -1704,100 +1771,60 @@ def hex_to_rgba(hex_color, alpha=0.5):
 
 
 @callback(
-    Output('ventas-top-clientes', 'figure'),
+    Output('ventas-comparacion-mensual', 'figure'),
     [Input('session-store', 'data'),
      Input('ventas-dropdown-vendedor', 'value'),
-     Input('ventas-dropdown-mes', 'value'),
-     Input('ventas-data-store', 'data'),  #
+     Input('ventas-data-store', 'data'),
      Input('ventas-theme-store', 'data')]
 )
-def update_top_clientes(session_data, dropdown_value, mes, data_store, theme):
-    """
-    Update top customers chart.
-    """
+def update_comparacion_mensual(session_data, dropdown_value, data_store, theme):
     try:
+        from analyzers.fidelizacion_analyzer import FidelizacionAnalyzer
         vendedor = get_selected_vendor(session_data, dropdown_value)
-        data = analyzer.get_top_clientes(vendedor, mes)
         theme_styles = get_theme_styles(theme)
+        is_dark = theme == 'dark'
+        text_color = theme_styles['text_color']
+        plot_bg = theme_styles['plot_bg']
+        border = '#4b5563' if is_dark else '#e5e7eb'
 
-        if data.empty:
+        fa = FidelizacionAnalyzer()
+        comp_df = fa.get_comparacion_mensual_anual(vendedor, 'Todos')
+
+        if comp_df.empty:
             fig = go.Figure()
-            fig.add_annotation(
-                text="No hay datos disponibles",
-                xref="paper",
-                yref="paper",
-                x=0.5,
-                y=0.5,
-                showarrow=False,
-                font=dict(size=16, color=theme_styles['text_color'])
-            )
-            fig.update_layout(
-                height=400, paper_bgcolor=theme_styles['plot_bg'])
+            fig.add_annotation(text="No hay datos disponibles", xref="paper", yref="paper",
+                               x=0.5, y=0.5, showarrow=False,
+                               font=dict(size=14, color=text_color, family='Inter'))
+            fig.update_layout(height=400, paper_bgcolor=plot_bg, plot_bgcolor=plot_bg)
             return fig
 
-        # Define color palettes
-        base_colors = [
-            "#0077B6", "#00B4D8", "#90E0EF", "#CAF0F8", "#023E8A",
-            "#03045E", "#0096C7", "#48CAE4", "#ADE8F4", "#61A5C2"
-        ]
-        fill_colors = [hex_to_rgba(c, 0.2) for c in base_colors]
-        border_colors = base_colors
+        MONTH_ORDER = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+        YEAR_COLORS = ['#93c5fd', '#3b82f6', '#1d4ed8', '#60a5fa', '#2563eb']
+        years = sorted(comp_df['year'].unique())
 
-        # Prepare data
-        data_sorted = data.sort_values('valor_neto', ascending=True)
-        data_sorted['rank'] = sorted(
-            range(1, len(data_sorted) + 1), reverse=True)
-        data_sorted['short_label'] = [f"#{i}" for i in data_sorted['rank']]
-
-        # Build figure
         fig = go.Figure()
-        for i, row in data_sorted.iterrows():
+        for i, year in enumerate(years):
+            yr_df = comp_df[comp_df['year'] == year].sort_values('month')
             fig.add_trace(go.Bar(
-                x=[row['valor_neto']],
-                y=[row['short_label']],
-                orientation='h',
-                marker=dict(
-                    color=fill_colors[i % len(fill_colors)],
-                    line=dict(color=border_colors[i %
-                              len(border_colors)], width=1.5)
-                ),
-                text=[row['cliente_completo'][:70] +
-                      "..." if len(row['cliente_completo']) > 70 else row['cliente_completo']],
-                textposition='inside',
-                textfont=dict(color=theme_styles['text_color'], size=10),
-                hovertemplate=(
-                    f"<b>{row['cliente_completo'][:70] + "..." if len(row['cliente_completo']) > 70 else row['cliente_completo']}</b><br>"
-                    f"Ventas: {format_currency_int(row['valor_neto'])}<br>"
-                    f"Facturas: {row['documento_id']}<extra></extra>"
-                ),
-                showlegend=False
+                x=yr_df['month_label'], y=yr_df['ventas'],
+                name=str(year),
+                marker_color=YEAR_COLORS[i % len(YEAR_COLORS)],
+                hovertemplate=f'{year} · %{{x}}<br>$%{{y:,.0f}}<extra></extra>',
             ))
 
-        # Layout
         fig.update_layout(
-            height=400,
-            plot_bgcolor=theme_styles['plot_bg'],
-            paper_bgcolor=theme_styles['plot_bg'],
-            font=dict(family="Inter", size=12,
-                      color=theme_styles['text_color']),
-            xaxis=dict(
-                tickformat='$,.0f',
-                showgrid=True,
-                gridcolor=theme_styles['grid_color'],
-                title="Ventas"
-            ),
-            yaxis=dict(
-                title="Ranking",
-                categoryorder='array',
-                categoryarray=data_sorted['short_label']
-            ),
-            margin=dict(t=20, b=40, l=80, r=80)
+            barmode='group', height=400,
+            paper_bgcolor=plot_bg, plot_bgcolor=plot_bg,
+            font=dict(family='Inter', size=11, color=text_color),
+            xaxis=dict(gridcolor=border, categoryorder='array', categoryarray=MONTH_ORDER),
+            yaxis=dict(title='Ventas ($)', gridcolor=border, tickformat='$,.2s'),
+            legend=dict(orientation='h', yanchor='bottom', y=1.01, xanchor='left', x=0),
+            margin=dict(t=40, b=40, l=60, r=20),
         )
-
         return fig
 
     except Exception as e:
-        print(f"❌ [update_top_clientes] Error: {e}")
+        print(f"❌ [update_comparacion_mensual] Error: {e}")
         return go.Figure()
 
 
@@ -4301,6 +4328,7 @@ def update_card_styles(theme):
      Output('ventas-row1-2-container', 'style'),
      Output('ventas-row-cumplimiento-container', 'style'),
      Output('ventas-row-tabla-comparativa-container', 'style'),
+     Output('ventas-row-fidelizacion-container', 'style'),
      Output('ventas-row-nueva-treemap', 'style'),
      Output('ventas-row1-5-container', 'style'),
      Output('ventas-row2-container', 'style'),
@@ -4414,6 +4442,7 @@ def update_container_styles_simple(theme, session_data):
         comparativa_style,             # ventas-row1-2-container (solo admin)
         cumplimiento_style,            # ventas-row-cumplimiento-container
         base_style if is_admin else hidden_completely,  # ventas-row-tabla-comparativa-container
+        base_style if is_admin else hidden_completely,  # ventas-row-fidelizacion-container
         base_style,                    # ventas-row-nueva-treemap
         # ventas-row1-5-container (siempre visible)
         base_style,
@@ -7253,3 +7282,402 @@ def update_modern_fletes_table(
     transform: translateX(4px);
 }
 """
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CALLBACKS — Análisis de Fidelización
+# ══════════════════════════════════════════════════════════════════════════════
+
+@callback(
+    [Output('fidel-dropdown-vendedor', 'options'),
+     Output('fidel-dropdown-clasificacion', 'options'),
+     Output('fidel-dropdown-clasificacion', 'value'),
+     Output('fidel-dropdown-cliente', 'options')],
+    Input('session-store', 'data'),
+)
+def fidel_populate_dropdowns(session_data):
+    try:
+        from analyzers.fidelizacion_analyzer import FidelizacionAnalyzer
+        fa = FidelizacionAnalyzer()
+        vendedores, clasificaciones = fa.get_listas_filtros()
+        raw = fa.load_data()
+
+        opts_v = [{'label': 'Todos', 'value': 'Todos'}] + [{'label': v, 'value': v} for v in vendedores]
+        opts_c = [{'label': 'Todos', 'value': 'Todos'}] + [{'label': c, 'value': c} for c in clasificaciones]
+        default_clf = 'Antiguo' if 'Antiguo' in clasificaciones else 'Todos'
+        opts_cli = sorted(
+            [{'label': d.get('cliente', cid), 'value': cid} for cid, d in raw.items()],
+            key=lambda x: x['label']
+        )
+        return opts_v, opts_c, default_clf, opts_cli
+    except Exception as e:
+        print(f"❌ [fidel_populate_dropdowns] {e}")
+        return [{'label': 'Todos', 'value': 'Todos'}], [{'label': 'Todos', 'value': 'Todos'}], 'Todos', []
+
+
+@callback(
+    [Output('fidel-kpi-cards', 'children'),
+     Output('fidel-scatter', 'figure'),
+     Output('fidel-clientes-criticos', 'children')],
+    [Input('session-store', 'data'),
+     Input('fidel-dropdown-vendedor', 'value'),
+     Input('fidel-dropdown-clasificacion', 'value'),
+     Input('ventas-theme-store', 'data')],
+)
+def fidel_update_main(session_data, vendedor, clasificacion, theme):
+    from analyzers.fidelizacion_analyzer import FidelizacionAnalyzer
+    from utils import can_see_all_vendors
+
+    empty_fig  = go.Figure()
+    empty_kpi  = html.Div()
+    empty_div  = html.Div()
+
+    def _empty():
+        return (empty_kpi, empty_fig, empty_div)
+
+    try:
+        if not can_see_all_vendors(session_data):
+            return _empty()
+
+        theme_styles = get_theme_styles(theme)
+        is_dark   = theme == 'dark'
+        text_color = theme_styles['text_color']
+        plot_bg   = theme_styles['plot_bg']
+        paper_bg  = theme_styles['paper_color']
+        border    = '#4b5563' if is_dark else '#e5e7eb'
+        bg_even   = 'rgba(255,255,255,0.03)' if is_dark else 'rgba(0,0,0,0.015)'
+
+        fa  = FidelizacionAnalyzer()
+        vnd = vendedor or 'Todos'
+        clf = clasificacion or 'Todos'
+        df  = fa.get_resumen(vnd, clf)
+
+        if df.empty:
+            msg = html.P("Sin datos de fidelización",
+                         style={'textAlign': 'center', 'color': '#7f8c8d', 'fontFamily': 'Inter'})
+            return (msg, empty_fig, empty_div)
+
+        CAT_COLORS = {
+            'Fiel Creciente': '#0d9488',
+            'Fiel':           '#22c55e',
+            'Activo':         '#3b82f6',
+            'En riesgo':      '#f59e0b',
+            'Dormido':        '#ef4444',
+        }
+        cat_order  = ['Fiel Creciente', 'Fiel', 'Activo', 'En riesgo', 'Dormido']
+        total      = len(df)
+
+        # ── KPI cards + distribución ────────────────────────────────────────
+        avg_idx = df['indice'].mean()
+        cat_counts = df['categoria'].value_counts().reindex(cat_order, fill_value=0)
+        cat_pcts   = (cat_counts / total * 100).round(1)
+
+        def kpi_card(label, value, color, sub=None):
+            return html.Div([
+                html.Div(value, style={'fontSize': '20px', 'fontWeight': '700',
+                                       'color': color, 'fontFamily': 'Inter'}),
+                html.Div(label, style={'fontSize': '11px', 'color': '#7f8c8d', 'fontFamily': 'Inter'}),
+                *([html.Div(sub, style={'fontSize': '10px', 'color': color, 'fontFamily': 'Inter', 'marginTop': '2px'})]
+                  if sub else []),
+            ], style={
+                'backgroundColor': paper_bg, 'border': f'1px solid {border}',
+                'borderLeft': f'3px solid {color}',
+                'borderRadius': '10px', 'padding': '12px 16px',
+                'textAlign': 'center', 'flex': '1',
+            })
+
+        dist_cards = [
+            kpi_card(cat, str(int(cat_counts[cat])), CAT_COLORS[cat], f"{cat_pcts[cat]:.1f}%")
+            for cat in cat_order
+        ]
+
+        kpis = html.Div([
+            kpi_card("Total clientes",  f"{total:,}",      text_color),
+            kpi_card("Índice promedio", f"{avg_idx:.2f}",  '#3b82f6'),
+            html.Div(style={'width': '1px', 'backgroundColor': border, 'margin': '0 8px'}),
+            *dist_cards,
+        ], style={'display': 'flex', 'gap': '10px', 'flexWrap': 'wrap', 'alignItems': 'stretch', 'width': '100%'})
+
+        # ── Scatter cuadrantes ──────────────────────────────────────────────
+        scatter_fig = go.Figure()
+        for cat, color in CAT_COLORS.items():
+            sub = df[df['categoria'] == cat]
+            if sub.empty: continue
+            scatter_fig.add_trace(go.Scatter(
+                x=sub['ventas_promedio'], y=sub['indice'],
+                mode='markers', name=cat,
+                marker=dict(color=color, size=8, opacity=0.75, line=dict(color='white', width=0.5)),
+                text=sub['cliente'],
+                customdata=sub[['regularidad', 'recencia', 'consistencia', 'tendencia', 'meses_activos', 'vendedor']].values,
+                hovertemplate=(
+                    "<b>%{text}</b><br>Índice: %{y:.2f}<br>Venta prom.: $%{x:,.0f}<br>"
+                    "Regularidad: %{customdata[0]:.2f} · Recencia: %{customdata[1]:.2f}<br>"
+                    "Consistencia: %{customdata[2]:.2f} · Meses activos: %{customdata[4]}<br>"
+                    "Vendedor: %{customdata[5]}<extra></extra>"
+                ),
+            ))
+        median_v = df['ventas_promedio'].median()
+        q90_v    = df['ventas_promedio'].quantile(0.9)
+        scatter_fig.add_hline(y=0.55, line=dict(color='#6b7280', dash='dot', width=1))
+        scatter_fig.add_vline(x=median_v, line=dict(color='#6b7280', dash='dot', width=1))
+        for x_ann, y_ann, txt, col in [
+            (median_v * 0.05, 0.97, "Alta lealtad<br>Bajo valor",  '#9ca3af'),
+            (q90_v,           0.97, "<b>Champions</b>",            '#22c55e'),
+            (median_v * 0.05, 0.02, "Dormidos",                    '#ef4444'),
+            (q90_v,           0.02, "Alto valor<br>Baja lealtad",  '#f59e0b'),
+        ]:
+            scatter_fig.add_annotation(x=x_ann, y=y_ann, xref='x', yref='paper',
+                                       text=txt, showarrow=False,
+                                       font=dict(size=9, color=col))
+        scatter_fig.update_layout(
+            paper_bgcolor=plot_bg, plot_bgcolor=plot_bg,
+            font=dict(family='Inter', size=11, color=text_color),
+            xaxis=dict(title='Venta promedio mensual ($)', gridcolor=border, tickformat='$,.0f'),
+            yaxis=dict(title='Índice de fidelización', gridcolor=border, range=[0, 1.05]),
+            legend=dict(orientation='h', yanchor='bottom', y=1.01, xanchor='left', x=0),
+            margin=dict(t=40, b=40, l=60, r=20), height=380,
+        )
+
+        # ── Clientes críticos ───────────────────────────────────────────────
+        criticos_df = fa.get_clientes_criticos(top_n=15)
+        if criticos_df.empty:
+            criticos_widget = html.P("Sin clientes dormidos con alto ticket.",
+                                     style={'color': '#7f8c8d', 'fontFamily': 'Inter', 'fontSize': '12px'})
+        else:
+            from dash.dash_table.Format import Format, Scheme, Group, Symbol
+            fmt_cur = Format(scheme=Scheme.fixed, precision=0, group=Group.yes, groups=3,
+                             group_delimiter=',', decimal_delimiter='.', symbol=Symbol.yes, symbol_prefix='$')
+            fmt_pct = Format(scheme=Scheme.fixed, precision=2)
+
+            rows_c = []
+            for _, r in criticos_df.iterrows():
+                try:
+                    last_label = pd.to_datetime(str(r['ultimo_mes']), format='%Y%m').strftime('%b %Y')
+                except Exception:
+                    last_label = str(r['ultimo_mes'])
+                rows_c.append({
+                    'cliente':        r['cliente'],
+                    'vendedor':       r['vendedor'],
+                    'clasificacion':  r['clasificacion'],
+                    'ticket_prom':    round(r['ventas_promedio'], 0),
+                    'ventas_total':   round(r['ventas_total'], 0),
+                    'meses_activos':  int(r['meses_activos']),
+                    'ultimo_mes':     last_label,
+                    'indice':         round(r['indice'], 3),
+                })
+
+            criticos_widget = dash_table.DataTable(
+                data=rows_c,
+                columns=[
+                    {'name': 'Cliente',       'id': 'cliente',       'type': 'text'},
+                    {'name': 'Vendedor',      'id': 'vendedor',      'type': 'text'},
+                    {'name': 'Clasificación', 'id': 'clasificacion', 'type': 'text'},
+                    {'name': 'Ticket prom.',  'id': 'ticket_prom',   'type': 'numeric', 'format': fmt_cur},
+                    {'name': 'Venta total',   'id': 'ventas_total',  'type': 'numeric', 'format': fmt_cur},
+                    {'name': 'Meses activos', 'id': 'meses_activos', 'type': 'numeric'},
+                    {'name': 'Último mes',    'id': 'ultimo_mes',    'type': 'text'},
+                    {'name': 'Índice',        'id': 'indice',        'type': 'numeric', 'format': fmt_pct},
+                ],
+                sort_action='native', sort_mode='single',
+                style_as_list_view=True,
+                style_table={'border': f'1px solid {border}', 'borderRadius': '10px', 'overflow': 'hidden'},
+                style_header={
+                    'backgroundColor': '#34495e', 'color': 'white',
+                    'fontFamily': 'Inter', 'fontSize': '11px', 'fontWeight': '600',
+                    'textAlign': 'center', 'padding': '9px 12px',
+                    'borderBottom': f'2px solid {border}',
+                },
+                style_data={
+                    'backgroundColor': paper_bg, 'color': text_color,
+                    'fontFamily': 'Inter', 'fontSize': '11px',
+                    'borderBottom': f'1px solid {border}',
+                },
+                style_cell={'padding': '7px 12px', 'verticalAlign': 'middle', 'whiteSpace': 'nowrap'},
+                style_cell_conditional=[
+                    {'if': {'column_id': 'cliente'},       'textAlign': 'left', 'width': '22%'},
+                    {'if': {'column_id': 'vendedor'},      'textAlign': 'left', 'width': '16%'},
+                    {'if': {'column_id': 'clasificacion'}, 'textAlign': 'center', 'width': '10%'},
+                    {'if': {'column_id': 'ticket_prom'},   'textAlign': 'right',  'width': '13%'},
+                    {'if': {'column_id': 'ventas_total'},  'textAlign': 'right',  'width': '13%'},
+                    {'if': {'column_id': 'meses_activos'}, 'textAlign': 'center', 'width': '9%'},
+                    {'if': {'column_id': 'ultimo_mes'},    'textAlign': 'center', 'width': '10%'},
+                    {'if': {'column_id': 'indice'},        'textAlign': 'center', 'width': '7%'},
+                ],
+                style_data_conditional=[
+                    {'if': {'row_index': 'odd'}, 'backgroundColor': bg_even},
+                    {'if': {'column_id': 'indice'}, 'color': '#ef4444', 'fontWeight': '700'},
+                    {'if': {'column_id': 'ticket_prom'}, 'color': '#f59e0b', 'fontWeight': '600'},
+                ],
+            )
+
+        return kpis, scatter_fig, criticos_widget
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"❌ [fidel_update_main] {e}")
+        return _empty()
+
+
+@callback(
+    [Output('fidel-evolucion-cliente', 'figure'),
+     Output('fidel-panel-analisis', 'children')],
+    [Input('fidel-dropdown-cliente', 'value'),
+     Input('ventas-theme-store', 'data')],
+)
+def fidel_evolucion_cliente(cliente_id, theme):
+    empty_fig = go.Figure()
+    empty_panel = html.Div()
+    if not cliente_id:
+        return empty_fig, empty_panel
+    try:
+        from analyzers.fidelizacion_analyzer import FidelizacionAnalyzer
+        theme_styles = get_theme_styles(theme)
+        is_dark = theme == 'dark'
+        text_color = theme_styles['text_color']
+        plot_bg = theme_styles['plot_bg']
+        paper_bg = theme_styles['paper_color']
+        border = '#4b5563' if is_dark else '#e5e7eb'
+
+        fa = FidelizacionAnalyzer()
+        raw = fa.load_data()
+        cdata = raw.get(str(cliente_id), {})
+        df = fa.get_evolucion_cliente(cliente_id)
+        all_months = sorted({m for d in raw.values() for m in d.get('ventas', {})})
+        metricas = fa._compute_indice(cdata.get('ventas', {}), all_months)
+        cliente_nombre = cdata.get('cliente', cliente_id)
+        indice = metricas['indice']
+        categoria = fa._categoria(indice, metricas['tendencia'], metricas['meses_activos'])
+
+        # ── Gráfico evolución ──────────────────────────────────────────────
+        fig = go.Figure()
+        if not df.empty:
+            fig.add_trace(go.Bar(
+                x=df['mes_label'], y=df['ventas'],
+                name='Ventas',
+                marker_color='rgba(59,130,246,0.55)',
+                marker_line_color='#3b82f6', marker_line_width=1,
+                hovertemplate='%{x}<br>$%{y:,.0f}<extra></extra>',
+            ))
+            if len(df) >= 3:
+                x_num = np.arange(len(df))
+                coef = np.polyfit(x_num, df['ventas'].values, 1)
+                trend = np.polyval(coef, x_num)
+                slope_pct = (coef[0] / df['ventas'].mean() * 100) if df['ventas'].mean() > 0 else 0
+                fig.add_trace(go.Scatter(
+                    x=df['mes_label'], y=trend,
+                    mode='lines', name=f'Tendencia ({slope_pct:+.1f}%/mes)',
+                    line=dict(color='#f59e0b', width=2, dash='dash'),
+                    hoverinfo='skip',
+                ))
+
+        cat_color = {'Fiel Creciente': '#0d9488', 'Fiel': '#22c55e', 'Activo': '#3b82f6', 'En riesgo': '#f59e0b', 'Dormido': '#ef4444'}
+        fig.update_layout(
+            title=dict(
+                text=f"<b>{cliente_nombre}</b>",
+                font=dict(size=12, family='Inter'), x=0.5,
+            ),
+            paper_bgcolor=plot_bg, plot_bgcolor=plot_bg,
+            font=dict(family='Inter', size=11, color=text_color),
+            xaxis=dict(gridcolor=border, tickangle=-30),
+            yaxis=dict(title='Ventas ($)', gridcolor=border, tickformat='$,.0f'),
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+            margin=dict(t=50, b=40, l=70, r=20),
+            height=340,
+        )
+
+        # ── Panel de análisis ──────────────────────────────────────────────
+        clf = cdata.get('clasificacion', '—')
+        vendedor = cdata.get('vendedor', '—')
+        fecha = cdata.get('fecha_creacion', '—')
+
+        def metric_row(label, value, bar_pct, color):
+            return html.Div([
+                html.Div([
+                    html.Span(label, style={'fontSize': '11px', 'color': '#7f8c8d', 'fontFamily': 'Inter'}),
+                    html.Span(f'{value:.2f}', style={'fontSize': '11px', 'fontWeight': '700',
+                                                      'color': color, 'fontFamily': 'Inter', 'float': 'right'}),
+                ], style={'display': 'flex', 'justifyContent': 'space-between', 'marginBottom': '2px'}),
+                html.Div(html.Div(style={
+                    'width': f'{bar_pct*100:.0f}%', 'height': '5px',
+                    'backgroundColor': color, 'borderRadius': '3px',
+                }), style={'backgroundColor': border, 'borderRadius': '3px', 'marginBottom': '8px'}),
+            ])
+
+        ventas_vals = list(cdata.get('ventas', {}).values())
+        v_prom = format_currency_int(metricas['ventas_promedio']) if ventas_vals else '—'
+        v_max  = format_currency_int(max(ventas_vals)) if ventas_vals else '—'
+        v_min  = format_currency_int(min(ventas_vals)) if ventas_vals else '—'
+
+        # Tendencia texto
+        if not df.empty and len(df) >= 3:
+            x_num = np.arange(len(df))
+            coef = np.polyfit(x_num, df['ventas'].values, 1)
+            slope_pct = coef[0] / df['ventas'].mean() * 100 if df['ventas'].mean() > 0 else 0
+            tend_txt = f"↑ Creciendo ({slope_pct:+.1f}%/mes)" if slope_pct > 1 else \
+                       f"↓ Decreciendo ({slope_pct:+.1f}%/mes)" if slope_pct < -1 else "→ Estable"
+            tend_color = '#22c55e' if slope_pct > 1 else '#ef4444' if slope_pct < -1 else '#6b7280'
+        else:
+            tend_txt, tend_color = '—', '#6b7280'
+
+        panel = html.Div([
+            # Índice destacado
+            html.Div([
+                html.Div(f'{indice:.2f}', style={
+                    'fontSize': '36px', 'fontWeight': '800',
+                    'color': cat_color.get(categoria, '#6b7280'), 'fontFamily': 'Inter',
+                    'lineHeight': '1',
+                }),
+                html.Div(categoria, style={
+                    'fontSize': '13px', 'fontWeight': '600',
+                    'color': cat_color.get(categoria, '#6b7280'), 'fontFamily': 'Inter',
+                    'marginTop': '2px',
+                }),
+                html.Div("Índice de Fidelización", style={'fontSize': '10px', 'color': '#9ca3af', 'fontFamily': 'Inter'}),
+            ], style={'textAlign': 'center', 'marginBottom': '16px',
+                      'padding': '12px', 'borderRadius': '10px',
+                      'border': f'2px solid {cat_color.get(categoria, border)}',
+                      'backgroundColor': f'{cat_color.get(categoria, "#6b7280")}15'}),
+
+            # Info básica
+            html.Div([
+                html.Div([html.Span("Clasificación: ", style={'color': '#9ca3af', 'fontSize': '11px', 'fontFamily': 'Inter'}),
+                          html.Span(clf, style={'fontWeight': '600', 'fontSize': '11px', 'fontFamily': 'Inter', 'color': text_color})]),
+                html.Div([html.Span("Vendedor: ", style={'color': '#9ca3af', 'fontSize': '11px', 'fontFamily': 'Inter'}),
+                          html.Span(vendedor, style={'fontWeight': '600', 'fontSize': '11px', 'fontFamily': 'Inter', 'color': text_color})]),
+                html.Div([html.Span("Cliente desde: ", style={'color': '#9ca3af', 'fontSize': '11px', 'fontFamily': 'Inter'}),
+                          html.Span(fecha, style={'fontWeight': '600', 'fontSize': '11px', 'fontFamily': 'Inter', 'color': text_color})]),
+                html.Div([html.Span("Meses activos: ", style={'color': '#9ca3af', 'fontSize': '11px', 'fontFamily': 'Inter'}),
+                          html.Span(f"{metricas['meses_activos']} de {len(all_months)}",
+                                    style={'fontWeight': '600', 'fontSize': '11px', 'fontFamily': 'Inter', 'color': text_color})]),
+            ], style={'marginBottom': '14px', 'display': 'flex', 'flexDirection': 'column', 'gap': '4px'}),
+
+            # Dimensiones del índice
+            html.Div("Componentes del índice:", style={'fontSize': '11px', 'color': '#9ca3af',
+                                                        'fontFamily': 'Inter', 'marginBottom': '6px'}),
+            metric_row("Regularidad",   metricas['regularidad'],   metricas['regularidad'],   '#3b82f6'),
+            metric_row("Recencia",      metricas['recencia'],      metricas['recencia'],      '#8b5cf6'),
+            metric_row("Consistencia",  metricas['consistencia'],  metricas['consistencia'],  '#06b6d4'),
+            metric_row("Tendencia",     metricas['tendencia'],     metricas['tendencia'],     '#f59e0b'),
+
+            # Stats ventas
+            html.Hr(style={'border': f'1px solid {border}', 'margin': '10px 0'}),
+            html.Div([
+                html.Div([html.Span("Venta promedio: ", style={'color': '#9ca3af', 'fontSize': '11px', 'fontFamily': 'Inter'}),
+                          html.Span(v_prom, style={'fontWeight': '600', 'fontSize': '11px', 'fontFamily': 'Inter', 'color': text_color})]),
+                html.Div([html.Span("Máximo mes: ", style={'color': '#9ca3af', 'fontSize': '11px', 'fontFamily': 'Inter'}),
+                          html.Span(v_max, style={'fontWeight': '600', 'fontSize': '11px', 'fontFamily': 'Inter', 'color': '#22c55e'})]),
+                html.Div([html.Span("Mínimo mes: ", style={'color': '#9ca3af', 'fontSize': '11px', 'fontFamily': 'Inter'}),
+                          html.Span(v_min, style={'fontWeight': '600', 'fontSize': '11px', 'fontFamily': 'Inter', 'color': '#ef4444'})]),
+                html.Div([html.Span("Tendencia: ", style={'color': '#9ca3af', 'fontSize': '11px', 'fontFamily': 'Inter'}),
+                          html.Span(tend_txt, style={'fontWeight': '600', 'fontSize': '11px', 'fontFamily': 'Inter', 'color': tend_color})]),
+            ], style={'display': 'flex', 'flexDirection': 'column', 'gap': '4px'}),
+        ], style={
+            'backgroundColor': paper_bg, 'border': f'1px solid {border}',
+            'borderRadius': '12px', 'padding': '16px',
+        })
+
+        return fig, panel
+
+    except Exception as e:
+        print(f"❌ [fidel_evolucion_cliente] {e}")
+        return empty_fig, empty_panel
